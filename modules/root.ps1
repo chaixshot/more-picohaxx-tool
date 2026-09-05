@@ -150,7 +150,7 @@ function Prepare-Firmware {
         }
         Write-Host " [${cCyan}0${cReset}] Cancel"
 
-        $choice = Read-Host "`nChoice"
+        $choice = Read-HostLog "Choice"
         if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return }
 
         if ([int]::TryParse($choice, [ref]$null) -and [int]$choice -le $options.Count) {
@@ -364,7 +364,7 @@ function Show-RootMenu {
         Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
-        $choice = Read-Host "`nSelect an option"
+        $choice = Read-HostLog "Select an option"
 
         switch ($choice) {
             "1" {

@@ -728,7 +728,7 @@ try {
         Write-Host " [${cCyan}b${cReset}] Backup/Resotre"
         Write-Host " [${cCyan}0${cReset}] Exit"
 
-        $choice = Read-Host "`nSelect an option"
+        $choice = Read-HostLog "Select an option"
 
         switch ($choice) {
             "1" {

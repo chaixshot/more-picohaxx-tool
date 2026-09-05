@@ -48,10 +48,12 @@ function Select-BackupFolder {
             $folder = $backupFolders[$i]
             Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
         }
-        $selection = Read-Host "`nSelect a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}] or paste folder path, [${cCyan}c${cReset}] to cancel"
+        $selection = Read-HostLog "Select a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}] or paste folder path, [${cCyan}c${cReset}] to cancel"
     } else {
         Write-Log "No backup folders found in default directories." "Warning"
-        $selection = Read-Host "`nPaste your backup folder path here, or [${cCyan}c${cReset}] to cancel"
+        
+        # Prompt using colored helper
+        $selection = Read-HostLog "Paste your backup folder path here, or [${cCyan}c${cReset}] to cancel"
     }
 
     if ($selection -eq 'c') {
@@ -394,7 +396,7 @@ function Folder-Compression([string]$folderPath) {
     Write-Host ""
 
     Write-Host "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
-    $confirmation = Read-Host "To proceed, type ${cYellow}'YES'${cReset} and press Enter"
+    $confirmation = Read-HostLog "To proceed, type ${cYellow}'YES'${cReset} and press Enter"
 
     if ($confirmation -eq 'YES') {
         Write-Host ""
@@ -484,7 +486,7 @@ function Select-BackupMode {
     Write-Host "     ${cGray}-> Balanced safety and manageable size (~10-15 GB).${cReset}"
     Write-Host ""
 
-    $choice = Read-Host "Select an option"
+    $choice = Read-HostLog "Select an option"
 
     if ($choice -eq "1") {
         return "luns"
@@ -607,7 +609,7 @@ function Show-BackupRestoreMenu {
         Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
-        $choice = Read-Host "`nSelect an option"
+        $choice = Read-HostLog "Select an option"
 
         switch ($choice) {
             "1" {

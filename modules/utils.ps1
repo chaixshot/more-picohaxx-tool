@@ -46,6 +46,22 @@ function Write-Log([string]$message, [string]$type = "Info") {
     Write-Host "${Color}[$type] ${cReset}$message"
 }
 
+function Read-HostLog([string]$prompt) {
+    [Console]::Write("`n${prompt}: ${cGreen}")
+
+    $inputResult = [Console]::ReadLine()
+
+    [Console]::Write($cReset)
+
+    # Force transcript stream capture without displaying text to the screen
+    & {
+        $InformationPreference = 'Continue'
+        Write-Information "`n> ${prompt}: ${inputResult}"
+    } 6>$null
+
+    return $inputResult
+}
+
 function Clean-LogFormat {
     param([string]$LogFile)
 
@@ -265,7 +281,7 @@ function Select-Firehose {
         Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
         Write-Host " [${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
 
-        $fhChoice = Read-Host "`nSelect your device model to use the correct firehose"
+        $fhChoice = Read-HostLog "Select your device model to use the correct firehose"
 
         if ($fhChoice -in "1", "") {
             $script:FirehoseTargetPath = $FirehoseDDR4Path
@@ -359,7 +375,7 @@ function Perform-Reboot {
         return
     }
 
-    $choice = Read-Host "Select an option"
+    $choice = Read-HostLog "Select an option"
 
     if (IsFastbootMode) {
         if ($choice -eq "1") {
