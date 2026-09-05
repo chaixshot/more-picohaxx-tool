@@ -64,7 +64,7 @@ function Select-BackupFolder {
         $pastedPath = (Get-Item -Path $selection).FullName
         $detectedType = $null
 
-        foreach ($type in @("luns", "userdata", "partitions")) {
+        foreach ($type in @("luns", "userdata", "partitions", "downgrade", "downgradeDDR5")) {
             if (Verify-Backup -backupMode $type -folderPath $pastedPath -silent) {
                 $detectedType = $type
                 break
@@ -80,7 +80,6 @@ function Select-BackupFolder {
             }
         } else {
             Write-Log "The provided folder does not contain a valid backup set." "Error"
-            Wait-Continue
             return $null
         }
     }
@@ -335,6 +334,26 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
         }
     }
 
+    if ($backupMode -eq "downgrade") {
+        $partitonsFiles = @("lun0_recovery.bin", "lun0_super.bin", "lun0_vbmeta_system.bin", "lun0_vbmeta_systembak.bin", "lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin", "lun4_abl.bin", "lun4_ablbak.bin", "lun4_aop.bin", "lun4_aopbak.bin", "lun4_bluetooth.bin", "lun4_bluetoothbak.bin", "lun4_boot.bin", "lun4_bootbak.bin", "lun4_cmnlib.bin", "lun4_cmnlib64.bin", "lun4_cmnlib64bak.bin", "lun4_cmnlibbak.bin", "lun4_devcfg.bin", "lun4_devcfgbak.bin", "lun4_dsp.bin", "lun4_dspbak.bin", "lun4_dtbo.bin", "lun4_dtbobak.bin", "lun4_hyp.bin", "lun4_hypbak.bin", "lun4_imagefv.bin", "lun4_imagefvbak.bin", "lun4_modem.bin", "lun4_modembak.bin", "lun4_qupfw.bin", "lun4_qupfwbak.bin", "lun4_tz.bin", "lun4_tzbak.bin", "lun4_vbmeta.bin", "lun4_vbmetabak.bin")
+        foreach ($file in $partitonsFiles) {
+            if (-not (Test-Path -Path (Join-Path $folderPath $file))) {
+                $verifySuccess = $false
+                break
+            }
+        }
+    }
+    
+    if ($backupMode -eq "downgradeDDR5") {
+        $partitonsFiles = @("lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin")
+        foreach ($file in $partitonsFiles) {
+            if (-not (Test-Path -Path (Join-Path $folderPath $file))) {
+                $verifySuccess = $false
+                break
+            }
+        }
+    }
+
     if (-not $verifySuccess) {
         if (-not $silent) { Write-Log "Backup verification failed: required backup sets are missing." "Error" }
         return $false
@@ -344,7 +363,7 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
     $sizeGB = $folderSize / 1GB
     $sizeFormatted = "{0:N2}" -f $sizeGB
 
-    if ($sizeGB -le 10) {
+    if ($sizeGB -le 9) {
         if (-not $silent) { Write-Log "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is not greater than 10GB." "Error" }
         return $false
     }
