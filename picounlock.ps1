@@ -100,8 +100,7 @@ function Check-Prerequisites {
     if ($qdlDrivers) {
         Write-Log "Found legacy/conflicting driver '${cYellow}qdl_winusb.inf${cReset}' installed." "Warning"
         Write-Log "This driver is known to cause issues with current EDL flashing tools." "Info"
-        Write-Host "Do you want to ${cRed}delete${cReset} it? (${cCyan}y${cReset}/n): " -NoNewline
-        $deleteChoice = Read-Host
+        $deleteChoice = Read-HostLog "Do you want to ${cRed}delete${cReset} it? (${cCyan}y${cReset}/n)"
         if ($deleteChoice -eq 'y') {
             foreach ($match in $qdlDrivers) {
                 # Extract oemXX.inf from the line above the match
@@ -171,9 +170,8 @@ function Check-Prerequisites {
 
         Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
         $actionVerb = if ($needsUpdate) { "update" } else { "install" }
-        Write-Host "`nPress ${cCyan}Y${cReset} to $actionVerb the drivers now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges): " -NoNewline
 
-        $choice = Read-Host
+        $choice = Read-HostLog "Press ${cCyan}Y${cReset} to $actionVerb the drivers now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges)"
         if ($choice -eq 'Y' -or $choice -eq 'y') {
             if (-not (Test-Path $DriverInstall)) {
                 Write-Log "Driver installation script not found at '${cYellow}$DriverInstall${cReset}'." "Error"
@@ -242,12 +240,11 @@ function Generate-UnlockCode {
 
 function Flash-EngineeringAbl {
     Write-Header "Flashing Engineering ABL & Devinfo via EDL"
-    Write-Log "This step will reboot your device into ${cCyan}EDL (Emergency Download)${cReset} mode to flash engineering files." "Warning"
+    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
     Write-Log "This is a critical part of the unlock process." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-    Write-Host "`nTo proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $confirmation = Read-Host
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
     if ($confirmation -ne 'YES') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return
@@ -335,8 +332,7 @@ function Restore-OriginalAbl {
     $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
 
     Write-Log "Target backup folder: ${cGreen}$backupFolder${cReset}" "Info"
-    Write-Host "`nAre you sure you want to flash this backup? (Type ${cYellow}'YES'${cReset}): " -NoNewline
-    $confirmation = Read-Host
+    $confirmation = Read-HostLog "Are you sure you want to flash this backup? (Type ${cYellow}'YES'${cReset})"
     if ($confirmation -ne 'YES') {
         Write-Log "Restore aborted by user." "Warning"
         return
@@ -396,8 +392,7 @@ function Get-LatestAblBackup([string]$FileName = "abl.bin") {
             for ($i = 0; $i -lt $folders.Count; $i++) {
                 Write-Host " [${cCyan}$i${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
             }
-            Write-Host "`nSelect a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, [${cYellow}c${cReset}] to cancel): " -NoNewline
-            $selection = Read-Host
+            $selection = Read-HostLog "Select a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, [${cYellow}c${cReset}] to cancel)"
 
             if ( [string]::IsNullOrWhiteSpace($selection)) {
                 $selection = "0"
@@ -442,8 +437,7 @@ function Perform-FastbootUnlock {
         Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
         Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Resotre${cReset} menu." "Warning"
 
-        Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-        $confirmation = Read-Host
+        $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter"
         if ($confirmation -ne 'YES') {
             Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
             return
@@ -511,8 +505,7 @@ function Perform-FastbootLock {
         Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
         Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Resotre${cReset} menu." "Warning"
 
-        Write-Host "`nTo proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-        $confirmation = Read-Host
+        $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter"
         if ($confirmation -ne 'YES') {
             Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
             return
@@ -651,9 +644,8 @@ function Verify-FastbootState([string]$state) {
             Write-Host ""
             Write-Log "Do you want to retry now?" "Info"
             Write-Host "Type ${cYellow}'YES'${cReset} to manual retry, or type ${cYellow}'AUTO'${cReset} to keep it running."
-            Write-Host "Anwser: " -NoNewline
 
-            $confirmation = Read-Host
+            $confirmation = Read-HostLog "Anwser"
             if ($confirmation -eq 'YES') {
                 $script:IsRetryBootloader = 1
             } elseif ($confirmation -eq 'AUTO') {

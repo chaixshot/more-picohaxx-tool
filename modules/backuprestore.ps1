@@ -293,8 +293,7 @@ function Wait-UserConfirm([string]$backupMode) {
     Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
     Write-Log "This can take a long time, do not panic if it looks stuck." "Warning"
     Write-Host ""
-    Write-Host "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter: " -NoNewline
-    $confirmation = Read-Host
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
     if ($confirmation -ne 'YES') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return $false
@@ -498,7 +497,7 @@ function Select-BackupMode {
     }
 
     if ($null -ne $mode) {
-        $customPath = Read-Host "Enter custom backup folder path (press Enter for default)"
+        $customPath = Read-HostLog "Enter custom backup folder path (press Enter for default)"
         return [PSCustomObject]@{ backupMode = $mode; customPath = $customPath }
     }
 
