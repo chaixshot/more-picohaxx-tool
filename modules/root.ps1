@@ -10,8 +10,246 @@
 
 # --- Root Functions ---
 
-$Magisk = ".\tools\Magisk4Pico.apk"
+$Magisk = Join-Path $WorkingDir "tools\magisk\Magisk4Pico.apk"
+$MagiskBoot = Join-Path $WorkingDir "tools\magisk\magiskboot.exe"
+$MagiskTMP = Join-Path $WorkingDir "tools\magisk\tmp"
+
 $PatchedImagePath = $null
+
+function Perform-MagiskBoot([string]$bootImgPath) {
+    # Verification Check
+    foreach ($file in @($Magisk, $bootImgPath, $MagiskBoot)) {
+        if (-not (Test-Path $file)) {
+            Write-Log "Required file missing: ${cCyan}${file}${cReset}" "Error"
+            return $null
+        }
+    }
+
+    # Set output image path inside the same directory as the source boot image
+    $bootImgDir = Split-Path -Path $bootImgPath -Parent
+    $outputImgPath = Join-Path $bootImgDir "magisk_patched.img"
+
+    # Ensure temporary directory exists
+    if (-not (Test-Path $MagiskTMP)) {
+        New-Item -ItemType Directory -Path $MagiskTMP -Force | Out-Null
+    }
+
+    if (Test-Path $outputImgPath) {
+        Remove-Item -Path $outputImgPath -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Push-Location $MagiskTMP
+    try {
+        # Extract Required Assets from APK directly into $MagiskTMP
+        Write-Host ""
+        Write-Log "Extracting binaries from Magisk APK..." "Action"
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($Magisk)
+        try {
+            $apkEntries = @{
+                "lib/arm64-v8a/libmagiskinit.so" = "magiskinit"
+                "lib/arm64-v8a/libmagisk.so"     = "magisk"
+                "lib/arm64-v8a/libinit-ld.so"    = "init-ld"
+                "assets/stub.apk"                = "stub.apk"
+            }
+            foreach ($entryKey in $apkEntries.Keys) {
+                $entry = $zip.Entries | Where-Object { $_.FullName -eq $entryKey }
+                if ($entry) {
+                    $targetName = $apkEntries[$entryKey]
+                    $destination = Join-Path $MagiskTMP $targetName
+                    Write-Log "Extracting ${cCyan}${targetName}${cReset}..." "Action"
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
+                }
+            }
+        } finally {
+            $zip.Dispose()
+        }
+
+        # Compress payloads into XZ format (Standard modern Magisk payload)
+        Write-Log "Compressing Magisk payloads with XZ..." "Action"
+        & $MagiskBoot compress=xz magisk magisk.xz 2>&1 | Write-Host
+        if (Test-Path "stub.apk") {
+            & $MagiskBoot compress=xz stub.apk stub.xz 2>&1 | Write-Host
+        }
+        if (Test-Path "init-ld") {
+            & $MagiskBoot compress=xz init-ld init-ld.xz 2>&1 | Write-Host
+        }
+
+        # Unpack boot.img
+        Write-Host ""
+        Write-Log "Unpacking $bootImgPath using magiskboot..." "Action"
+        & $MagiskBoot unpack $bootImgPath 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "magiskboot unpack failed with exit code ${LASTEXITCODE}."
+        }
+        if (-not (Test-Path "ramdisk.cpio")) {
+            throw "Failed to unpack boot image or ramdisk.cpio not found."
+        }
+
+        # Backup original ramdisk for magiskinit chainload backup
+        Copy-Item -Path "ramdisk.cpio" -Destination "ramdisk.cpio.orig" -Force
+
+        # Determine pre-init storage device
+        $preinit = $null
+        try {
+            $adbDevices = & $ADB devices
+            if ($adbDevices -match "\t(device|recovery)") {
+                & $ADB push (Join-Path $MagiskTMP "magisk") /data/local/tmp/magisk 2>&1 | Out-Null
+                $detectedPreinit = (& $ADB shell "chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device").Trim()
+                if ($detectedPreinit) {
+                    $preinit = $detectedPreinit
+                    Write-Log "Detected pre-init storage partition: ${cGreen}$preinit${cReset}" "Info"
+                }
+                & $ADB shell "rm -f /data/local/tmp/magisk" 2>&1 | Out-Null
+            }
+        } catch {
+            # Fallback to default
+        }
+        if (-not $preinit) {
+            $preinit = "cache"
+        }
+
+        # Magisk SHA1 Checksum
+        $sha1 = (& $MagiskBoot sha1 $bootImgPath).Trim()
+
+        # Create Magisk config file
+        $cfg = @"
+KEEPVERITY=false
+KEEPFORCEENCRYPT=false
+RECOVERYMODE=false
+VENDORBOOT=false
+PREINITDEVICE=$preinit
+SHA1=$sha1
+"@
+        [System.IO.File]::WriteAllText((Join-Path $MagiskTMP "config"), $cfg.Replace("`r`n", "`n"))
+
+        # Configure environment flags for magiskboot patch
+        $env:KEEPVERITY = "false"
+        $env:KEEPFORCEENCRYPT = "false"
+        $env:PATCHVBMETAFLAG = "false"
+
+        # Patch Ramdisk (Modern Magisk CPIO Injection)
+        Write-Host ""
+        Write-Log "Injecting modern Magisk payload into ramdisk.cpio..." "Action"
+
+        $cpioCommands = @(
+            "add 0750 init magiskinit",
+            "mkdir 0750 overlay.d",
+            "mkdir 0750 overlay.d/sbin",
+            "add 0644 overlay.d/sbin/magisk.xz magisk.xz"
+        )
+        if (Test-Path "stub.xz") {
+            $cpioCommands += "add 0644 overlay.d/sbin/stub.xz stub.xz"
+        }
+        if (Test-Path "init-ld.xz") {
+            $cpioCommands += "add 0644 overlay.d/sbin/init-ld.xz init-ld.xz"
+        }
+
+        $cpioCommands += "patch"
+        $cpioCommands += "backup ramdisk.cpio.orig"
+        $cpioCommands += "mkdir 000 .backup"
+        $cpioCommands += "add 000 .backup/.magisk config"
+
+        & $MagiskBoot cpio ramdisk.cpio $cpioCommands 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) { throw "magiskboot cpio patch failed with exit code ${LASTEXITCODE}." }
+
+        # Patch DTB / fstab if present (removes AVB verification flags on Qualcomm)
+        foreach ($dt in @("dtb", "kernel_dtb", "extra")) {
+            if (Test-Path $dt) {
+                Write-Host ""
+                Write-Log "Patching $dt fstab..." "Action"
+                & $MagiskBoot dtb $dt patch 2>&1 | Write-Host
+            }
+        }
+
+        # Keep original raw kernel to prevent bootloop or compression mismatches
+        if (Test-Path "kernel") {
+            Remove-Item "kernel" -Force
+        }
+
+        # Repack Image directly to destination path
+        Write-Host ""
+        Write-Log "Repacking image into $outputImgPath..." "Action"
+        & $MagiskBoot repack $bootImgPath $outputImgPath 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "magiskboot repack failed with exit code ${LASTEXITCODE}."
+        }
+    } catch {
+        Write-Host ""
+        Write-Log "$($_.Exception.Message)" "Error"
+    } finally {
+        # Safely restore original working directory
+        Pop-Location
+
+        # Cleanup Temporary Artifacts inside $MagiskTMP
+        Write-Host ""
+        if (Test-Path -Path $MagiskTMP) {
+            Write-Log "Deleting '${cCyan}$( $MagiskTMP )${cReset}' folder..." "Action"
+            Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Verification
+    if (Test-Path $outputImgPath) {
+        Write-Log "Boot image patched to '${cCyan}$( $outputImgPath )${cReset}' successfully." "Success"
+
+        return $outputImgPath
+    } else {
+        Write-Log "Repack failed. Output image was not created." "Error"
+        return $null
+    }
+}
+
+function BootImage-Picker($imageName) {
+    Write-Log "Please select your ${cYellow}'$imageName.img'${cReset} file from explorer." "Info"
+    Wait-Continue "Select file"
+
+    # Initialize the File Dialog
+    Add-Type -AssemblyName System.Windows.Forms
+    $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $fileDialog.Title = "Select your $imageName.img file"
+    $fileDialog.Filter = "Magisk Patched Image (*$imageName*.img)|*$imageName*.img|All Files (*.*)|*.*"
+    $fileDialog.InitialDirectory = (Get-Location).Path
+    $fileDialog.ShowHelp = $false
+
+    # Show the dialog using an invisible top-most owner
+    $topForm = New-Object System.Windows.Forms.Form
+    $topForm.TopMost = $true
+
+    $dialogResult = $fileDialog.ShowDialog($topForm)
+    $topForm.Dispose()
+
+    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
+        $bootImgPath = Get-Item $fileDialog.FileName
+
+        Write-Log "Selected file: ${cYellow}$( $bootImgPath.FullName )${cReset}" "Info"
+
+        return $bootImgPath
+    } else {
+        Write-Log "No file was selected from explorer." "Warning"
+
+        $bootImgPath = Read-HostLog "Enter the full path to your ${cYellow}'$imageName.img'${cReset} (e.g., C:\Downloads\$imageName.img)"
+        $bootImgPath = $bootImgPath.Trim('"').Trim()
+
+        if (Test-Path $bootImgPath -PathType Leaf) {
+            $tempItem = Get-Item $bootImgPath
+            if ($tempItem.Extension -eq ".img") {
+                Write-Log "Selected file: ${cYellow}$( $tempItem.FullName )${cReset}" "Info"
+
+                return $tempItem
+            } else {
+                Write-Log "Selected file '${cYellow}$bootImgPath${cReset}' is not a '.img' file." "Error"
+
+                return $null
+            }
+        } else {
+            Write-Log "File not found at '${cYellow}$bootImgPath${cReset}'. Please ensure the path is correct and try again." "Error"
+
+            return $null
+        }
+    }
+}
 
 function Prepare-Firmware {
     Write-Header "Select Pico Firmware"
@@ -201,65 +439,12 @@ function Prepare-Magisk {
             return
         }
     } else {
-        Write-Log "Magisk APK not found at ${cYellow}$Magisk${cReset}" "Error"
+        Write-Log "Magisk APK not found at ${cYellow}${Magisk}${cReset}" "Error"
     }
 
-    $bootImgPath = ""
-    while ($true) {
-        Write-Host "`nEnter the full path to your extracted ${cYellow}'boot.img'${cReset} (e.g., C:\Downloads\boot.img): " -NoNewline
-        $bootImgPath = Read-Host
-        $bootImgPath = $bootImgPath.Trim('"').Trim()
-
-        if ($bootImgPath -ne "" -and (Test-Path $bootImgPath -PathType Leaf)) {
-            break
-        }
-
-        Write-Log "File not found at '${cYellow}$bootImgPath${cReset}'. Please ensure the path is correct and try again." "Warning"
-    }
-
-    Write-Log "Pushing ${cYellow}'boot.img'${cReset} to device..." "Action"
-    & $ADB push $bootImgPath /sdcard/Download/
-    if ($LASTEXITCODE -eq 0) {
-        Write-Log "Success! ${cYellow}'boot.img'${cReset} is now on your device in the ${cCyan}'Download'${cReset} folder." "Success"
-        Write-Host "`n${cCyan}Actions on Device:${cReset}"
-        Write-Host " 1. Open the ${cYellow}Magisk${cReset} app on your Pico."
-        Write-Host " 2. Tap ${cYellow}'Install'${cReset} on the home page."
-        Write-Host " 3. Choose ${cYellow}'Select and Patch a File'${cReset}."
-        Write-Host " 4. Navigate to ${cYellow}'Download'${cReset} and select the ${cYellow}'boot.img'${cReset} you just pushed."
-        Write-Host " 5. Press ${cYellow}'LET'S GO'${cReset}."
-        Write-Host " 6. Wait for the process to finish."
-
-        Write-Host "`nOnce Magisk says ${cGreen}'All done!'${cReset}, " -NoNewline
-        Wait-Continue "pull the patched image back to your computer..."
-
-        $localDir = Split-Path $bootImgPath -Parent
-        Write-Log "Searching for patched image on device (${cCyan}/sdcard/Download/magisk_patched*.img${cReset})..." "Action"
-
-        # Try to find the specific filename created by Magisk (handles both _ and - separators)
-        $remoteFiles = (& $ADB shell "ls /sdcard/Download/magisk_patched*.img" 2>$null) | 
-        ForEach-Object { $_.Trim() } | 
-        Where-Object { $_ -like "*.img" -and $_ -notlike "*No such file*" }
-
-        if ($remoteFiles) {
-            # Take the newest/first matched path
-            $remoteFile = ($remoteFiles | Select-Object -First 1).Trim()
-            Write-Log "Found patched file: ${cCyan}$remoteFile${cReset}" "Success"
-
-            & $ADB pull $remoteFile $localDir
-            if ($LASTEXITCODE -eq 0) {
-                $patchedLocalPath = Join-Path $localDir (Split-Path $remoteFile -Leaf)
-                $script:PatchedImagePath = $patchedLocalPath
-                Write-Log "Patched image pulled successfully to: ${cGreen}$patchedLocalPath${cReset}" "Success"
-                Write-Log "You are now ready to flash this image in ${cCyan}fastboot${cReset} mode." "Info"
-            } else {
-                Write-Log "Failed to pull the patched image from the device." "Error"
-            }
-        } else {
-            Write-Log "Could not find a file matching ${cYellow}'magisk_patched.img'${cReset} in ${cCyan}/sdcard/Download/${cReset}." "Error"
-            Write-Log "Please check the Magisk app for errors." "Info"
-        }
-    } else {
-        Write-Log "Failed to push ${cYellow}'boot.img'${cReset} to the device." "Error"
+    $bootImgPath = BootImage-Picker "boot"
+    if ($bootImgPath) {
+        $script:PatchedImagePath = Perform-MagiskBoot $bootImgPath
     }
 }
 
@@ -267,65 +452,21 @@ function Flash-Magisk {
     Write-Header "Flashing Magisk"
 
     # Find patched image
-    $patchedImage = $null
+    $bootImgPath = $null
     if ($PatchedImagePath -and (Test-Path $PatchedImagePath)) {
-        $patchedImage = Get-Item $PatchedImagePath
-        Write-Log "Found patched image from last adb pull: ${cGreen}$( $patchedImage.FullName )${cReset}" "Success"
+        $bootImgPath = Get-Item $PatchedImagePath
+        Write-Log "Using '${cGreen}$( $bootImgPath.FullName )${cReset}' from preparing magisk." "Success"
     } else {
-        Write-Log "Searching for patched image locally..." "Action"
-        $patchedImage = Get-ChildItem -Path "." -Filter "magisk_patched*.img" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        $bootImgPath = Get-ChildItem -Path "." -Filter "magisk_patched*.img" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     }
 
     # No image path found automatically
-    if (-not $patchedImage) {
-        Write-Host ""
+    if (-not $bootImgPath) {
         Write-Log "Could not find any ${cYellow}'magisk_patched.img'${cReset} file automatically." "Warning"
-        Write-Log "Please select your ${cYellow}'magisk_patched.img'${cReset} file from explorer." "Info"
-        Wait-Continue "Select file"
 
-        # Initialize the File Dialog
-        Add-Type -AssemblyName System.Windows.Forms
-        $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
-        $fileDialog.Title = "Select your magisk_patched.img file"
-        $fileDialog.Filter = "Magisk Patched Image (*magisk_patched*.img)|*magisk_patched*.img|All Files (*.*)|*.*"
-        $fileDialog.InitialDirectory = (Get-Location).Path
-        $fileDialog.ShowHelp = $false
-
-        # Show the dialog using an invisible top-most owner
-        $topForm = New-Object System.Windows.Forms.Form
-        $topForm.TopMost = $true
-
-        $dialogResult = $fileDialog.ShowDialog($topForm)
-        $topForm.Dispose()
-
-        if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
-            $patchedImage = Get-Item $fileDialog.FileName
-            Write-Log "Selected file: ${cYellow}$( $patchedImage.FullName )${cReset}" "Info"
-        } else {
-            Write-Log "No file was selected from explorer." "Warning"
-
-            $patchedImageInput = ""
-            while ($true) {
-                Write-Host "Enter the full path to your ${cYellow}'magisk_patched.img'${cReset} (e.g., C:\Downloads\magisk_patched-30700_0lM5L.img): " -NoNewline
-                $patchedImageInput = Read-Host
-                $patchedImageInput = $patchedImageInput.Trim('"').Trim()
-
-                if ($patchedImageInput -ne "" -and (Test-Path $patchedImageInput -PathType Leaf)) {
-                    $tempItem = Get-Item $patchedImageInput
-                    if ($tempItem.Extension -eq ".img") {
-                        $patchedImage = $tempItem
-                        Write-Log "Selected file: ${cYellow}$( $patchedImage.FullName )${cReset}" "Info"
-                        break
-                    } else {
-                        Write-Log "Selected file '${cYellow}$patchedImageInput${cReset}' is not a '.img' file." "Error"
-                        Write-Host ""
-                        continue
-                    }
-                } else {
-                    Write-Log "File not found at '${cYellow}$patchedImageInput${cReset}'. Please ensure the path is correct and try again." "Error"
-                    Write-Host ""
-                }
-            }
+        $bootImgPath = BootImage-Picker "magisk_patched"
+        if (-not $bootImgPath) {
+            return
         }
     }
 
@@ -343,8 +484,9 @@ function Flash-Magisk {
         return
     }
 
-    Write-Log "Flashing patched boot image: ${cCyan}$( $patchedImage.FullName )${cReset}" "Action"
-    & $FASTBOOT flash boot $patchedImage.FullName
+    Write-Log "Flashing boot image with '${cCyan}$( $bootImgPath.FullName )${cReset}'..." "Action"
+    & $FASTBOOT flash boot $bootImgPath.FullName
+    
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Flash successful!" "Success"
         Fastboot-To-System
