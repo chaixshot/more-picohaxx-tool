@@ -157,7 +157,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             break
         }
 
-        Write-Host "`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] " -NoNewline
+        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] ")
 
         $skipped = $false
         for ($j = 0; $j -lt 10; $j++) {
@@ -207,7 +207,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             break
         }
 
-        Write-Host "`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] " -NoNewline
+        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] ")
 
         $skipped = $false
         for ($j = 0; $j -lt 10; $j++) {
@@ -256,7 +256,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             break
         }
 
-        Write-Host "`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] " -NoNewline
+        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] ")
 
         $skipped = $false
         for ($j = 0; $j -lt 10; $j++) {
@@ -360,6 +360,54 @@ function Execute-UnlockCommand {
         Write-Log "Please make sure ${cYellow}Flash Engineering ABL${cReset} is successful and don't ${cYellow}Flash backup ABL${cReset} yet." "Error"
         return $false
     }
+}
+
+function Execute-EdlCommand([string]$sCMDLine, [bool]$Silent = $false) {
+    try {
+        $lastWasProgress = $false
+        # Execute edl-ng and capture its output stream.
+        # 2>&1 redirects stderr to stdout so we can process all output.
+        $expression = "& `"$EDLNG`" --loader $FirehoseTargetPath $sCMDLine 2>&1"
+
+        Invoke-Expression $expression | ForEach-Object {
+            $line = $_.ToString().TrimEnd()
+
+            if (-not $Silent) {
+                # Identify progress lines (Reading/Writing percentage updates)
+                if ($line -match "^(Reading|Writing):\s+\d+\.\d+%") {
+                    # Use [Console]::Write to output to the console without a newline.
+                    # This stays on the same line and typically bypasses Start-Transcript logging.
+                    [System.Console]::Write("`r$line".PadRight(100))
+                    $lastWasProgress = $true
+                } else {
+                    # If the previous output was progress, ensure we start the next message on a new line
+                    if ($lastWasProgress) {
+                        Write-Host ""
+                        $lastWasProgress = $false
+                    }
+                    Write-Host $line
+                }
+            }
+        }
+
+        # Final cleanup newline if silent was false and last output was progress
+        if (-not $Silent -and $lastWasProgress) {
+            Write-Host ""
+        }
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "edl-ng failed with ExitCode: $LASTEXITCODE" "Error"
+            $script:geFailed = 1
+            return $false
+        }
+    } catch {
+        if (-not $Silent -and $lastWasProgress) { Write-Host "" }
+        Write-Log "Exception during Execute-EdlCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
+        $script:geFailed = 1
+        return $false
+    }
+
+    return $true
 }
 
 function Perform-Reboot {
@@ -551,6 +599,7 @@ function Fastboot-To-Edl {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     Wait-Continue "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue"
+
     & $FASTBOOT reboot
 }
 
@@ -561,13 +610,10 @@ function Edl-To-System {
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     
     # Run silently using Out-Null
-    & $EDLNG --loader $FirehoseTargetPath --memory UFS reset 2>&1 | Out-Null
-
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0) { 
-        Warning-EDL-ManualReboot
-    } else {
+    if (Execute-EdlCommand "--memory UFS reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
+    } else {
+        Warning-EDL-ManualReboot
     }
 }
 
@@ -579,12 +625,9 @@ function Edl-To-Edl {
     Wait-Continue "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue"
     
     # Run silently using Out-Null
-    & $EDLNG --loader $FirehoseTargetPath --memory UFS reset 2>&1 | Out-Null
-
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0) { 
-        Warning-EDL-ManualReboot
-    } else {
+    if (Execute-EdlCommand "--memory UFS reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
+    } else {
+        Warning-EDL-ManualReboot
     }
 }

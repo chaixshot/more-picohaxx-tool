@@ -56,7 +56,7 @@ function BackupLUNs([string]$backupPath) {
         Write-Host ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
-        if (-not (ExecuteCommand $sCMDLine)) {
+        if (-not (Execute-EdlCommand $sCMDLine)) {
             break
         }
 
@@ -102,7 +102,7 @@ function BackupUserData([string]$backupPath) {
     Write-Host ""
     Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
 
-    if (-not (ExecuteCommand $sCMDLine)) {
+    if (-not (Execute-EdlCommand $sCMDLine)) {
         CleanUpBackupFolder
         ProcessCompleted -isExec $false
         return
@@ -153,7 +153,7 @@ function BackupPartitions([string]$backupPath) {
             Write-Host ""
             Write-Log "[$iCnt/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
-            if (-not (ExecuteCommand $sCMDLine)) {
+            if (-not (Execute-EdlCommand $sCMDLine)) {
                 $script:geFailed = 1
                 break
             }
@@ -247,7 +247,7 @@ function FlashFirmware([string]$flashPath) {
         Write-Host ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
-        if (-not (ExecuteCommand $sCMDLine)) {
+        if (-not (Execute-EdlCommand $sCMDLine)) {
             break
         }
         $isExec = $true
@@ -335,7 +335,7 @@ function FlashLUNs($flashList, [string]$flashPath) {
         Write-Host ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
-        if (-not (ExecuteCommand $sCMDLine)) {
+        if (-not (Execute-EdlCommand $sCMDLine)) {
             return $false
         }
     }
@@ -365,7 +365,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
         Write-Host ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
-        if (-not (ExecuteCommand $sCMDLine)) {
+        if (-not (Execute-EdlCommand $sCMDLine)) {
             return $false
         }
     }
@@ -466,7 +466,7 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
         Write-Host ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
-        if (-not (ExecuteCommand $sCMDLine)) {
+        if (-not (Execute-EdlCommand $sCMDLine)) {
             if ($iCnt -eq 0) {
                 return $false # LUN 0 is mandatory
             }
@@ -583,55 +583,9 @@ function BuildCommand($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string]
         $cmd = "read-sector $($obPInfo.iStart) $($obPInfo.iSectors) `"$sFileName`""
     }
 
-    $cmd += " --lun $($obPInfo.iLUN) --loader `"$FirehoseTargetPath`""
+    $cmd += " --lun $($obPInfo.iLUN)"
 
     return $cmd
-}
-
-function ExecuteCommand([string]$sCMDLine) {
-    try {
-        $lastWasProgress = $false
-        # Execute edl-ng and capture its output stream.
-        # 2>&1 redirects stderr to stdout so we can process all output.
-        $expression = "& `"$EDLNG`" $sCMDLine 2>&1"
-
-        Invoke-Expression $expression | ForEach-Object {
-            $line = $_.ToString().TrimEnd()
-
-            # Identify progress lines (Reading/Writing percentage updates)
-            if ($line -match "^(Reading|Writing):\s+\d+\.\d+%") {
-                # Use [Console]::Write to output to the console without a newline.
-                # This stays on the same line and typically bypasses Start-Transcript logging.
-                [System.Console]::Write("`r$line".PadRight(100))
-                $lastWasProgress = $true
-            } else {
-                # If the previous output was progress, ensure we start the next message on a new line
-                if ($lastWasProgress) {
-                    Write-Host ""
-                    $lastWasProgress = $false
-                }
-                Write-Host $line
-            }
-        }
-
-        # Final cleanup if the last output was a progress line
-        if ($lastWasProgress) {
-            Write-Host ""
-        }
-
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "edl-ng failed with ExitCode: $LASTEXITCODE" "Error"
-            $script:geFailed = 1
-            return $false
-        }
-    } catch {
-        if ($lastWasProgress) { Write-Host "" }
-        Write-Log "Exception during ExecuteCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
-        $script:geFailed = 1
-        return $false
-    }
-
-    return $true
 }
 
 function CleanUpBackupFolder() {

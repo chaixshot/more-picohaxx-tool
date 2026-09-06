@@ -279,7 +279,7 @@ function Flash-EngineeringAbl {
     Write-Log "Backing up original partitions and flashing engineering files in a single operation..." "Action"
 
     # Backup ABL
-    & $EDLNG --loader $FirehoseTargetPath --memory UFS read-part abl $backupAbl | Write-Host
+    Execute-EdlCommand "--memory UFS read-part abl $backupAbl"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
         Write-Log "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -287,7 +287,7 @@ function Flash-EngineeringAbl {
     }
 
     # Backup DEVINFO
-    & $EDLNG --memory UFS read-part devinfo $backupDevInfo | Write-Host
+    Execute-EdlCommand "--memory UFS read-part devinfo $backupDevInfo"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
         Write-Log "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -295,7 +295,7 @@ function Flash-EngineeringAbl {
     }
 
     # Flash custom ABL
-    & $EDLNG --memory UFS write-part abl $AblPath | Write-Host
+    Execute-EdlCommand "--memory UFS write-part abl $AblPath"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -303,7 +303,7 @@ function Flash-EngineeringAbl {
     }
 
     # Flash custom DEVINFO
-    & $EDLNG --memory UFS write-part devinfo $DevInfoPath | Write-Host
+    Execute-EdlCommand "--memory UFS write-part devinfo $DevInfoPath"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -353,7 +353,7 @@ function Restore-OriginalAbl {
     }
 
     # Flash backup ABL
-    & $EDLNG --loader $FirehoseTargetPath --memory UFS write-part abl $backupAbl | Write-Host
+    Execute-EdlCommand "--memory UFS write-part abl $backupAbl"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -361,7 +361,7 @@ function Restore-OriginalAbl {
     }
 
     # Flash backup DEVINFO
-    & $EDLNG --memory UFS write-part devinfo $backupDevInfo | Write-Host
+    Execute-EdlCommand "--memory UFS write-part devinfo $backupDevInfo"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
