@@ -357,8 +357,7 @@ function Execute-UnlockCommand {
         return $true
     } else {
         Write-Log "Failed to execute unlock command." "Error"
-        Write-Log "Please make sure ${cYellow}Flash Engineering ABL${cReset} is successful." "Error"
-        Write-Log "And do not flash ${cYellow}Flash backup ABL${cReset}!" "Error"
+        Write-Log "Please make sure ${cYellow}Flash Engineering ABL${cReset} is successful and don't ${cYellow}Flash backup ABL${cReset} yet." "Error"
         return $false
     }
 }
@@ -498,8 +497,8 @@ function Warning-EDL {
 function Warning-EDL-ManualReboot {
     Write-Header "Post Steps"
     Write-Log "Your device will not automatically reboot." "Info"
-    Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to ${cCyan}SYSTEM${cReset}." "Info"
-    Write-Log "Hold ${cYellow}Vol Up + Vol Down + Power${cReset} for 10 seconds to reboot to ${cCyan}EDL${cReset}." "Info"
+    Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
+    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"
 }
 
 #########################################

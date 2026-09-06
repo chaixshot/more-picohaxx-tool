@@ -316,8 +316,8 @@ function Flash-EngineeringAbl {
     Write-Log "Original partitions backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
     Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
     Write-Host ""
-    Write-Log "Engineering ABL might reboot device to EDL mode (Black screen) sometimes." "Warning"
-    Write-Log "If it boots into EDL mode, hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
+    Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
+    Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
 }
 
 function Restore-OriginalAbl {
