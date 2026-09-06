@@ -29,8 +29,10 @@ This tool includes a built-in **Backup/Restore** suite to protect your user data
 
 ### Features
 
+* **Easy Restoration**: Select between different backup sets using the menu.
+* **Custom Backup Location**: Specify your own folder path when starting a backup to save space on your system drive or organize files manually.
+* **Smart Restoration**: Paste a backup folder path directly into the menu. The script automatically detects the backup type (LUNs, UserData, or Partitions) based on the files inside.
 * **Transparent LZX Compression**: Optional folder compression for backups using Windows native `compact.exe`. Reduces backup size by up to **60%** while keeping files directly accessible with negligible CPU impact.
-* **Easy Restoration**: Swap between different backup sets using the `Select-BackupFolder` feature.
 * **EDL Integration**: Automates the complex EDL workflow using the provided `EDLHelper` (powered by `edl-ng`).
 
 ## Status
