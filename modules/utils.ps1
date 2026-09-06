@@ -353,15 +353,6 @@ function Execute-UnlockCommand {
 
 function Perform-Reboot {
     Write-Header "Reboot Selection"
-    Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
-    if (-not (IsEdlMode)) {
-        Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
-        Write-Host " [${cCyan}3${cReset}] Boot to recovery"
-        if (-not (IsFastbootMode)) {
-            Write-Host " [${cCyan}4${cReset}] Boot to EDL"
-        }
-    }
-    Write-Host ""
 
     if (IsFastbootMode) {
         Write-Host "Device detected: ${cCyan}FASTBOOT${cReset}"
@@ -375,34 +366,50 @@ function Perform-Reboot {
         return
     }
 
+    Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
+    if (-not (IsEdlMode)) {
+        Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
+        Write-Host " [${cCyan}3${cReset}] Boot to recovery"
+        if (-not (IsFastbootMode)) {
+            Write-Host " [${cCyan}4${cReset}] Boot to EDL"
+        }
+    }
+
     $choice = Read-HostLog "Select an option"
 
     if (IsFastbootMode) {
         if ($choice -eq "1") {
             Fastboot-To-System
+            return
         } elseif ($choice -eq "2") {
             Fastboot-To-Fastboot
+            return
         } elseif ($choice -eq "3") {
             Fastboot-To-Recovery
-        } elseif ($choice -eq "4") {
-            Write-Log "Device is detected in ${cCyan}FASTBOOT${cReset} mode." "Warning"
-            Write-Log "Unable to reboot to EDL." "Error"
+            return
         }
     } elseif (IsAdbMode) {
         if ($choice -eq "1") {
             ADB-To-System
+            return
         } elseif ($choice -eq "2") {
             ADB-To-Fastboot
+            return
         } elseif ($choice -eq "3") {
             ADB-To-Recovery
+            return
         } elseif ($choice -eq "4") {
             ADB-To-Edl
+            return
         }
     } elseif (IsEdlMode) {
         if ($choice -eq "1") {
             Edl-To-System
+            return
         }
     }
+
+    Write-Log "Invalid option." "Warning"
 }
 
 function Play-BeepBeep {
