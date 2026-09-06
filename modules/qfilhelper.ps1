@@ -9,7 +9,7 @@
 
 # --- Local Variables ---
 $workingDirectory = "tools"
-$edlTMP = "$workingDirectory\TMP"
+$edlTMP = "${workingDirectory}\TMP"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gaLunsOnline = @()
@@ -18,13 +18,13 @@ $geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
 
 # --- Functions ---
 
-function BackupLUNs {
+function BackupLUNs([string]$backupPath) {
     if (-not (ValidateCQF)) {
         return
     }
 
     ResetLookUp
-    CreateBackupFolder "luns"
+    CreateBackupFolder $backupPath
 
     # Read GPT Headers to get partition layouts for each LUN
     if (-not (ReadGPTHeaders -isTemp $true)) {
@@ -67,13 +67,13 @@ function BackupLUNs {
     ProcessCompleted -isExec $isExec
 }
 
-function BackupUserData {
+function BackupUserData([string]$backupPath) {
     if (-not (ValidateCQF)) {
         return
     }
 
     ResetLookUp
-    CreateBackupFolder "userdata"
+    CreateBackupFolder $backupPath
 
     # Read GPT Headers with sorting enabled to allow looking up partition names
     if (-not (ReadGPTHeaders -isTemp $false -isSort $true)) {
@@ -112,13 +112,13 @@ function BackupUserData {
     ProcessCompleted -isExec $true
 }
 
-function BackupPartitions {
+function BackupPartitions([string]$backupPath) {
     if (-not (ValidateCQF)) {
         return
     }
 
     ResetLookUp
-    CreateBackupFolder "partitions"
+    CreateBackupFolder $backupPath
 
     # Read GPT Headers to populate $galoLookUp
     if (-not (ReadGPTHeaders -isTemp $true)) {
@@ -440,15 +440,12 @@ function ResetLookUp {
     $script:gaLunsOnline = @()
 }
 
-function CreateBackupFolder([string]$backupMode) {
-    if ($backupMode -eq "luns") {
-        $script:gsBackupDir = "$LUNsBackupPath\$TimeStamp\"
-    } elseif ($backupMode -eq "userdata") {
-        $script:gsBackupDir = "$UserBackupPath\$TimeStamp\"
-    } elseif ($backupMode -eq "partitions") {
-        $script:gsBackupDir = "$PartitionsBackupPath\$TimeStamp\"
+function CreateBackupFolder([string]$backupPath) {
+    $script:gsBackupDir = $backupPath
+
+    if (-not (Test-Path $gsBackupDir)) {
+        New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
     }
-    New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
 }
 
 function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {

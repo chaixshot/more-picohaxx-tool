@@ -246,7 +246,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
         }
     }
 
-    $targetDrivePath = if ($targetPath) { $targetPath } else { $PSScriptRoot }
+    $targetDrivePath = if ($targetPath) { $targetPath } else { $WorkingDir }
     $driveLetter = Split-Path -Path $targetDrivePath -Qualifier
 
     # Strip trailing colon if needed (e.g., "C:" -> "C")
@@ -487,22 +487,30 @@ function Select-BackupMode {
     Write-Host ""
 
     $choice = Read-HostLog "Select an option"
+    $mode = $null
 
     if ($choice -eq "1") {
-        return "luns"
+        $mode = "luns"
     } elseif ($choice -eq "2") {
-        return "userdata"
+        $mode = "userdata"
     } elseif ($choice -eq "3") {
-        return "partitions"
+        $mode = "partitions"
+    }
+
+    if ($null -ne $mode) {
+        $customPath = Read-Host "Enter custom backup folder path (press Enter for default)"
+        return [PSCustomObject]@{ backupMode = $mode; customPath = $customPath }
     }
 
     return $null
 }
 
-function Backup-Device([string]$backupMode) {
+function Backup-Device($selection) {
     Write-Header "Backup Device"
+    $backupMode = $selection.backupMode
+    $customPath = $selection.customPath
 
-    if (-not (Verify-DiskSpace $backupMode)) {
+    if (-not (Verify-DiskSpace $backupMode $customPath)) {
         return $false
     }
 
@@ -523,14 +531,17 @@ function Backup-Device([string]$backupMode) {
 
     # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
     if ($backupMode -eq "luns") {
-        BackupLUNs
-        $backupPath = Join-Path -Path $LUNsBackupPath -ChildPath $TimeStamp
+        $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $LUNsBackupPath }
+        $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+        BackupLUNs $backupPath
     } elseif ($backupMode -eq "userdata") {
-        BackupUserData
-        $backupPath = Join-Path -Path $UserBackupPath -ChildPath $TimeStamp
+        $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $UserBackupPath }
+        $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+        BackupUserData $backupPath
     } elseif ($backupMode -eq "partitions") {
-        BackupPartitions
-        $backupPath = Join-Path -Path $PartitionsBackupPath -ChildPath $TimeStamp
+        $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $PartitionsBackupPath }
+        $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+        BackupPartitions $backupPath
     }
 
     # Verify folder existence
