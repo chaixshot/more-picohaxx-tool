@@ -26,6 +26,7 @@
 # ----------------------------
 # --- Script Configuration ---
 # ----------------------------
+$WorkingDir = $PSScriptRoot
 $LogsPath = ".\logs"
 $DriverInstall = ".\tools\driver\install.ps1"
 $DeviceSerial = ".\serial_number.txt"
@@ -52,10 +53,10 @@ $IsRetryBootloader = 0
 # ----- Helper Functions -----
 # ----------------------------
 
-. "$PSScriptRoot/modules/utils.ps1"
-. "$PSScriptRoot/modules/root.ps1"
-. "$PSScriptRoot/modules/backuprestore.ps1"
-. "$PSScriptRoot/modules/qfilhelper.ps1"
+. "$WorkingDir/modules/utils.ps1"
+. "$WorkingDir/modules/root.ps1"
+. "$WorkingDir/modules/backuprestore.ps1"
+. "$WorkingDir/modules/qfilhelper.ps1"
 
 function Check-Prerequisites {
     Write-Header "Running Prerequisite Checks"
@@ -217,7 +218,9 @@ function Check-Prerequisites {
 function Generate-UnlockCode {
     Write-Header "Generating Unlock Code"
 
-    if (-not (IsAdbMode)) {
+    if (Invoke-PicoHaxxScript) {
+        return
+    } elseif (-not (IsAdbMode)) {
         Warning-ADB
         return
     }
@@ -717,7 +720,7 @@ try {
     while (-not $quit) {
         Write-Header "PicoUnlock Main Menu"
 
-        Write-Host " [${cCyan}1${cReset}] Generate UnlockCode"
+        Write-Host " [${cCyan}1${cReset}] Generate/Get UnlockCode"
         Write-Host " [${cCyan}2${cReset}] Flash Engineering ABL"
         Write-Host " [${cCyan}3${cReset}] Unlock bootloader"
         Write-Host " [${cCyan}4${cReset}] Root ${cDarkGray}(Superuser)${cReset}"
