@@ -370,9 +370,7 @@ function Perform-Reboot {
     if (-not (IsEdlMode)) {
         Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
         Write-Host " [${cCyan}3${cReset}] Boot to recovery"
-        if (-not (IsFastbootMode)) {
-            Write-Host " [${cCyan}4${cReset}] Boot to EDL"
-        }
+        Write-Host " [${cCyan}4${cReset}] Boot to EDL"
     }
 
     $choice = Read-HostLog "Select an option"
@@ -386,6 +384,9 @@ function Perform-Reboot {
             return
         } elseif ($choice -eq "3") {
             Fastboot-To-Recovery
+            return
+        } elseif ($choice -eq "4") {
+            Fastboot-To-Edl
             return
         }
     } elseif (IsAdbMode) {
@@ -525,6 +526,13 @@ function Fastboot-To-Recovery {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
     & $FASTBOOT reboot recovery
+}
+
+function Fastboot-To-Edl {
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
+    Wait-Continue "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue"
+    & $FASTBOOT reboot
 }
 
 function Edl-To-System {
