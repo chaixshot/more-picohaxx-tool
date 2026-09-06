@@ -103,6 +103,10 @@ function Test-CommandExists([string]$Command) {
     return (Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
+#########################################
+#########################################
+#########################################
+
 function IsEdlMode {
     # Returns $true if a Qualcomm 9008 device is present.
     # Checks for both the standard Qualcomm VID/PID and the HS-USB / QDLoader strings
@@ -120,6 +124,10 @@ function IsFastbootMode {
     $fbDevices = & $FASTBOOT devices
     return $fbDevices -match "fastboot$"
 }
+
+#########################################
+#########################################
+#########################################
 
 function Wait-Continue([string]$action = "continue...") {
     Write-Host "`nPress ${cCyan}Enter${cReset} to $action" -NoNewline
@@ -274,6 +282,10 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 
     return $success
 }
+
+#########################################
+#########################################
+#########################################
 
 function Select-Firehose {
     if ($null -eq $FirehoseTargetPath) {
@@ -455,6 +467,10 @@ function Get-InstalledDriverInfo([string]$infName) {
     return $null
 }
 
+#########################################
+#########################################
+#########################################
+
 function Warning-ADB {
     Write-Host ""
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
@@ -485,6 +501,10 @@ function Warning-EDL-ManualReboot {
     Write-Log "Hold ${cYellow}Power Button${cReset} for 10 seconds to reboot to ${cCyan}SYSTEM${cReset}." "Info"
     Write-Log "Hold ${cYellow}Vol Up + Vol Down + Power${cReset} for 10 seconds to reboot to ${cCyan}EDL${cReset}." "Info"
 }
+
+#########################################
+#########################################
+#########################################
 
 function ADB-To-System {
     Write-Host ""
@@ -540,6 +560,24 @@ function Edl-To-System {
 
     Write-Host ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
+    
+    # Run silently using Out-Null
+    & $EDLNG --loader $FirehoseTargetPath --memory UFS reset 2>&1 | Out-Null
+
+    $exitcode = $LASTEXITCODE
+    if ($exitcode -ne 0) { 
+        Warning-EDL-ManualReboot
+    } else {
+        Write-Log "Reboot command sent successfully." "Success"
+    }
+}
+
+function Edl-To-Edl {
+    Select-Firehose
+
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
+    Wait-Continue "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue"
     
     # Run silently using Out-Null
     & $EDLNG --loader $FirehoseTargetPath --memory UFS reset 2>&1 | Out-Null

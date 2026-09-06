@@ -263,6 +263,8 @@ function Flash-EngineeringAbl {
         ADB-To-Edl
     } elseif (IsFastbootMode) {
         Fastboot-To-Edl
+    } elseif (IsEdlMode) {
+        Edl-To-Edl
     } elseif (-not (IsEdlMode)) {
         Warning-EDL
     }
@@ -344,6 +346,8 @@ function Restore-OriginalAbl {
         ADB-To-Edl
     } elseif (IsFastbootMode) {
         Fastboot-To-Edl
+    } elseif (IsEdlMode) {
+        Edl-To-Edl
     } elseif (-not (IsEdlMode)) {
         Warning-EDL
     }
