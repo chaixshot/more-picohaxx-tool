@@ -252,7 +252,7 @@ function Flash-EngineeringAbl {
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
     if ($confirmation -ne 'YES') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
-        return
+        return $false
     }
 
     # Create backup directory if it doesn't exist
@@ -272,7 +272,7 @@ function Flash-EngineeringAbl {
     }
 
     if (-not (Wait-EdlMode 100)) {
-        return
+        return $false
     }
 
     # Create a timestamped backup folder
@@ -288,7 +288,7 @@ function Flash-EngineeringAbl {
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
         Write-Log "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return
+        return $false
     }
 
     # Backup DEVINFO
@@ -296,7 +296,7 @@ function Flash-EngineeringAbl {
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
         Write-Log "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return
+        return $false
     }
 
     # Flash custom ABL
@@ -304,7 +304,7 @@ function Flash-EngineeringAbl {
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return
+        return $false
     }
 
     # Flash custom DEVINFO
@@ -312,7 +312,7 @@ function Flash-EngineeringAbl {
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return
+        return $false
     }
 
     Write-Log "Original partitions backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
@@ -320,6 +320,7 @@ function Flash-EngineeringAbl {
     Write-Host ""
     Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
     Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
+    return $true
 }
 
 function Restore-OriginalAbl {
@@ -744,8 +745,11 @@ try {
             }
             "2" {
                 Select-Firehose
-                Flash-EngineeringAbl
-                Edl-To-System
+                if (Flash-EngineeringAbl) {
+                    Edl-To-System
+                } else {
+                    Warning-EDL-ManualReboot
+                }
             }
             "3" {
                 Perform-FastbootUnlock
