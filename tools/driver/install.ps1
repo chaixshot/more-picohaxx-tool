@@ -1,38 +1,42 @@
 # Self-elevate to Administrator if not already running as Admin
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-    exit
+    $proc = Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs -PassThru -Wait
+    exit $proc.ExitCode
 }
 
-# Find and install all .inf drivers in script's folder and subfolders
+# Find all .inf drivers in script's folder and subfolders
 Get-ChildItem -Path $PSScriptRoot -Recurse -Filter "*.inf" | ForEach-Object {
-    $infName = $_.Name
-    $drivers = pnputil /enum-drivers
+    $infFile = $_
+    $infName = $infFile.Name
 
-    # Identify and remove any existing drivers with the same original name
-    $found = $false
-    $publishedName = $null
+    Write-Host "Checking for existing installations of $infName..." -ForegroundColor Cyan
 
-    # Iterate through pnputil output to find Published Name associated with the Original Name
-    for ($i = 0; $i -lt $drivers.Count; $i++) {
-        $line = $drivers[$i]
-        if ($line -match "Original Name:\s+$infName") {
-            # Found the original name, now look back for the Published Name (it appears earlier in the same block)
-            for ($j = $i; $j -ge 0; $j--) {
-                if ($drivers[$j] -match "Published Name:\s+(oem\d+\.inf)") {
-                    $publishedName = $matches[1]
-                    Write-Host "Force removing existing driver: $publishedName ($infName)" -ForegroundColor Yellow
-                    pnputil /delete-driver $publishedName /uninstall /force | Out-Null
-                    break
-                }
-                # Stop if we hit a previous block
-                if ($drivers[$j] -match "Published Name:" -and $j -lt $i -and $drivers[$j] -notmatch $publishedName) {
-                    break
+    # Fetch output from pnputil
+    $enumOutput = (pnputil /enum-drivers) -join "`n"
+    
+    # Split output into individual driver entry blocks (handles double newlines)
+    $driverBlocks = $enumOutput -split "(?m)\r?\n\r?\n"
+
+    foreach ($block in $driverBlocks) {
+        # Check if the block contains the INF file name
+        if ($block -match "(?i)$([regex]::Escape($infName))") {
+            # Extract the oem*.inf name using regex matching regardless of language label
+            if ($block -match "(?i)(oem\d+\.inf)") {
+                $publishedName = $Matches[1]
+                Write-Host " Removing existing driver: $publishedName ($infName)..." -ForegroundColor Yellow
+                
+                # Delete the driver package
+                $null = pnputil /delete-driver $publishedName /uninstall /force
+                
+                # Fallback for older Windows 10 builds if /uninstall switch fails
+                if ($LASTEXITCODE -ne 0) {
+                    $null = pnputil /delete-driver $publishedName /force
+                    $null = pnputil -d $publishedName
                 }
             }
         }
     }
 
-    Write-Host "Installing: $($_.FullName)" -ForegroundColor Cyan
-    pnputil.exe /add-driver $_.FullName /install
+    Write-Host "Installing: $($infFile.FullName)" -ForegroundColor Green
+    pnputil /add-driver "`"$($infFile.FullName)`"" /install
 }
