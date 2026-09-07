@@ -72,11 +72,13 @@ This tool includes a built-in **Backup/Restore** suite to protect your user data
 
 ## Rooting with Magisk
 
-The tool includes an automated workflow to root your device:
+The tool includes an automated workflow to root your device directly from Windows:
 
-1. **Install Magisk APK**: The script installs `Magisk4Pico.apk` to your device.
-2. **Patch Boot Image**: You will be guided to download your current firmware, extract `boot.img`, and patch it using the Magisk app on the headset.
-3. **Flash Patched Image**: The script pulls the patched image back to your PC and flashes it via `fastboot`.
+1. **Pull or Provide Boot Image**: Pull the stock `boot.img` directly from your device via EDL mode.
+2. **Install Magisk**: Installs `Magisk4Pico.apk` directly to your headset.
+3. **Native Windows Patching**: Automatically patches `boot.img` on Windows using the integrated **MagiskBoot** tool (extracts modern Magisk payload, configures pre-init device, injects `overlay.d`, disables AVB/dm-verity in DTB, and repacks `magisk_patched.img`) without needing manual patching on the headset.
+4. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
+5. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
 
 ## Troubleshooting & Tips
 
@@ -120,7 +122,7 @@ Using the engineering ABL can cause issues like slow boot times or the device un
 * `modules/`: Contains modularized logic for `utils`, `root`, and `backuprestore`.
 * `more-picohaxx.py`: The core logic for deriving the unlock code from the device serial number.
 * `devinfo`: Engineering partition data required for the bypass.
-* `tools/`: Contains `adb`, `fastboot`, and `edl-ng` tools.
+* `tools/`: Contains `adb`, `fastboot`, `edl-ng`, and `magiskboot` tools.
 * `Magisk4Pico.apk`: Included for rooting the device after unlocking.
 
 ## Credits
@@ -129,6 +131,7 @@ Using the engineering ABL can cause issues like slow boot times or the device un
 * **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing and validation, Magisk4Pico.
 * **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guildline flashing manager.
 * **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download CLI.
+* **[magiskboot](https://github.com/Pranav-Talmale/magiskboot)**: Windows port of Magisk's boot image patching tool.
 
 ---
 *For more technical details on the bypass mechanism, refer to the comments in `more-picohaxx.py`.*
