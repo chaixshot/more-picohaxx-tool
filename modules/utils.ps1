@@ -254,7 +254,8 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
                 [System.Console]::Write("`r  Validating stable ADB connection...                        ")
                 
                 # Check 1: Wait until Android OS reports boot complete
-                $bootCompleted = (adb shell getprop sys.boot_completed 2>$null).Trim() -eq "1"
+                $rawBoot = & $ADB shell getprop sys.boot_completed 2>$null
+                $bootCompleted = (($rawBoot -join '').Trim()) -eq "1"
                 
                 # Check 2: Ensure connection stays active for 2 consecutive seconds
                 Start-Sleep -Seconds 2
