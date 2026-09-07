@@ -492,39 +492,68 @@ function Play-BeepBeep {
 }
 
 function Get-InstalledDriverInfo([string]$infName) {
-    $drivers = pnputil /enum-drivers
-    $found = $false
-    $info = [PSCustomObject]@{
-        Version  = $null
-        Date     = $null
-        Provider = $null
-    }
-    foreach ($line in $drivers) {
-        if ($line -match "Original Name:\s+$infName") {
-            $found = $true
-        }
-        if ($found) {
-            if ($line -match "Driver Version:\s+(.*)") {
-                $fullVersion = $matches[1].Trim()
-                if ($fullVersion -match "(\d{2}/\d{2}/\d{4})\s+(.*)") {
-                    $info.Date = $matches[1]
-                    $info.Version = $matches[2]
-                } else {
-                    $info.Version = $fullVersion
+    # Run pnputil quickly as raw text lines
+    $raw = pnputil /enum-drivers
+    if (-not $raw) { return $null }
+
+    # Group output lines into driver blocks separated by empty lines
+    $blocks = ($raw -join "`n") -split "(?m)^\s*`r?\n"
+
+    foreach ($block in $blocks) {
+        # Check if this block belongs to the target INF file
+        if ($block -match "(?i)\b$([regex]::Escape($infName))\b") {
+            
+            # Extract key-value pairs (Line Title : Line Value)
+            $lines = $block -split "`n" | Where-Object { $_ -match ":" }
+            $fields = @()
+            foreach ($line in $lines) {
+                $parts = $line -split ":", 2
+                if ($parts.Count -eq 2) {
+                    $fields += $parts[1].Trim()
                 }
             }
-            if ($line -match "Provider Name:\s+(.*)") {
-                $info.Provider = $matches[1].Trim()
+
+            # Map fields by standard pnputil block structure position:
+            # Field 0: Published Name (oemXX.inf)
+            # Field 1: Original Name (qcser.inf)
+            # Field 2: Provider Name (Qualcomm Incorporated)
+            # Field 3: Class / Category
+            # Field 4: Driver Date and Version
+
+            $info = [PSCustomObject]@{
+                Version  = $null
+                Date     = $null
+                Provider = $null
+            }
+
+            # Search specifically for version (X.X.X.X) and date (XX/XX/XXXX or XX.XX.XXXX) across fields
+            foreach ($field in $fields) {
+                if ($field -match "(\d{1,2}[\/\.]\d{1,2}[\/\.]\d{2,4})\s+(.*)") {
+                    $info.Date = $matches[1]
+                    $info.Version = $matches[2]
+                } elseif ($field -match "^\d+\.\d+\.\d+\.\d+$" -and -not $info.Version) {
+                    $info.Version = $field
+                }
+            }
+
+            # Provider is almost always Field 2 (or Field 1 depending on pnputil header order)
+            # We select the field that is NOT an INF name, NOT a date/version, and NOT a class
+            foreach ($field in $fields) {
+                if ($field -notmatch "\.inf$" -and $field -notmatch "\d+\.\d+" -and $field -ne "Ports (COM & LPT)" -and $field -ne "Порты (COM и LPT)") {
+                    # Skip Signer Name if present (usually contains "Publisher" or "Microsoft")
+                    if ($field -notmatch "Publisher" -and $field -notmatch "Compatibility") {
+                        $info.Provider = $field
+                        break
+                    }
+                }
+            }
+
+            if ($null -ne $info.Version) {
+                return $info
             }
         }
-        # If we reach the next driver block or the end, return what we found
-        if ($found -and $line -match "Published Name:" -and $null -ne $info.Version) {
-            return $info
-        }
     }
-    if ($null -ne $info.Version) {
-        return $info
-    }
+
     return $null
 }
 
