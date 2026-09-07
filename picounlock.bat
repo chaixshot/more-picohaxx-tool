@@ -1,15 +1,46 @@
 @echo off
-if not "%1"=="am_admin" (
-    powershell start -verb runas '%0' am_admin
+setlocal EnableDelayedExpansion
+
+:: Elevate to Administrator
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [INFO] Requesting Administrator Privileges...
+    powershell -Command "Start-Process -FilePath '%~f0' -ArgumentList 'am_admin' -Verb RunAs"
     exit /b
 )
 
-:: Set working directory for batch script
+:: Set Working Directory & Paths
 cd /d "%~dp0"
-
-:: Strip trailing backslash for Windows Terminal -d flag
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+set "TARGET_SCRIPT=%~dp0picounlock.ps1"
 
-:: Launch script inside Windows Terminal
-wt.exe -d "%SCRIPT_DIR%" powershell.exe -ExecutionPolicy Bypass -File "%~dp0picounlock.ps1"
+:: Validate target script exists
+if not exist "%TARGET_SCRIPT%" (
+    echo [ERROR] Could not find: "%TARGET_SCRIPT%"
+    echo Please make sure 'picounlock.ps1' is in the same folder as this batch file.
+    echo.
+    pause
+    exit /b 1
+)
+
+:: Check for Windows Terminal (wt.exe)
+set "WT_EXE="
+where wt.exe >nul 2>&1
+if %errorlevel% equ 0 (
+    set "WT_EXE=wt.exe"
+) else if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe" (
+    set "WT_EXE=%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe"
+)
+
+:: Corrected execution syntax (|| pause moved outside -File argument)
+if defined WT_EXE (
+    echo [LAUNCH] Starting in Windows Terminal...
+    "%WT_EXE%" -d "%SCRIPT_DIR%" cmd.exe /c "powershell.exe -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%" || pause"
+) else (
+    echo [WARNING] Windows Terminal not found. Falling back to PowerShell...
+    powershell.exe -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%"
+    if %errorlevel% neq 0 pause
+)
+
+exit /b 0
