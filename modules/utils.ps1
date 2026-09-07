@@ -237,7 +237,6 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
     Write-Host ""
     
-    # Set labels based on mode
     if ($waitForDisconnect) {
         Write-Log "Waiting for device to ${cCyan}DISCONNECT${cReset}..." "Action"
     } else {
@@ -248,10 +247,27 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
     for ($i = 1; $i -le $timeout; $i++) {
         $isDetected = IsAdbMode
 
-        # Check condition: when waiting for disconnect, $isDetected must be $false
         if (($waitForDisconnect -and -not $isDetected) -or (-not $waitForDisconnect -and $isDetected)) {
-            $msg = if ($waitForDisconnect) { "ADB device disconnected." } else { "ADB device detected." }
-            Write-Host "`r$msg                                       " -ForegroundColor Green
+            
+            # If connecting, verify stability to avoid post-reboot ADB dropouts
+            if (-not $waitForDisconnect) {
+                [System.Console]::Write("`r  Validating stable ADB connection...                        ")
+                
+                # Check 1: Wait until Android OS reports boot complete
+                $bootCompleted = (adb shell getprop sys.boot_completed 2>$null).Trim() -eq "1"
+                
+                # Check 2: Ensure connection stays active for 2 consecutive seconds
+                Start-Sleep -Seconds 2
+                $stillConnected = IsAdbMode
+
+                if (-not $bootCompleted -or -not $stillConnected) {
+                    # Device is still rebooting or dropped off; resume main loop
+                    continue
+                }
+            }
+
+            $msg = if ($waitForDisconnect) { "ADB device disconnected." } else { "ADB device detected and ready." }
+            Write-Host "`r$msg                                         " -ForegroundColor Green
             $success = $true
             break
         }
@@ -270,9 +286,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             }
             Start-Sleep -Milliseconds 100
         }
-        if ($skipped) {
-            break
-        }
+        if ($skipped) { break }
     }
     
     Write-Host ""
