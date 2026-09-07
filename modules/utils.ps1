@@ -442,7 +442,7 @@ function Perform-Reboot {
     Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
     if (-not (IsEdlMode)) {
         Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
-        Write-Host " [${cCyan}3${cReset}] Boot to recovery"
+        Write-Host " [${cCyan}3${cReset}] Boot to RECOVERY"
         Write-Host " [${cCyan}4${cReset}] Boot to EDL"
     }
 

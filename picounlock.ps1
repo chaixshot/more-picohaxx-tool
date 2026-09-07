@@ -435,7 +435,7 @@ function Perform-FastbootUnlock {
     if ($IsRetryBootloader -eq 0) {
         Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
         Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
-        Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Resotre${cReset} menu." "Warning"
+        Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Restore${cReset} menu." "Warning"
 
         $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter"
         if ($confirmation -ne 'YES') {
@@ -503,7 +503,7 @@ function Perform-FastbootLock {
     if ($IsRetryBootloader -eq 0) {
         Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to lock bootloader." "Warning"
         Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
-        Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Resotre${cReset} menu." "Warning"
+        Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Restore${cReset} menu." "Warning"
 
         $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter"
         if ($confirmation -ne 'YES') {
@@ -539,7 +539,7 @@ function Perform-FastbootLock {
         Write-Log "Flashing original ABL from backup: ${cGreen}$backupPath${cReset}" "Action"
         & $FASTBOOT flash abl $backupPath
     } else {
-        Write-Log "No backup found to restore during lock process. Proceeding with caution." "Warning"
+        Write-Log "No valid backup found to restore during lock process. Proceeding with caution." "Warning"
     }
 
     Write-Host ""
@@ -645,7 +645,7 @@ function Verify-FastbootState([string]$state) {
             Write-Log "Do you want to retry now?" "Info"
             Write-Host "Type ${cYellow}'YES'${cReset} to manual retry, or type ${cYellow}'AUTO'${cReset} to keep it running."
 
-            $confirmation = Read-HostLog "Anwser"
+            $confirmation = Read-HostLog "Answer"
             if ($confirmation -eq 'YES') {
                 $script:IsRetryBootloader = 1
             } elseif ($confirmation -eq 'AUTO') {
@@ -657,7 +657,7 @@ function Verify-FastbootState([string]$state) {
             if ($isCheckUnlock) {
                 Perform-FastbootUnlock
             } else {
-                Perform-FastboootLock
+                Perform-FastbootLock
             }
             return $null
         }
@@ -728,7 +728,7 @@ try {
         Write-Host ""
         Write-Host " [${cCyan}l${cReset}] Lock bootloader"
         Write-Host " [${cCyan}r${cReset}] Reboot"
-        Write-Host " [${cCyan}b${cReset}] Backup/Resotre"
+        Write-Host " [${cCyan}b${cReset}] Backup/Restore"
         Write-Host " [${cCyan}0${cReset}] Exit"
 
         $choice = Read-HostLog "Select an option"
