@@ -359,11 +359,11 @@ function Prepare-Magisk {
     Perform-MagiskBoot $bootImgPath
 }
 
-function Flash-Magisk {
-    Write-Header "Flashing Magisk"
+function Flash-BootImage([string]$imageName) {
+    Write-Header "Flash Boot Image"
 
     # Find image
-    $bootImgPath = BootImage-Picker "magisk_patched"
+    $bootImgPath = BootImage-Picker $imageName
 
     if (-not $bootImgPath) {
         return
@@ -400,8 +400,9 @@ function Show-RootMenu {
         Write-Header "Pico Root Menu"
         Write-Host " [${cCyan}1${cReset}] Prepare Boot Image"
         Write-Host " [${cCyan}2${cReset}] Prepare Magisk"
-        Write-Host " [${cCyan}3${cReset}] Flash Magisk"
+        Write-Host " [${cCyan}3${cReset}] Root With Magisk"
         Write-Host ""
+        Write-Host " [${cCyan}u${cReset}] Unroot"
         Write-Host " [${cCyan}r${cReset}] Reboot"
         Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
 
@@ -423,7 +424,10 @@ function Show-RootMenu {
                 Prepare-Magisk
             }
             "3" {
-                Flash-Magisk
+                Flash-BootImage "magisk_patched"
+            }
+            "u" {
+                Flash-BootImage "boot"
             }
             "r" {
                 Perform-Reboot
