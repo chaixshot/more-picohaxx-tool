@@ -603,7 +603,7 @@ function Show-FastbootFinalInstruction {
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, your device will boot normally." "Info"
     Write-Host ""
-    Write-Log "If device does not boot normally, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up as recovery mode." "Warning"
+    Write-Log "If device does not boot normally, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up with ${cCyan}No command${cReset} as recovery mode." "Warning"
     Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
     Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Warning"
     Wait-Continue

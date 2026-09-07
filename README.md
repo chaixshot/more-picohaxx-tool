@@ -2,134 +2,168 @@
 
 <img height="300" alt="unlocked" src="./src/unlocked.jpg" /> <img height="300" alt="unlocked" src="./src/mainmenu.png" />
 
-This repository contains a comprehensive set of tools and scripts to unlock the bootloader and root the **Pico 4** (confirmed), **Pico 4 Pro** (confirmed), and **Pico Neo 3** VR headsets.
+This repository contains a comprehensive set of tools and scripts for unlock Bootloader, rooting and full backup the **Pico 4**, **Pico 4 Pro**, and **Pico Neo 3** VR headsets.
 
-### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/releases/latest), run `picounlock.bat` to begin
+### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/releases/latest) and run `picounlock.bat` to begin
 
 > [!CAUTION]
-> **!!! DO A BACKUP FIRST !!!**
-> It is highly recommended to perform a **userdata backup via EDL** before starting.
-> Unlocking the bootloader **WILL WIPE ALL USER DATA**. Use the built-in **Backup/Restore** menu before proceeding.
+> Unlocking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
+> It is highly recommended to backup **User Personal Data** before starting.
 >
-## Backup & Restore
-
-This tool includes a built-in **Backup/Restore** suite to protect your user data from factory reset.
-
-### Backup Modes
-
-1.  **Physical Binary Dump (LUNs)**
-    *   Sector-by-sector clone of physical drives (LUN 0-6).
-    *   Best for unbricking, GPT repair, and low-level recovery.
-2.  **User Personal Data (UserData)**
-    *   Backup of the `userdata` partition ONLY.
-    *   Includes all apps, games, photos, and internal storage files.
-3.  **System Partition Dump (Partitions)**
-    *   Individual file per system partition (boot, abl, system, etc.).
-    *   Best for general firmware backup or modding. Excludes userdata.
-
-### Features
-
-* **Easy Restoration**: Select between different backup sets using the menu.
-* **Custom Backup Location**: Specify your own folder path when starting a backup to save space on your system drive or organize files manually.
-* **Smart Restoration**: Paste a backup folder path directly into the menu. The script automatically detects the backup type (LUNs, UserData, or Partitions) based on the files inside.
-* **Transparent LZX Compression**: Optional folder compression for backups using Windows native `compact.exe`. Reduces backup size by up to **60%** while keeping files directly accessible with negligible CPU impact.
-* **EDL Integration**: Automates the complex EDL workflow using the provided `EDLHelper` (powered by `edl-ng`).
+>**Risk**: Flashing firmware carries inherent risks. While this method is tested, proceed at own risk.
 
 ## Status
 
 * **Pico 4**: Confirmed working.
 * **Pico 4 Pro**: Confirmed working.
-* **Pico Neo 3**: Not confirmed yet, but should work the same (uses ABL and devinfo from P3 firmware).
+* **Pico Neo 3**: Not confirmed yet, but should work the same (uses ABL and devinfo from Pico 3 firmware).
 
 ## Prerequisites
 
-* **Windows PC**: The automation script is written in PowerShell.
+* **Windows PC**: The automation script is written in [PowerShell](https://github.com/powershell/powershell).
 * **PowerShell Execution**: If script can not run, follow [ps-enabling-exec-scripts](https://github.com/whonion/ps-enabling-exec-scripts) guide
-* **Pico Device**: Pico 4, Pico 4 Pro, or Pico Neo 3 with [USB Debug](#usb-debug) enabled.
+* **Pico Headset**: Pico 4, Pico 4 Pro, or Pico Neo 3 with [USB Debug](#usb-debug) enabled.
 
-## WARNING
+## Backup
 
-* **Risk**: Flashing firmware carries inherent risks. While this method is tested, you proceed at your own risk.
-* **Engineering ABL & Devinfo**: The process involves flashing early engineering files. On Pico 4, this may result in SELinux being set to permissive.
+This tool includes a built-in **Backup** suite to protect user data from **Factory Reset** and **Headset Bricking**.
+> Uses the folder `./backup` to store data by default.
+
+### Backup Modes
+
+* **Physical Binary Dump (LUNs)**
+  * Sector-by-sector clone of physical drives (LUN 0-5).
+  * Best for unbricking, GPT repair, and low-level recovery.
+  * Excludes `userdata`.
+* **User Personal Data (UserData)**
+  * Backup only the `userdata` partition.
+  * Includes all apps, games, save files, photos, settings, and internal storage files.
+* **System Partition Dump (Partitions)**
+  * Individual file per system partition (`boot`, `abl`, `system`, etc.).
+  * Best for general firmware backup or modding.
+  * Excludes `userdata`.
+
+### Backup Features
+
+* **Custom Backup Folder**: Specify folder path when starting a backup to save space on system drive or organize files manually.
+* **LZX Compression**: Optional folder compression for backups using Windows native `compact.exe`. Reduces backup size by up to **60%** while keeping files directly accessible with negligible CPU impact.
+* **EDL Integration**: Automates the complex **EDL** workflow using the provided `QFILHelper`.
+
+## Restore
+
+> Scan default folder `./backup` to create menu.
+
+* **Backup Selector**: Select between different backup sets using the menu.
+* **Custom Restore Folder**: Paste a backup folder path directly into the menu. Automatically detects the backup type (`LUNs`, `UserData`, `Partitions`, or `Downgrade`) based on the files inside.
+* **Downgrade**: Supports downgrader folder file set.
 
 ## How It Works
 
-1. **Perform Backup**: Choose a **User Personal Data** backup before proceeding, as unlocking will wipe the device.
-1. **Get Chip ID**: Acquire your `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`).
-1. **Generate Token**: Use `more-picohaxx.py` to generate your personal unlock command.
+1. **Perform Backup**: Perform **User Personal Data** backup before proceeding, as unlocking will wipe headset user data.
+1. **Get Chip ID**: Acquire headset `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`).
+1. **Generate Token**: Use `more-picohaxx.py` to generate `fastboot oem picoXXXXXXXX unlock` unlock command.
 1. **Flash Engineering ABL**: Flash the old `abl` and `devinfo` via EDL.
-    * **Firehose Selection**: Choose the correct firehose based on your device hardware:
+    * **Firehose Selection**: Choose the correct firehose based on headset hardware:
         * **Pico 4 / Pico Neo 3**: Select **DDR 4** (Standard firehose).
         * **Pico 4 Pro**: Select **DDR 5** (Lite firehose).
 1. **Fastboot Unlock**: Issue the generated command from **Generate Token**, followed by:
     * `fastboot flashing unlock_critical`
     * `fastboot flashing unlock`
     * `fastboot oem setenforce 0`
-1. **Reboot Bootloader**: Check the status. If it isn't unlocked, **repeat the steps**. This is expected behavior; don't be afraid to try again.
-1. **Facory Reset**: Perform a full factory reset via recovery clear residual user data.
-1. **Flash Backup ABL**: Flash back your original stock abl image to restore boot capability.
-1. **Restore Userdata**: Restore your previously backed-up userdata
+1. **Reboot Bootloader**: Confirm unlock state is persistence after reboot.
+   * If it isn't stay unlocked, **repeat the steps**. This is expected behavior; don't be afraid to try again.
+1. **Factory Reset**: Perform factory reset via recovery to wipe user data if necessary.
+1. **Root with Magisk**: Flash Magisk patched `boot.img` via unlocked fastboot to get superuser access.
+1. **Flash Backup ABL**: Flash original firmware `abl` image to restore boot capability.
+1. **Restore Userdata**: Restore backed-up user data
 
 ## Rooting with Magisk
 
-The tool includes an automated workflow to root your device directly from Windows:
+The tool includes an automated workflow to root headset directly from Windows:
 
-1. **Pull or Provide Boot Image**: Pull the stock `boot.img` directly from your device via EDL mode.
-2. **Install Magisk**: Installs `Magisk4Pico.apk` directly to your headset.
-3. **Native Windows Patching**: Automatically patches `boot.img` on Windows using the integrated **MagiskBoot** tool (extracts modern Magisk payload, configures pre-init device, injects `overlay.d`, disables AVB/dm-verity in DTB, and repacks `magisk_patched.img`) without needing manual patching on the headset.
-4. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
-5. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
+1. **Pull Boot Image**: Pull firmware `boot.img` directly from headset via EDL mode.
+1. **Install Magisk**: Installs `Magisk4Pico.apk` directly to headset.
+1. **Native Windows Patching**: Automatically patches `boot.img` on Windows using the integrated **MagiskBoot** tool without needing manual patching on the headset.
+1. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
+1. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
 
 ## Troubleshooting & Tips
 
 ### Unlock Persistence
 
-If `fastboot oem device-info` shows the device as locked after the first attempt, **repeat the unlock commands**. It is known that the unlock bits (written to protected RPMB storage) might not "stick" immediately.
+If `fastboot oem device-info` shows the headset as locked after the first attempt, **repeat the unlock commands**. It is known that the unlock bits (written to protected RPMB storage) might not "stick" immediately.
 
-### Slow Boot or Automatic EDL Boot
+### Slow Boot or EDL Boot
 
-Using the engineering ABL can cause issues like slow boot times or the device unexpectedly entering EDL mode. To fix this:
+Using the **Engineering ABL** can cause issues like slower boot or unexpectedly entering EDL mode. To fix this:
 
-1. **Unlock and Root** the device successfully first.
-2. Use the **"Flash backup ABL"** option in the script menu. This restores your original `abl` partition.
-3. Because the unlock state is stored in the **RPMB**, you will remain unlocked even with the original ABL.
-4. **Note**: This will return SELinux to `Enforcing`. Use a Magisk module (like `selinux_permissive`) to maintain permissive mode if your setup requires it.
+1. **Unlock and Root** the headset successfully first.
+1. Use the **"Flash backup ABL"** option in the script menu. This restores firmware `abl` partition.
+1. Because the unlock state is stored in the **RPMB**, headset will remain unlocked even with the firmware ABL.
+
+> [!NOTE]
+> This will return SELinux to Enforcing. Use a Magisk module [selinux_permissive](https://github.com/evdenis/selinux_permissive) to maintain permissive mode if the setup requires it.
 
 ### USB Connectivity
 
 * Use a high-quality USB-C cable.
-* If EDL mode is unstable, try a **USB 2.0 port** or a USB 2.0 hub.
+* If EDL mode is unstable, try a USB 2.0 port.
 
 ### USB Debug
 
-1. Open PicoOS settings menu
-1. Goto General > About
+1. Enter **Pico OS** settings menu
+1. Go to **General** > **About**
 1. Tap **Software version** 7 times quickly until the **Developer** tab appears
-1. Goto **Developer** tab and enable the **USB Debug** option
+1. Go to **Developer** tab and enable the **USB Debug** option
 
 <img width="500" alt="usbdebug" src="https://knowledge.matts-digital.com/wp-content/uploads/2025/12/debogage-usb-pico-g3-plus-1.jpg" />
 
 ### Manual Boot
 
-* Edl mode: Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
-* Recovery mode: Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd>.
-* Fastboot mode: Hold  <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
+* System: Hold <kbd>Power</kbd> until Pico logo shows up.
+* [Recovery mode](https://wikipedia.org/wiki/Android_recovery_mode): Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd> until dead robot shows up.
+* [Fastboot mode](https://wikipedia.org/wiki/Fastboot): Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> until menu shows up.
+* [EDL mode](https://wikipedia.org/wiki/Qualcomm_EDL_mode): Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
+
+### Recovery Mode
+
+1. Robot shows up with "No command." message as recovery mode.
+1. In recovery mode, hold <kbd>Power</kbd> first then press <kbd>Vol Up</kbd> to access the menu.
+1. Use <kbd>Vol Up</kbd> and <kbd>Vol Down</kbd> to navigate, and press <kbd>Power</kbd> to select.
+
+<img width="500" alt="usbdebug" src="https://images.ultfone.com/topics/android/android-no-command.jpg" />
+
+### Undo
+
+This tool includes Unroot and lock Bootloader
+
+> [!NOTE]
+> Unrooting does not lock the Bootloader. To lock the Bootloader, use the **Lock Bootloader** option in the menu.
+
+> [!CAUTION]
+> Locking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
+> It is highly recommended to backup **User Personal Data** before starting.
 
 ## Key Components
 
 * `picounlock.bat`: A convenient wrapper to run the script with Administrator privileges.
 * `picounlock.ps1`: The main automation script (PowerShell).
-* `modules/`: Contains modularized logic for `utils`, `root`, and `backuprestore`.
-* `more-picohaxx.py`: The core logic for deriving the unlock code from the device serial number.
-* `devinfo`: Engineering partition data required for the bypass.
-* `tools/`: Contains `adb`, `fastboot`, `edl-ng`, and `magiskboot` tools.
-* `Magisk4Pico.apk`: Included for rooting the device after unlocking.
+* `modules/`: Contains modularized logic for `picounlock.ps1`.
+* `more-picohaxx.py`: The core logic for deriving the unlock code from the headset serial number.
+* `tools/`: Android platform tools, and `edl-ng`.
+* `tools/driver`: Qualcomm usb driver.
+* `tools/engineering`: Engineering ABL & Devinfo.
+* `tools/firehoses`: EDL firehose flashing protocol .
+* `tools/magisk`: Rooting the headset after unlocking.
+* `logs`: Everything that is written on the console.
+* `backup`: Default headset backup which is `abl`, `partitions`, and `boot.img`.
+* `serial_number.txt`: Store headset serial number.
 
 ## Credits
 
 * **[typlo](https://github.com/264312431)**: For finding this bypass method and the previous root exploit.
 * **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing and validation, Magisk4Pico.
-* **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guildline flashing manager.
+* **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guideline flashing manager.
 * **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download CLI.
 * **[magiskboot](https://github.com/Pranav-Talmale/magiskboot)**: Windows port of Magisk's boot image patching tool.
 
