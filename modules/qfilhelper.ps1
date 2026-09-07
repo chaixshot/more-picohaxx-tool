@@ -214,6 +214,7 @@ function FlashFirmware([string]$flashPath) {
     }
 
     # Re-read GPT headers before flashing partitions to ensure we use the new layout
+    ResetLookUp
     if (-not (ReadGPTHeaders -isTemp $true -isSort $true)) {
         ProcessCompleted -isExec $isExec
         return $false
