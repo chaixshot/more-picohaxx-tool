@@ -216,22 +216,27 @@ function Check-Prerequisites {
 function Generate-UnlockCode {
     Write-Header "Generating Unlock Code"
 
-    if (Invoke-PicoHaxxScript) {
-        return
-    } elseif (-not (IsAdbMode)) {
-        Warning-ADB
+    if (IsAdbMode) {
+        $rawSerial = & $ADB shell "cat /sys/devices/soc0/serial_number" 2>$null
+        $serialNumber = ($rawSerial -join '').Trim()
+        if ($serialNumber -match "^\d+$") {
+            $serialNumber | Set-Content -Path $DeviceSerial -Encoding Ascii
+            Write-Log "Device serial number saved to ${cCyan}'$DeviceSerial'${cReset}." "Info"
+            Write-Log "Device serial number: ${cGreen}$serialNumber${cReset}" "Success"
+            $null = Invoke-PicoHaxxScript
+            return
+        } else {
+            Write-Log "Failed to get a valid serial number from the device. Is it connected and authorized?" "Warning"
+        }
+    }
+
+    if (Test-Path $DeviceSerial) {
+        Write-Log "Using existing serial number from ${cCyan}'$DeviceSerial'${cReset}." "Info"
+        $null = Invoke-PicoHaxxScript
         return
     }
 
-    $serialNumber = (& $ADB shell "cat /sys/devices/soc0/serial_number").Trim()
-    if (-not ($serialNumber -match "^\d+$")) {
-        Write-Log "Failed to get a valid serial number from the device. Is it connected and authorized?" "Error"
-        return
-    }
-
-    $serialNumber | Set-Content -Path $DeviceSerial -Encoding Ascii
-    Write-Log "Device serial number saved to ${cCyan}'$DeviceSerial'${cReset}." "Info"
-    Write-Log "Device serial number: ${cGreen}$serialNumber${cReset}" "Success"
+    Warning-ADB
 }
 
 # ----------------------------
