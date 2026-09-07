@@ -303,7 +303,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 #########################################
 
 function Select-Firehose {
-    if ($null -eq $FirehoseTargetPath) {
+    while ($null -eq $FirehoseTargetPath) {
         Write-Header "Select Firehose"
         Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
         Write-Host " [${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
@@ -316,9 +316,8 @@ function Select-Firehose {
         } elseif ($fhChoice -eq "2") {
             $script:FirehoseTargetPath = $FirehoseDDR5Path
             Write-Log "Using DDR 5 Firehose." "Info"
-        }
-
-        if (-not $fhChoice) {
+        } else {
+            Write-Log "Invalid choice. Please select 1 or 2." "Error"
             Wait-Continue
         }
     }
