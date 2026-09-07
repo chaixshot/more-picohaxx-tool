@@ -197,6 +197,103 @@ SHA1=$sha1
     }
 }
 
+function IsDeviceRooted {
+    # Primary Check: check root uid via su -c id
+    Write-Log "Checking Superuser access using ${cCyan}adb shell su -c id${cReset}..." "Action"
+    $suOutputRaw = & $ADB shell "su -c id" 2>&1
+    $suOutput = ($suOutputRaw -join "`n").Trim()
+    Write-Host $suOutput
+
+    if ($suOutput -match "uid=0(\(root\))?") {
+        # Check and display Magisk version if available
+        $magiskVer = (& $ADB shell "su -c magisk -v" 2>&1) -join ""
+        if ($magiskVer -match "(:MAGISK|\d+\.\d+)") {
+            Write-Log "Magisk version detected: ${cGreen}$magiskVer${cReset}" "Info"
+        }
+        return $true
+    }
+
+    # Fallback Check: su 0 id
+    Write-Log "Checking fallback with ${cCyan}adb shell su 0 id${cReset}..." "Action"
+    $altSuRaw = & $ADB shell "su 0 id" 2>&1
+    $altSu = ($altSuRaw -join "`n").Trim()
+    Write-Host $altSu
+
+    if ($altSu -match "uid=0(\(root\))?") {
+        return $true
+    }
+
+    # Fallback Check: adb root (if adbd runs as root)
+    $idRaw = & $ADB shell "id" 2>&1
+    $idOutput = ($idRaw -join "`n").Trim()
+    if ($idOutput -match "uid=0(\(root\))?") {
+        return $true
+    }
+
+    if ($suOutput -match "Permission denied") {
+        Write-Log "Superuser prompt may have been denied or timed out on screen." "Warning"
+        return $false
+    }
+
+    return $false
+}
+
+function Verify-RootState([string]$state = "root") {
+    # Normalize state check
+    $isCheckRoot = (-not $state) -or ($state -match "^root")
+    $actionName = if ($isCheckRoot) { "Verify Root Access" } else { "Verify Unroot State" }
+
+    Write-Header $actionName
+
+    # Ensure device is in ADB mode
+    if (IsFastbootMode) {
+        Fastboot-To-System
+    } elseif (IsEdlMode) {
+        Edl-To-System
+    } elseif (-not (IsAdbMode)) {
+        Warning-ADB
+    }
+
+    if (-not (Wait-AdbMode 500)) {
+        return
+    }
+
+    $isRooted = IsDeviceRooted
+
+    if ($null -eq $isRooted) {
+        $statusText = if ($isCheckRoot) { "${cGreen}'ROOTED'${cReset}" } else { "${cYellow}'UNROOTED'${cReset}" }
+        Write-Log "Unable to automatically detect superuser state via ADB." "Warning"
+        Write-Log "Please check your device screen for any Superuser authorization prompt." "Warning"
+        
+        Wait-Continue
+        return
+    }
+
+    # Determine if actual device state matches desired state
+    $desiredState = if ($isCheckRoot) { $true } else { $false }
+    $isSuccess = ($isRooted -eq $desiredState)
+    $statusText = if ($isRooted) { "ROOTED" } else { "NOT ROOTED" }
+
+    if ($isSuccess) {
+        Write-Host ""
+        Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
+    } else {
+        Write-Host ""
+        Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
+        if ($isCheckRoot) {
+            Write-Log "Ensure Magisk APK is installed and the patched boot image was successfully flashed." "Info"
+            Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Info"
+        } else {
+            Write-Log "Root access or su binaries are still detected on the device." "Info"
+            Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Info"
+        }
+    }
+}
+
+#########################################
+#########################################
+#########################################
+
 function BootImage-Picker($imageName) {
     $bootImgPath = Join-Path $BootBackupPath "$imageName.img"
 
@@ -339,7 +436,7 @@ function Prepare-Magisk {
         Warning-ADB
     }
 
-    if (-not (Wait-AdbMode 100)) {
+    if (-not (Wait-AdbMode 500)) {
         return
     }
 
@@ -366,7 +463,7 @@ function Flash-BootImage([string]$imageName) {
     $bootImgPath = BootImage-Picker $imageName
 
     if (-not $bootImgPath) {
-        return
+        return $false
     }
 
     if (IsAdbMode) {
@@ -376,11 +473,11 @@ function Flash-BootImage([string]$imageName) {
     }
 
     if (-not (Wait-FastbootMode 100)) {
-        return
+        return $false
     }
 
     if (-not (Execute-UnlockCommand)) {
-        return
+        return $false
     }
 
     Write-Log "Flashing boot image with '${cCyan}$( $bootImgPath.FullName )${cReset}'..." "Action"
@@ -388,11 +485,17 @@ function Flash-BootImage([string]$imageName) {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Flash successful!" "Success"
-        Fastboot-To-System
+
+        return $true
     } else {
         Write-Log "Failed to flash boot image." "Error"
+        return $false
     }
 }
+
+#########################################
+#########################################
+#########################################
 
 function Show-RootMenu {
     $rootQuit = $false
@@ -424,10 +527,16 @@ function Show-RootMenu {
                 Prepare-Magisk
             }
             "3" {
-                Flash-BootImage "magisk_patched"
+                if (Flash-BootImage "magisk_patched") {
+                    Wait-Continue
+                    Verify-RootState "root"
+                }
             }
             "u" {
-                Flash-BootImage "boot"
+                if (Flash-BootImage "boot") {
+                    Wait-Continue
+                    Verify-RootState "unroot"
+                }
             }
             "r" {
                 Perform-Reboot
