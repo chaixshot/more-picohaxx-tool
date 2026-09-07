@@ -542,7 +542,7 @@ function Perform-FastbootLock {
     }
 
     $backupPath = Get-LatestAblBackup
-    if ($backupPath) {
+    if ($backupPath -and (Test-Path $backupPath) -and (Get-Item $backupPath).Length -gt 0) {
         Write-Log "Flashing original ABL from backup: ${cGreen}$backupPath${cReset}" "Action"
         & $FASTBOOT flash abl $backupPath
     } else {
