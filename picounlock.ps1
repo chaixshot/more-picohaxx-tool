@@ -31,8 +31,8 @@ $LogsPath = ".\logs"
 $DriverInstall = ".\tools\driver\install.ps1"
 $DeviceSerial = ".\serial_number.txt"
 
-$FirehoseDDR4Path = (Get-Item ".\tools\firehoses\prog_firehose_ddr.elf").FullName
-$FirehoseDDR5Path = (Get-Item ".\tools\firehoses\prog_firehose_lite.elf").FullName
+$FirehoseDDR4Path = Join-Path $PSScriptRoot "tools\firehoses\prog_firehose_ddr.elf"
+$FirehoseDDR5Path = Join-Path $PSScriptRoot "tools\firehoses\prog_firehose_lite.elf"
 $FirehoseTargetPath = $null
 
 $AblPath = ".\tools\engineering\abl.elf"
