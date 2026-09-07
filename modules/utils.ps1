@@ -117,7 +117,7 @@ function IsEdlMode {
 
 function IsAdbMode {
     $adbOutput = & $ADB devices
-    return $adbOutput | Select-String -Pattern "`t" -Quiet
+    return $adbOutput | Select-String -Pattern "`tdevice$" -Quiet
 }
 
 function IsFastbootMode {
