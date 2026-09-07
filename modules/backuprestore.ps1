@@ -76,6 +76,7 @@ function Select-BackupFolder {
         if ($null -ne $detectedType) {
             Write-Log "Detected valid ${cYellow}$detectedType${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
             Wait-Continue
+
             return [PSCustomObject]@{
                 Path = $pastedPath
                 Type = $detectedType
@@ -263,9 +264,10 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
     Write-Log "Current disk space (${cCyan}Drive ${driveName}${cReset}): ${cGreen}$freeSpaceGB GB${cReset}" "Info"
 
     if ($freeSpaceGB -lt $diskSize) {
-        Write-Log "Free space on drive ${cCyan}${driveLetter}${cReset} is less than the required size (${cCyan}$diskSize GB${cReset})!" "Error"
+        Write-Log "Free space on drive ${cCyan}${driveLetter}${cReset} is less than the required size (${cCyan}$diskSize GB${cReset})." "Error"
         Write-Log "Please ensure you have enough space on drive ${cCyan}${driveLetter}${cReset} before proceeding." "Error"
         Wait-Continue
+
         return $false
     } else {
         Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Info"
@@ -561,6 +563,7 @@ function Backup-Device($selection) {
         Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
         Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         Wait-Continue
+
         return $false
     }
 
@@ -571,8 +574,8 @@ function Backup-Device($selection) {
         Wait-Continue
 
         Folder-Compression $backupFolder.FullName
-
         Wait-Continue
+
         return $true
     } else {
         Write-Log "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed." "Error"
@@ -580,8 +583,8 @@ function Backup-Device($selection) {
             Write-Log "Deleting invalid backup folder..." "Action"
             Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
         }
-
         Wait-Continue
+
         return $false
     }
 }
@@ -620,8 +623,8 @@ function Restore-Backup($backupInfo) {
     if (-not $success) {
         Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
     }
-
     Wait-Continue
+    
     return $success
 }
 

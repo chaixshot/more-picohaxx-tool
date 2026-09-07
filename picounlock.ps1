@@ -315,11 +315,13 @@ function Flash-EngineeringAbl {
         return $false
     }
 
-    Write-Log "Original partitions backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
+    Write-Log "Original ABL backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
     Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
     Write-Host ""
     Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
     Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
+    Wait-Continue
+    
     return $true
 }
 
@@ -384,7 +386,9 @@ function Restore-OriginalAbl {
         return $false
     }
 
-    Write-Log "Original ABL restored successfully!" "Success"
+    Write-Log "Original ABL restored successfully." "Success"
+    Wait-Continue
+    
     return $true
 }
 
@@ -593,7 +597,7 @@ function Perform-FastbootLock {
 function Show-FastbootFinalInstruction {
     Write-Header "Bootloader Finalizing"
     Write-Log "!!! CRITICAL NEXT STEP !!!" "Warning"
-    Write-Log "If you want to root the device (${cCyan}Option 4${cReset}), do it before flash backup ABL." "Warning"
+    Write-Log "If you want to ${cYellow}Root${cReset} the device, do it before flash backup ABL." "Warning"
     Write-Host ""
     Write-Log "Check your device screen to confirm the current bootloader state." "Info"
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
@@ -636,8 +640,8 @@ function Verify-FastbootState([string]$state) {
         $statusText = if ($isCheckUnlock) { "${cGreen}'UNLOCKED'${cReset}" } else { "${cYellow}'LOCKED'${cReset}" }
         Write-Log "Unable to automatically detect bootloader state via fastboot." "Warning"
         Write-Log "Please check your device screen. The bootloader menu should now show $statusText." "Warning"
-        
         Wait-Continue
+
         return $null
     }
 

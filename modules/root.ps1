@@ -264,8 +264,8 @@ function Verify-RootState([string]$state = "root") {
         $statusText = if ($isCheckRoot) { "${cGreen}'ROOTED'${cReset}" } else { "${cYellow}'UNROOTED'${cReset}" }
         Write-Log "Unable to automatically detect superuser state via ADB." "Warning"
         Write-Log "Please check your device screen for any Superuser authorization prompt." "Warning"
-        
         Wait-Continue
+        
         return
     }
 
@@ -413,6 +413,7 @@ function Pull-BootImage {
 
     $bootPath = (Get-Item $dumpedBoot).FullName
     Write-Log "Stock boot image pulled to ${cGreen}'${bootPath}'${cReset} successfully." "Success"
+    Wait-Continue
 
     return $true
 }
@@ -485,10 +486,13 @@ function Flash-BootImage([string]$imageName) {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Log "Flash successful." "Success"
+        Wait-Continue
 
         return $true
     } else {
         Write-Log "Failed to flash boot image." "Error"
+        Wait-Continue
+        
         return $false
     }
 }
@@ -528,13 +532,11 @@ function Show-RootMenu {
             }
             "3" {
                 if (Flash-BootImage "magisk_patched") {
-                    Wait-Continue
                     Verify-RootState "root"
                 }
             }
             "u" {
                 if (Flash-BootImage "boot") {
-                    Wait-Continue
                     Verify-RootState "unroot"
                 }
             }
