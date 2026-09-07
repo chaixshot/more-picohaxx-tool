@@ -333,16 +333,25 @@ function Restore-OriginalAbl {
 
     $backupFolder = Get-LatestAblBackup -FileName ""
     if (-not $backupFolder) {
-        return
+        return $false
     }
     $backupAbl = Join-Path $backupFolder "abl.bin"
     $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
+
+    if (-not (Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) {
+        Write-Log "Backup ABL file '${cYellow}$backupAbl${cReset}' does not exist or is empty." "Error"
+        return $false
+    }
+    if (-not (Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
+        Write-Log "Backup DevInfo file '${cYellow}$backupDevInfo${cReset}' does not exist or is empty." "Error"
+        return $false
+    }
 
     Write-Log "Target backup folder: ${cGreen}$backupFolder${cReset}" "Info"
     $confirmation = Read-HostLog "Are you sure you want to flash this backup? (Type ${cYellow}'YES'${cReset})"
     if ($confirmation -ne 'YES') {
         Write-Log "Restore aborted by user." "Warning"
-        return
+        return $false
     }
 
     if (IsAdbMode) {
@@ -356,7 +365,7 @@ function Restore-OriginalAbl {
     }
 
     if (-not (Wait-EdlMode 100)) {
-        return
+        return $false
     }
 
     # Flash backup ABL
@@ -364,7 +373,7 @@ function Restore-OriginalAbl {
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return
+        return $false
     }
 
     # Flash backup DEVINFO
@@ -372,10 +381,11 @@ function Restore-OriginalAbl {
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return
+        return $false
     }
 
     Write-Log "Original ABL restored successfully!" "Success"
+    return $true
 }
 
 function Get-LatestAblBackup([string]$FileName = "abl.bin") {
@@ -760,8 +770,11 @@ try {
             }
             "5" {
                 Select-Firehose
-                Restore-OriginalAbl
-                Edl-To-System
+                if (Restore-OriginalAbl) {
+                    Edl-To-System
+                } else {
+                    Warning-EDL-ManualReboot
+                }
             }
             "l" {
                 Perform-FastbootLock
