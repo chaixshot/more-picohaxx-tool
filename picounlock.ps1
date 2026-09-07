@@ -284,7 +284,7 @@ function Flash-EngineeringAbl {
     Write-Log "Backing up original partitions and flashing engineering files in a single operation..." "Action"
 
     # Backup ABL
-    Execute-EdlCommand "--memory UFS read-part abl $backupAbl"
+    $null = Execute-EdlCommand "--memory UFS read-part abl $backupAbl"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
         Write-Log "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -292,7 +292,7 @@ function Flash-EngineeringAbl {
     }
 
     # Backup DEVINFO
-    Execute-EdlCommand "--memory UFS read-part devinfo $backupDevInfo"
+    $null = Execute-EdlCommand "--memory UFS read-part devinfo $backupDevInfo"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
         Write-Log "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -300,7 +300,7 @@ function Flash-EngineeringAbl {
     }
 
     # Flash custom ABL
-    Execute-EdlCommand "--memory UFS write-part abl $AblPath"
+    $null = Execute-EdlCommand "--memory UFS write-part abl $AblPath"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -308,7 +308,7 @@ function Flash-EngineeringAbl {
     }
 
     # Flash custom DEVINFO
-    Execute-EdlCommand "--memory UFS write-part devinfo $DevInfoPath"
+    $null = Execute-EdlCommand "--memory UFS write-part devinfo $DevInfoPath"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -327,7 +327,8 @@ function Restore-OriginalAbl {
     Write-Header "Restoring Original Partitions via EDL"
     Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
     Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
-    Write-Log "Perform ${cYellow}rooting${cReset} (${cCyan}Option 4${cReset}) before doing this step!" "Warning"
+    Write-Log "Perform ${cYellow}Root${cReset} before doing this step." "Warning"
+    Write-Log "Fastboot will no longer work for device modification." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $backupFolder = Get-LatestAblBackup -FileName ""
@@ -359,7 +360,7 @@ function Restore-OriginalAbl {
     }
 
     # Flash backup ABL
-    Execute-EdlCommand "--memory UFS write-part abl $backupAbl"
+    $null = Execute-EdlCommand "--memory UFS write-part abl $backupAbl"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
@@ -367,7 +368,7 @@ function Restore-OriginalAbl {
     }
 
     # Flash backup DEVINFO
-    Execute-EdlCommand "--memory UFS write-part devinfo $backupDevInfo"
+    $null = Execute-EdlCommand "--memory UFS write-part devinfo $backupDevInfo"
     $exitcode = $LASTEXITCODE
     if ($exitcode -ne 0) { 
         Write-Log "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
