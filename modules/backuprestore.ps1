@@ -48,12 +48,15 @@ function Select-BackupFolder {
             $folder = $backupFolders[$i]
             Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
         }
-        $selection = Read-HostLog "Select a backup folder [${cCyan}1-$( $backupFolders.Count )${cReset}] or paste folder path, [${cCyan}c${cReset}] to cancel"
+        $selection = Read-HostLog "Select backup [${cCyan}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
+    
+        if ($selection -eq 'a') {
+            $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip"
+        }
     } else {
         Write-Log "No backup folders found in default directories." "Warning"
         
-        # Prompt using colored helper
-        $selection = Read-HostLog "Paste your backup folder path here, or [${cCyan}c${cReset}] to cancel"
+        $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip"
     }
 
     if ($selection -eq 'c') {
@@ -99,7 +102,7 @@ function Select-BackupFolder {
         }
     }
 
-    Write-Log "Invalid selection or path: '$selection'." "Error"
+    Write-Log "Invalid input: '$selection'." "Error"
     return $null
 }
 
@@ -290,7 +293,7 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
 
     $minSizeGB = switch ($backupMode) {
         "downgrade" { 9 }
-        "downgradeDDR5" { 9 }
+        "downgradeDDR5" { 8 }
         default { 12 }
     }
     if ($sizeGB -lt $minSizeGB) {
@@ -426,8 +429,11 @@ function Select-BackupMode {
     }
 
     if ($null -ne $mode) {
-        $inputPath = Read-HostLog "Enter custom backup folder path (press Enter for default)"
-        
+        $inputPath = Read-HostLog "Custom backup folder [${cYellow}A${cReset}], enter to default"
+        if ($inputPath -eq "a") {
+            $inputPath = Get-FileOrFolderDialog "Select backup folder" 1
+        }
+
         # Check if user entered text AND whether that path actually exists
         if ([string]::IsNullOrWhiteSpace($inputPath) -or -not (Test-Path -Path $inputPath)) {
             if (-not [string]::IsNullOrWhiteSpace($inputPath)) {
@@ -441,6 +447,8 @@ function Select-BackupMode {
 
         return [PSCustomObject]@{ backupMode = $mode; customPath = $customPath }
     }
+
+    Write-Log "Invalid option." "Warning"
 
     return $null
 }

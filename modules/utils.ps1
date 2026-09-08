@@ -574,7 +574,7 @@ function Play-BeepBeep {
                 $wavePosition = $i % $period
                 $amplitude = 0.2
                 
-                $sample = if ($wavePosition -lt ($period / 2)) { $amplitude * 32767 } else { -$amplitude * 32767 }
+                $sample = if ($wavePosition -lt ($period / 2)) { $amplitude * 32767 } else { - $amplitude * 32767 }
                 $writer.Write([short][int]$sample)
             } else {
                 $writer.Write([short]0)
@@ -596,6 +596,161 @@ function Play-BeepBeep {
 
     $writer.Close()
     $msStream.Close()
+}
+
+function Get-FileOrFolderDialog([string]$title = "", [int]$mode = 0, [string]$extension = "") {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    [System.Windows.Forms.Application]::EnableVisualStyles()
+
+    # Determine effective title (falls back to a default based on mode if $title is empty)
+    $dialogTitle = if ([string]::IsNullOrWhiteSpace($title)) {
+        switch ($mode) {
+            0 { "Select a file" }
+            1 { "Select a destination folder" }
+            2 { "Select File or Folder" }
+        }
+    } else {
+        $title
+    }
+
+    # Helper function that splits comma-separated extensions (e.g., "rar, zip") into valid filter patterns
+    $getFilter = {
+        param([string]$ext)
+        if ([string]::IsNullOrWhiteSpace($ext)) {
+            return "All Files (*.*)|*.*"
+        } else {
+            $extList = $ext.Split(',') | ForEach-Object {
+                $clean = $_.Trim()
+                if (-not $clean.StartsWith("*")) {
+                    if (-not $clean.StartsWith(".")) {
+                        "*.$clean"
+                    } else {
+                        "*$clean"
+                    }
+                } else {
+                    $clean
+                }
+            }
+            $joinedExts = $extList -join ";"
+            return "Custom Files ($joinedExts)|$joinedExts"
+        }
+    }
+
+    switch ($mode) {
+        0 {
+            Write-Log "Please select ${cYellow}'$extension'${cReset} file from explorer." "Info"
+            Wait-Continue $dialogTitle
+
+            # File picker only
+            $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+            $openFileDialog.Title = $dialogTitle
+            $openFileDialog.Filter = &$getFilter $extension
+            if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                return $openFileDialog.FileName
+            } else {
+                Write-Log "No file was selected." "Warning"
+                Wait-Continue
+
+                return ""
+            }
+        }
+        1 {
+            Write-Log "Please select ${cYellow}folder${cReset} from explorer." "Info"
+            Wait-Continue $dialogTitle
+
+            # Folder picker only
+            $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+            $folderDialog.Description = $dialogTitle
+            $folderDialog.ShowNewFolderButton = $true
+            if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                return $folderDialog.SelectedPath
+            } else {
+                Write-Log "No folder was selected." "Warning"
+                Wait-Continue
+
+                return ""
+            }
+        }
+        2 {
+            Write-Log "Please select ${cYellow}'$extension'${cReset} file or ${cYellow}folder${cReset} from explorer." "Info"
+            Wait-Continue $dialogTitle
+            
+            # Both (Modern Fluent Custom Dialog window)
+            $form = New-Object System.Windows.Forms.Form
+            $form.Text = $dialogTitle
+            $form.Size = New-Object System.Drawing.Size(480, 195)
+            $form.StartPosition = "CenterScreen"
+            $form.FormBorderStyle = 'FixedDialog'
+            $form.MaximizeBox = $false
+            $form.MinimizeBox = $false
+            $form.TopMost = $true
+            $form.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+            $form.BackColor = [System.Drawing.SystemColors]::Control
+
+            $textBox = New-Object System.Windows.Forms.TextBox
+            $textBox.Location = New-Object System.Drawing.Point(20, 25)
+            $textBox.Size = New-Object System.Drawing.Size(320, 25)
+            $form.Controls.Add($textBox)
+
+            $btnFile = New-Object System.Windows.Forms.Button
+            $btnFile.Location = New-Object System.Drawing.Point(350, 24)
+            $btnFile.Size = New-Object System.Drawing.Size(90, 27)
+            $btnFile.Text = "File..."
+            $btnFile.FlatStyle = 'System'
+            $btnFile.Add_Click({
+                    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+                    $openFileDialog.Title = $dialogTitle
+                    $openFileDialog.Filter = &$getFilter $extension
+                    if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                        $textBox.Text = $openFileDialog.FileName
+                    }
+                })
+            $form.Controls.Add($btnFile)
+
+            $btnFolder = New-Object System.Windows.Forms.Button
+            $btnFolder.Location = New-Object System.Drawing.Point(350, 58)
+            $btnFolder.Size = New-Object System.Drawing.Size(90, 27)
+            $btnFolder.Text = "Folder..."
+            $btnFolder.FlatStyle = 'System'
+            $btnFolder.Add_Click({
+                    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+                    $folderDialog.Description = $dialogTitle
+                    if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                        $textBox.Text = $folderDialog.SelectedPath
+                    }
+                })
+            $form.Controls.Add($btnFolder)
+
+            $btnOk = New-Object System.Windows.Forms.Button
+            $btnOk.Location = New-Object System.Drawing.Point(260, 105)
+            $btnOk.Size = New-Object System.Drawing.Size(85, 30)
+            $btnOk.Text = "OK"
+            $btnOk.FlatStyle = 'System'
+            $btnOk.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            $form.AcceptButton = $btnOk
+            $form.Controls.Add($btnOk)
+
+            $btnCancel = New-Object System.Windows.Forms.Button
+            $btnCancel.Location = New-Object System.Drawing.Point(355, 105)
+            $btnCancel.Size = New-Object System.Drawing.Size(85, 30)
+            $btnCancel.Text = "Cancel"
+            $btnCancel.FlatStyle = 'System'
+            $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+            $form.CancelButton = $btnCancel
+            $form.Controls.Add($btnCancel)
+
+            if ($form.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                return $textBox.Text
+            } else {
+                Write-Log "No file or folder was selected." "Warning"
+                Wait-Continue
+
+                return ""
+            }
+        }
+    }
 }
 
 function Get-InstalledDriverInfo([string]$infName) {

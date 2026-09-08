@@ -306,56 +306,17 @@ function BootImage-Picker($imageName) {
     }
     
     Write-Log "Could not find any ${cYellow}'$imageName.img'${cReset} file automatically." "Warning"
-    Write-Log "Please select your ${cYellow}'$imageName.img'${cReset} file from explorer." "Info"
-    Wait-Continue "Select file"
 
-    # Initialize the File Dialog
-    Add-Type -AssemblyName System.Windows.Forms
-    $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $fileDialog.Title = "Select your $imageName.img file"
-    $fileDialog.Filter = "Magisk Patched Image (*.img)|*.img|All Files (*.*)|*.*"
-    $fileDialog.InitialDirectory = (Get-Location).Path
-    $fileDialog.ShowHelp = $false
-
-    # Show the dialog using an invisible top-most owner
-    $topForm = New-Object System.Windows.Forms.Form
-    $topForm.TopMost = $true
-
-    $dialogResult = $fileDialog.ShowDialog($topForm)
-    $topForm.Dispose()
-
-    if ($dialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
-        $bootImgPath = Get-Item $fileDialog.FileName
-
+    $selectedPath = Get-FileOrFolderDialog "Select $imageName.img" 0 ".img"
+    
+    if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
         Write-Log "Selected file: ${cYellow}$( $bootImgPath.FullName )${cReset}" "Info"
+        $bootImgPath = Get-Item $selectedPath
 
         return $bootImgPath
-    } else {
-        Write-Log "No file was selected from explorer." "Warning"
-
-        $bootImgPath = Read-HostLog "Enter the full path to your ${cYellow}'$imageName.img'${cReset} (e.g., C:\Downloads\$imageName.img)"
-        $bootImgPath = $bootImgPath.Trim('"').Trim()
-
-        if ([string]::IsNullOrWhitespace($bootImgPath)) {
-            Write-Log "No file path was provided." "Error"
-            return $null
-        } elseif (Test-Path $bootImgPath -PathType Leaf) {
-            $tempItem = Get-Item $bootImgPath
-            if ($tempItem.Extension -eq ".img") {
-                Write-Log "Selected file: ${cYellow}$( $tempItem.FullName )${cReset}" "Info"
-
-                return $tempItem
-            } else {
-                Write-Log "Selected file '${cYellow}$bootImgPath${cReset}' is not a '.img' file." "Error"
-
-                return $null
-            }
-        } else {
-            Write-Log "File not found at '${cYellow}$bootImgPath${cReset}'. Please ensure the path is correct and try again." "Error"
-
-            return $null
-        }
     }
+    
+    return $null
 }
 
 function Pull-BootImage {
