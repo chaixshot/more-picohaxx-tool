@@ -440,9 +440,9 @@ function Perform-Reboot {
     Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
     if (-not (IsEdlMode)) {
         Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
-        Write-Host " [${cCyan}3${cReset}] Boot to RECOVERY"
-        Write-Host " [${cCyan}4${cReset}] Boot to EDL"
     }
+    Write-Host " [${cCyan}3${cReset}] Boot to RECOVERY"
+    Write-Host " [${cCyan}4${cReset}] Boot to EDL"
 
     $choice = Read-HostLog "Select an option"
 
@@ -477,6 +477,12 @@ function Perform-Reboot {
     } elseif (IsEdlMode) {
         if ($choice -eq "1") {
             Edl-To-System
+            return
+        } elseif ($choice -eq "3") {
+            Edl-To-Recovery
+            return
+        } elseif ($choice -eq "4") {
+            Edl-To-Edl
             return
         }
     }
@@ -639,7 +645,8 @@ function Fastboot-To-Recovery {
 function Fastboot-To-Edl {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Wait-Continue "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue"
+    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
+    Wait-Continue
 
     & $FASTBOOT reboot
 }
@@ -649,6 +656,20 @@ function Edl-To-System {
 
     Write-Host ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
+    
+    # Run silently using Out-Null
+    if (Execute-EdlCommand "reset" $true) { 
+        Write-Log "Reboot command sent successfully." "Success"
+    } else {
+        Warning-EDL-ManualReboot
+    }
+}
+
+function Edl-To-Recovery {
+    Write-Host ""
+    Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
+    Write-Log "Keep holding ${cYellow}Vol Up${cReset} before continue" "Info"
+    Wait-Continue
     
     # Run silently using Out-Null
     if (Execute-EdlCommand "--memory UFS reset" $true) { 
@@ -663,7 +684,7 @@ function Edl-To-Edl {
 
     Write-Host ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Wait-Continue "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue"
+    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
     
     # Run silently using Out-Null
     if (Execute-EdlCommand "--memory UFS reset" $true) { 
