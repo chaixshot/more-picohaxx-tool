@@ -62,16 +62,14 @@ function Read-HostLog([string]$prompt) {
     return $inputResult
 }
 
-function Clean-LogFormat {
-    param([string]$LogFile)
-
+function Clean-LogFormat([string]$LogFile) {
     if (Test-Path $LogFile) {
         $content = Get-Content $LogFile -Raw
 
         # Remove ANSI escape sequences (colors, styles, etc.)
         # This covers $cReset, $cCyan, $cYellow, $cGreen, $cMagenta, $cRed, $cBold, $cGray, $cWhite
         $esc = [char]27
-        $pattern = "$( [char]27 )\[[0-9;]*[a-zA-Z]"
+        $pattern = "$( $esc )\[[0-9;]*[a-zA-Z]"
 
         $cleanContent = $content -replace $pattern, ""
         $cleanContent | Set-Content $LogFile -Force
@@ -310,14 +308,14 @@ function Select-Firehose {
 
         $fhChoice = Read-HostLog "Select your device model to use the correct firehose"
 
-        if ($fhChoice -in "1", "") {
+        if ($fhChoice -eq "1") {
             $script:FirehoseTargetPath = $FirehoseDDR4Path
             Write-Log "Using DDR 4 Firehose." "Info"
         } elseif ($fhChoice -eq "2") {
             $script:FirehoseTargetPath = $FirehoseDDR5Path
             Write-Log "Using DDR 5 Firehose." "Info"
         } else {
-            Write-Log "Invalid choice. Please select 1 or 2." "Error"
+            Write-Log "Invalid option. Please select 1 or 2." "Error"
             Wait-Continue
         }
     }
@@ -906,7 +904,9 @@ function Fastboot-To-Edl {
     Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
     Wait-Continue
 
-    & $FASTBOOT reboot
+    if (IsFastbootMode) {
+        & $FASTBOOT reboot
+    }
 }
 
 function Edl-To-System {
