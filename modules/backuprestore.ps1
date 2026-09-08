@@ -104,47 +104,22 @@ function Select-BackupFolder {
 }
 
 function Get-LunsSizeGB {
-    if (IsAdbMode) {
-        try {
-            # Query /proc/partitions for total blocks of internal storage (usually sda to sdf)
-            $partitions = (& $ADB shell "cat /proc/partitions").Split("`n")
-            $totalBlocks = 0
-            foreach ($line in $partitions) {
-                if ($line -match "\s+(\d+)\s+sd[a-f]$") {
-                    $totalBlocks += [long]$matches[1]
-                }
+    try {
+        # In EDL mode, use edl-ng to find total sectors across all LUNs
+        $gpt = Execute-EdlCommand "printgpt" -silent $true
+        $totalSizeGB = 0
+        foreach ($line in $gpt) {
+            if ($line -match "Backup LBA:\s+(\d+)") {
+                $lastLba = [long]$matches[1]
+                # Total size of this LUN in GB (assuming 4096 sector size for UFS)
+                $totalSizeGB += ($lastLba + 1) * 4096 / 1GB
             }
-
-            if ($totalBlocks -gt 0) {
-                $totalSize = [math]::Round(($totalBlocks * 1KB) / 1GB, 2)
-                # Get userdata size to subtract it (since BackupLUNs cuts it off)
-                $userdataSize = Get-UserdataSizeGB
-                $systemSize = $totalSize - $userdataSize
-
-                if ($systemSize -gt 0 -and $systemSize -lt $totalSize) {
-                    return $systemSize + 1
-                }
-            }
-        } catch {
         }
-    } elseif (IsEdlMode) {
-        try {
-            # In EDL mode, use edl-ng to find total sectors across all LUNs
-            $gpt = & $EDLNG --loader $FirehoseTargetPath --memory UFS printgpt 2>&1
-            $totalSizeGB = 0
-            foreach ($line in $gpt) {
-                if ($line -match "Backup LBA:\s+(\d+)") {
-                    $lastLba = [long]$matches[1]
-                    # Total size of this LUN in GB (assuming 4096 sector size for UFS)
-                    $totalSizeGB += ($lastLba + 1) * 4096 / 1GB
-                }
-            }
-            if ($totalSizeGB -gt 0) {
-                $userdataSize = Get-UserdataSizeGB
-                return [math]::Round($totalSizeGB - $userdataSize, 2) + 1
-            }
-        } catch {
+        if ($totalSizeGB -gt 0) {
+            $userdataSize = Get-UserdataSizeGB
+            return [math]::Round($totalSizeGB - $userdataSize, 2) + 1
         }
+    } catch {
     }
 
     Write-Log "Could not determine partition size." "Warning"
@@ -152,86 +127,31 @@ function Get-LunsSizeGB {
 }
 
 function Get-UserdataSizeGB {
-    if (IsAdbMode) {
-        try {
-            # Query mounted /data directory using standard df (in 1K blocks)
-            $dfOutput = (& $ADB shell "df -k /data").Split("`n") | Select-Object -Last 1
-            $columns = if ($dfOutput) { ($dfOutput.Trim()) -split '\s+' } else { @() }
-
-            if ($columns.Count -ge 2 -and $columns[1] -match '^\d+$') {
-                $sizeKB = [long]$columns[1]
-                return [math]::Round(($sizeKB * 1KB) / 1GB, 2) + 1
+    try {
+        # In EDL mode, use edl-ng to find userdata partition size
+        $gpt = Execute-EdlCommand "printgpt --lun 0" $true
+        $isUserdataBlock = $false
+        foreach ($line in $gpt) {
+            if ($line -match "Name:\s+userdata") {
+                $isUserdataBlock = $true
+                continue
             }
-        } catch {
-        }
-    } elseif (IsEdlMode) {
-        try {
-            # In EDL mode, use edl-ng to find userdata partition size
-            $gpt = & $EDLNG --loader $FirehoseTargetPath --memory UFS printgpt --lun 0 2>&1
-            $isUserdataBlock = $false
-            foreach ($line in $gpt) {
-                if ($line -match "Name:\s+userdata") {
-                    $isUserdataBlock = $true
-                    continue
-                }
-                # Look for the Size line following the userdata Name line
-                if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
-                    $sizeMiB = [double]$matches[1]
-                    return [math]::Round($sizeMiB / 1024, 2) + 1
-                }
-                # If we hit a new partition or header, reset the flag
-                if ($line -match "Name:" -or $line -match "--- GPT Header") {
-                    $isUserdataBlock = $false
-                }
+            # Look for the Size line following the userdata Name line
+            if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
+                $sizeMiB = [double]$matches[1]
+                return [math]::Round($sizeMiB / 1024, 2) + 1
             }
-        } catch {
+            # If we hit a new partition or header, reset the flag
+            if ($line -match "Name:" -or $line -match "--- GPT Header") {
+                $isUserdataBlock = $false
+            }
         }
+    } catch {
     }
 
     Write-Log "Could not determine userdata partition size." "Warning"
     Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
     return 110
-}
-
-function Get-PartitionsSizeGB {
-    if (IsAdbMode) {
-        try {
-            $partitions = (& $ADB shell "cat /proc/partitions").Split("`n")
-
-            # Find the largest partition on sda (likely userdata) to exclude it
-            $maxSdaSize = 0
-            $userdataName = ""
-            foreach ($line in $partitions) {
-                if ($line -match "\s+(\d+)\s+(sda\d+)$") {
-                    $size = [long]$matches[1]
-                    if ($size -gt $maxSdaSize) {
-                        $maxSdaSize = $size
-                        $userdataName = $matches[2]
-                    }
-                }
-            }
-
-            $totalBlocks = 0
-            foreach ($line in $partitions) {
-                # Sum all partitions (sd[a-f][0-9]+) except the detected userdata
-                if ($line -match "\s+(\d+)\s+(sd[a-f]\d+)$") {
-                    if ($matches[2] -ne $userdataName) {
-                        $totalBlocks += [long]$matches[1]
-                    }
-                }
-            }
-
-            if ($totalBlocks -gt 0) {
-                return [math]::Round(($totalBlocks * 1KB) / 1GB, 2) + 1
-            }
-        } catch { }
-    } elseif (IsEdlMode) {
-        # Can use the same logic as LunsSize in EDL mode since it's an estimate of system partitions
-        return Get-LunsSizeGB
-    }
-
-    Write-Log "Could not determine partition size." "Warning"
-    return 15 # Default system partitions size
 }
 
 function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$manualSizeGB) {
@@ -243,7 +163,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
         } elseif ($backupMode -eq "userdata") {
             $diskSize = Get-UserdataSizeGB
         } elseif ($backupMode -eq "partitions") {
-            $diskSize = Get-PartitionsSizeGB
+            $diskSize = Get-LunsSizeGB
         }
     }
 
@@ -514,6 +434,7 @@ function Select-BackupMode {
         if ([string]::IsNullOrWhiteSpace($inputPath) -or -not (Test-Path -Path $inputPath)) {
             if (-not [string]::IsNullOrWhiteSpace($inputPath)) {
                 Write-Log "Custom path '${cCyan}$inputPath${cReset}' does not exist. Falling back to default." "Warning"
+                Wait-Continue
             }
             $customPath = $null
         } else {
@@ -531,14 +452,6 @@ function Backup-Device($selection) {
     $backupMode = $selection.backupMode
     $customPath = $selection.customPath
 
-    if (-not (Verify-DiskSpace $backupMode $customPath)) {
-        return $false
-    }
-
-    if (-not (Wait-UserConfirm $backupMode)) {
-        return $false
-    }
-
     # Reboot EDL
     if (IsAdbMode) {
         ADB-To-Edl
@@ -549,6 +462,14 @@ function Backup-Device($selection) {
     }
 
     if (-not (Wait-EdlMode 100)) {
+        return $false
+    }
+
+    if (-not (Verify-DiskSpace $backupMode $customPath)) {
+        return $false
+    }
+
+    if (-not (Wait-UserConfirm $backupMode)) {
         return $false
     }
 
