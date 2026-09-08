@@ -243,7 +243,7 @@ function Generate-UnlockCode {
 # ---------- ABL -------------
 # ----------------------------
 
-function Flash-EngineeringAbl {
+function Flash-EngineeringABL {
     Write-Header "Flashing Engineering ABL & Devinfo via EDL"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
     Write-Log "This is a critical part of the unlock process." "Warning"
@@ -270,48 +270,53 @@ function Flash-EngineeringAbl {
     } elseif (-not (IsEdlMode)) {
         Warning-EDL
     }
-
+    
     if (-not (Wait-EdlMode 100)) {
         return $false
     }
-
+    
     # Create a timestamped backup folder
     $currentBackupPath = Join-Path $AblBackupPath $TimeStamp
     New-Item -Path $currentBackupPath -ItemType Directory | Out-Null
     $backupAbl = Join-Path $currentBackupPath "abl.bin"
     $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
-
+    
     Write-Log "Backing up original partitions and flashing engineering files in a single operation..." "Action"
+    
+    try {
+        # Backup ABL
+        $null = Execute-EdlCommand "--memory UFS read-part abl $backupAbl"
+        $exitcode = $LASTEXITCODE
+        if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
+            throw "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}."
+        }
 
-    # Backup ABL
-    $null = Execute-EdlCommand "--memory UFS read-part abl $backupAbl"
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
-        Write-Log "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return $false
-    }
+        # Backup DEVINFO
+        $null = Execute-EdlCommand "--memory UFS read-part devinfo $backupDevInfo"
+        $exitcode = $LASTEXITCODE
+        if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
+            throw "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
+        }
 
-    # Backup DEVINFO
-    $null = Execute-EdlCommand "--memory UFS read-part devinfo $backupDevInfo"
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
-        Write-Log "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return $false
-    }
+        # Flash custom ABL
+        $null = Execute-EdlCommand "--memory UFS write-part abl $AblPath"
+        $exitcode = $LASTEXITCODE
+        if ($exitcode -ne 0) { 
+            throw "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}."
+        }
 
-    # Flash custom ABL
-    $null = Execute-EdlCommand "--memory UFS write-part abl $AblPath"
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0) { 
-        Write-Log "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return $false
-    }
+        # Flash custom DEVINFO
+        $null = Execute-EdlCommand "--memory UFS write-part devinfo $DevInfoPath"
+        $exitcode = $LASTEXITCODE
+        if ($exitcode -ne 0) { 
+            throw "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
+        }
+    } catch {
+        Write-Host ""
+        Write-Log "$($_.Exception.Message)" "Error"
+        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        Wait-Continue
 
-    # Flash custom DEVINFO
-    $null = Execute-EdlCommand "--memory UFS write-part devinfo $DevInfoPath"
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0) { 
-        Write-Log "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
         return $false
     }
 
@@ -325,7 +330,7 @@ function Flash-EngineeringAbl {
     return $true
 }
 
-function Restore-OriginalAbl {
+function Flash-BackupABL {
     Write-Header "Restoring Original Partitions via EDL"
     Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
     Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
@@ -370,19 +375,26 @@ function Restore-OriginalAbl {
         return $false
     }
 
-    # Flash backup ABL
-    $null = Execute-EdlCommand "--memory UFS write-part abl $backupAbl"
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0) { 
-        Write-Log "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}." "Error"
-        return $false
-    }
+    try {
+        # Flash backup ABL
+        $null = Execute-EdlCommand "--memory UFS write-part abl $backupAbl"
+        $exitcode = $LASTEXITCODE
+        if ($exitcode -ne 0) { 
+            throw "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}."
+        }
 
-    # Flash backup DEVINFO
-    $null = Execute-EdlCommand "--memory UFS write-part devinfo $backupDevInfo"
-    $exitcode = $LASTEXITCODE
-    if ($exitcode -ne 0) { 
-        Write-Log "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}." "Error"
+        # Flash backup DEVINFO
+        $null = Execute-EdlCommand "--memory UFS write-part devinfo $backupDevInfo"
+        $exitcode = $LASTEXITCODE
+        if ($exitcode -ne 0) { 
+            throw "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
+        }
+    } catch {
+        Write-Host ""
+        Write-Log "$($_.Exception.Message)" "Error"
+        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        Wait-Continue
+
         return $false
     }
 
@@ -760,7 +772,7 @@ try {
             }
             "2" {
                 Select-Firehose
-                if (Flash-EngineeringAbl) {
+                if (Flash-EngineeringABL) {
                     Edl-To-System
                 } else {
                     Warning-EDL-ManualReboot
@@ -774,7 +786,7 @@ try {
             }
             "5" {
                 Select-Firehose
-                if (Restore-OriginalAbl) {
+                if (Flash-BackupABL) {
                     Edl-To-System
                 } else {
                     Warning-EDL-ManualReboot

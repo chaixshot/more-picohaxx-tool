@@ -406,6 +406,7 @@ function Pull-BootImage {
         if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
             Write-Log "Pulling boot image failed with code ${cCyan}${exitcode}${cReset}." "Error"
             Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+            Wait-Continue
 
             return $false
         }
