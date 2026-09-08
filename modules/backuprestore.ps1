@@ -9,6 +9,7 @@
 #>
 
 # --- Backup & Restore Functions ---
+$7ZIP = Join-Path $WorkingDir "tools\7z.exe"
 
 $LUNsBackupPath = "${BackupPath}\luns"
 $UserBackupPath = "${BackupPath}\userdata"
@@ -17,6 +18,38 @@ $PartitionsBackupPath = "${BackupPath}\partitions"
 # Define Kernel32 API for reliable NTFS compressed size calculation
 if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type) {
     Add-Type -MemberDefinition '[DllImport("kernel32.dll", EntryPoint="GetCompressedFileSizeW", CharSet=CharSet.Unicode)] public static extern uint GetCompressedFileSize(string lpFileName, out uint lpFileSizeHigh);' -Name 'Win32' -Namespace 'Native'
+}
+
+function Extract-CompressedFile($filePath) {
+    $parentDir = Split-Path -Parent $filePath
+    if (-not $parentDir) { 
+        $parentDir = Get-Location
+    }
+    $fileNameNoExt = [System.IO.Path]::GetFileNameWithoutExtension($filePath)
+    $destPath = Join-Path $parentDir $fileNameNoExt
+
+    if (-not (Test-Path -Path $destPath)) {
+        New-Item -ItemType Directory -Path $destPath -Force | Out-Null
+    }
+
+    Write-Log "Extracting '${cYellow}$(Split-Path -Leaf $filePath)${cReset}' to '${cCyan}$destPath${cReset}'..." "Action"
+    & $7ZIP x "$filePath" "-o$destPath" -y | Out-Null
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Log "Extraction completed successfully." "Success"
+
+        # Check for a single nested subfolder
+        $items = Get-ChildItem -Path $destPath
+        if (@($items).Count -eq 1 -and $items.PSIsContainer) {
+            $subFolder = $items.FullName
+            Get-ChildItem -Path $subFolder | Move-Item -Destination $destPath -Force
+            Remove-Item -Path $subFolder -Recurse -Force
+        }
+    } else {
+        Write-Log "Extraction failed for ${cYellow}$filePath${cReset}." "Error"
+    }
+    
+    return $destPath
 }
 
 function Select-BackupFolder {
@@ -50,18 +83,23 @@ function Select-BackupFolder {
         }
         $selection = Read-HostLog "Select backup [${cCyan}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
     
-        if ($selection -eq 'a') {
-            $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip"
+        if ($selection -ceq 'a') {
+            $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
         }
     } else {
         Write-Log "No backup folders found in default directories." "Warning"
         
-        $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip"
+        $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
     }
 
-    if ($selection -eq 'c') {
+    if ($selection -ceq 'c') {
         Write-Log "Operation cancelled by user." "Info"
         return $null
+    }
+
+    # Check if user pasted a compressed file
+    if ($selection -match '\.(rar|zip|7z)$' -and (Test-Path -Path $selection -PathType Leaf)) {
+        $selection = Extract-CompressedFile $selection
     }
 
     # Check if user pasted a path
@@ -77,7 +115,15 @@ function Select-BackupFolder {
         }
 
         if ($null -ne $detectedType) {
-            Write-Log "Detected valid ${cYellow}$detectedType${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
+            $typeName = switch ($detectedType) {
+                "luns" { "LUNs" }
+                "userdata" { "User Data" }
+                "partitions" { "Partitions" }
+                "downgrade" { "Downgrade Pico 4/4 Enterprice" }
+                "downgradeDDR5" { "Downgrade Pico 4 Pro" }
+                default { $detectedType }
+            }
+            Write-Log "Detected valid ${cYellow}$typeName${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
             Wait-Continue
 
             return [PSCustomObject]@{

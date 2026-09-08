@@ -166,6 +166,7 @@ This tool includes Unroot and lock Bootloader
 * **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guideline flashing manager.
 * **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download CLI.
 * **[magiskboot](https://github.com/Pranav-Talmale/magiskboot)**: Windows port of Magisk's boot image patching tool.
+* **[7zip](https://github.com/ip7z/7zip)**: Extract archive file.
 
 ---
 *For more technical details on the bypass mechanism, refer to the comments in `more-picohaxx.py`.*
