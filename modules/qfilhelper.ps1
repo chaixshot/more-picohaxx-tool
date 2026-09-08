@@ -57,6 +57,7 @@ function BackupLUNs([string]$backupPath) {
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
+            $script:geFailed = 1
             break
         }
 
@@ -103,6 +104,7 @@ function BackupUserData([string]$backupPath) {
     Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
 
     if (-not (Execute-EdlCommand $sCMDLine)) {
+        $script:geFailed = 1
         CleanUpBackupFolder
         ProcessCompleted -isExec $false
         return
@@ -249,6 +251,7 @@ function FlashFirmware([string]$flashPath) {
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
+            $script:geFailed = 1
             break
         }
         $isExec = $true
@@ -337,6 +340,7 @@ function FlashLUNs($flashList, [string]$flashPath) {
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
+            $script:geFailed = 1
             return $false
         }
     }
@@ -367,6 +371,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
+            $script:geFailed = 1
             return $false
         }
     }
@@ -439,6 +444,7 @@ function ValidateCQF {
 function ResetLookUp {
     $script:galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
     $script:gaLunsOnline = @()
+    $script:geFailed = 0
 }
 
 function CreateBackupFolder([string]$backupPath) {
@@ -469,6 +475,7 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
             if ($iCnt -eq 0) {
+                $script:geFailed = 1
                 return $false # LUN 0 is mandatory
             }
             

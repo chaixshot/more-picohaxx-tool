@@ -411,13 +411,11 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$Silent = $false) {
 
         if ($LASTEXITCODE -ne 0) {
             Write-Log "edl-ng failed with ExitCode: $LASTEXITCODE" "Error"
-            $script:geFailed = 1
             return $false
         }
     } catch {
         if (-not $Silent -and $lastWasProgress) { Write-Host "" }
         Write-Log "Exception during Execute-EdlCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
-        $script:geFailed = 1
         return $false
     }
 
