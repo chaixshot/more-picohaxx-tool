@@ -24,6 +24,16 @@ if not exist "%TARGET_SCRIPT%" (
     exit /b 1
 )
 
+:: Detect PowerShell Executable (Prefer pwsh.exe over powershell.exe)
+set "PS_EXE=powershell.exe"
+where pwsh.exe >nul 2>&1
+if %errorlevel% equ 0 (
+    set "PS_EXE=pwsh.exe"
+    echo [INFO] Using PowerShell 7+ (pwsh.exe)
+) else (
+    echo [INFO] Using Windows PowerShell (powershell.exe)
+)
+
 :: Check for Windows Terminal (wt.exe)
 set "WT_EXE="
 where wt.exe >nul 2>&1
@@ -33,13 +43,13 @@ if %errorlevel% equ 0 (
     set "WT_EXE=%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe"
 )
 
-:: Corrected execution syntax (|| pause moved outside -File argument)
+:: Launch Script
 if defined WT_EXE (
     echo [LAUNCH] Starting in Windows Terminal...
-    "%WT_EXE%" -d "%SCRIPT_DIR%" cmd.exe /c "powershell.exe -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%" || pause"
+    "%WT_EXE%" -d "%SCRIPT_DIR%" cmd.exe /c "!PS_EXE! -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%" || pause"
 ) else (
-    echo [WARNING] Windows Terminal not found. Falling back to PowerShell...
-    powershell.exe -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%"
+    echo [WARNING] Windows Terminal not found. Falling back to default console...
+    !PS_EXE! -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%"
     if %errorlevel% neq 0 pause
 )
 
