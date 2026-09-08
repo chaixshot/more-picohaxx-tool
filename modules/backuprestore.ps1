@@ -544,8 +544,6 @@ function Backup-Device($selection) {
         ADB-To-Edl
     } elseif (IsFastbootMode) {
         Fastboot-To-Edl
-    } elseif (IsEdlMode) {
-        Edl-To-Edl
     } elseif (-not (IsEdlMode)) {
         Warning-EDL
     }
@@ -618,8 +616,6 @@ function Restore-Backup($backupInfo) {
         ADB-To-Edl
     } elseif (IsFastbootMode) {
         Fastboot-To-Edl
-    } elseif (IsEdlMode) {
-        Edl-To-Edl
     } elseif (-not (IsEdlMode)) {
         Warning-EDL
     }
