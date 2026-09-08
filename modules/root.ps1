@@ -393,13 +393,13 @@ function Pull-BootImage {
         Write-Log "Pulling stock 'boot' image via EDL..." "Action"
 
         # Pull boot image
-        $null = Execute-EdlCommand "--memory UFS read-part boot $dumpedBoot"
+        $null = Execute-EdlCommand "read-part boot $dumpedBoot"
         $exitcode = $LASTEXITCODE
 
         # Fallback to boot_a if image naming uses slot suffix
         if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
             Write-Log "'boot' image not found or failed, trying 'boot_a'..." "Action"
-            $null = Execute-EdlCommand "--memory UFS read-part boot_a ${dumpedBoot}"
+            $null = Execute-EdlCommand "read-part boot_a ${dumpedBoot}"
             $exitcode = $LASTEXITCODE
         }
 

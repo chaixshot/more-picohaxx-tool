@@ -283,28 +283,28 @@ function Flash-EngineeringABL {
     
     try {
         # Backup ABL
-        $null = Execute-EdlCommand "--memory UFS read-part abl $backupAbl"
+        $null = Execute-EdlCommand "read-part abl $backupAbl"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
             throw "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
         # Backup DEVINFO
-        $null = Execute-EdlCommand "--memory UFS read-part devinfo $backupDevInfo"
+        $null = Execute-EdlCommand "read-part devinfo $backupDevInfo"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
             throw "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
         }
 
         # Flash custom ABL
-        $null = Execute-EdlCommand "--memory UFS write-part abl $AblPath"
+        $null = Execute-EdlCommand "write-part abl $AblPath"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
             throw "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
         # Flash custom DEVINFO
-        $null = Execute-EdlCommand "--memory UFS write-part devinfo $DevInfoPath"
+        $null = Execute-EdlCommand "write-part devinfo $DevInfoPath"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
             throw "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
@@ -373,14 +373,14 @@ function Flash-BackupABL {
 
     try {
         # Flash backup ABL
-        $null = Execute-EdlCommand "--memory UFS write-part abl $backupAbl"
+        $null = Execute-EdlCommand "write-part abl $backupAbl"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
             throw "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
         # Flash backup DEVINFO
-        $null = Execute-EdlCommand "--memory UFS write-part devinfo $backupDevInfo"
+        $null = Execute-EdlCommand "write-part devinfo $backupDevInfo"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
             throw "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}."

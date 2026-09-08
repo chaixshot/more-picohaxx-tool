@@ -376,17 +376,20 @@ function Execute-UnlockCommand {
     }
 }
 
-function Execute-EdlCommand([string]$sCMDLine, [bool]$Silent = $false) {
+function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
+    $outputLines = [System.Collections.Generic.List[string]]::new()
+    
     try {
         $lastWasProgress = $false
         # Execute edl-ng and capture its output stream.
         # 2>&1 redirects stderr to stdout so we can process all output.
-        $expression = "& `"$EDLNG`" --loader $FirehoseTargetPath $sCMDLine 2>&1"
+        $expression = "& `"$EDLNG`" --loader $FirehoseTargetPath --memory UFS $sCMDLine 2>&1"
 
         Invoke-Expression $expression | ForEach-Object {
             $line = $_.ToString().TrimEnd()
+            $outputLines.Add($line)
 
-            if (-not $Silent) {
+            if (-not $silent) {
                 # Identify progress lines (Reading/Writing percentage updates)
                 if ($line -match "^(Reading|Writing):\s+\d+\.\d+%") {
                     # Use [Console]::Write to output to the console without a newline.
@@ -405,7 +408,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$Silent = $false) {
         }
 
         # Final cleanup newline if silent was false and last output was progress
-        if (-not $Silent -and $lastWasProgress) {
+        if (-not $silent -and $lastWasProgress) {
             Write-Host ""
         }
 
@@ -414,12 +417,16 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$Silent = $false) {
             return $false
         }
     } catch {
-        if (-not $Silent -and $lastWasProgress) { Write-Host "" }
+        if (-not $silent -and $lastWasProgress) { Write-Host "" }
         Write-Log "Exception during Execute-EdlCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
         return $false
     }
 
-    return $true
+    if ($silent) {
+        return $outputLines
+    } else {
+        return $true
+    }
 }
 
 function Perform-Reboot {
@@ -768,7 +775,7 @@ function Edl-To-Recovery {
     Wait-Continue
     
     # Run silently using Out-Null
-    if (Execute-EdlCommand "--memory UFS reset" $true) { 
+    if (Execute-EdlCommand "reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
@@ -781,9 +788,10 @@ function Edl-To-Edl {
     Write-Host ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
+    Wait-Continue
     
     # Run silently using Out-Null
-    if (Execute-EdlCommand "--memory UFS reset" $true) { 
+    if (Execute-EdlCommand "reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
