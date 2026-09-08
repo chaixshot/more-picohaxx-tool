@@ -491,8 +491,104 @@ function Perform-Reboot {
 }
 
 function Play-BeepBeep {
-    [Console]::Beep(523, 150) # C5 tone for 150ms
-    [Console]::Beep(784, 300) # G5 tone for 300ms
+    $sampleRate = 22050
+    $bpm = 100
+    
+    # Base duration units based on tempo (100 BPM)
+    $quarter = [int](60000 / $bpm)          # 600ms
+    $triplet = [int]($quarter / 3)         # 200ms
+
+    # Exact sheet music transcription (Freq in Hz, Duration in ms, Rest in ms)
+    $notes = @(
+        # --- INTRO ---
+        @{ Freq = 659; Duration = 100; Rest = 50 },  # E5
+        @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
+        @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
+        @{ Freq = 523; Duration = 100; Rest = 50 },  # C5
+        @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
+        @{ Freq = 784; Duration = 200; Rest = 400 }, # G5
+        @{ Freq = 392; Duration = 200; Rest = 400 }, # G4
+
+        # --- MAIN THEME (SYNCATED LINE) ---
+        @{ Freq = 523; Duration = 200; Rest = 250 }, # C5
+        @{ Freq = 392; Duration = 200; Rest = 250 }, # G4
+        @{ Freq = 330; Duration = 200; Rest = 250 }, # E4
+        
+        @{ Freq = 440; Duration = 120; Rest = 30 },  # A4
+        @{ Freq = 494; Duration = 120; Rest = 30 },  # B4
+        @{ Freq = 466; Duration = 120; Rest = 30 },  # Bb4
+        @{ Freq = 440; Duration = 150; Rest = 150 }, # A4
+
+        # Triplet run up
+        @{ Freq = 392; Duration = $triplet - 30; Rest = 30 }, # G4
+        @{ Freq = 659; Duration = $triplet - 30; Rest = 30 }, # E5
+        @{ Freq = 784; Duration = $triplet - 30; Rest = 30 }, # G5
+
+        @{ Freq = 880; Duration = 200; Rest = 100 }, # A5
+        @{ Freq = 698; Duration = 100; Rest = 50 },  # F5
+        @{ Freq = 784; Duration = 100; Rest = 150 }, # G5
+        @{ Freq = 659; Duration = 200; Rest = 100 }, # E5
+        @{ Freq = 523; Duration = 100; Rest = 50 },  # C5
+        @{ Freq = 587; Duration = 100; Rest = 50 },  # D5
+        @{ Freq = 494; Duration = 200; Rest = 200 }  # B4
+    )
+
+    $msStream = New-Object System.IO.MemoryStream
+    $writer = New-Object System.IO.BinaryWriter($msStream)
+
+    # WAV Header setup
+    $writer.Write([char[]]"RIFF")
+    $writer.Write([int]0)
+    $writer.Write([char[]]"WAVEfmt ")
+    $writer.Write([int]16)
+    $writer.Write([short]1)
+    $writer.Write([short]1)
+    $writer.Write([int]$sampleRate)
+    $writer.Write([int]($sampleRate * 2))
+    $writer.Write([short]2)
+    $writer.Write([short]16)
+    $writer.Write([char[]]"data")
+    $writer.Write([int]0)
+
+    # Audio driver pre-roll (500ms silence)
+    $prerollSamples = [int]($sampleRate * 0.5)
+    for ($i = 0; $i -lt $prerollSamples; $i++) { $writer.Write([short]0) }
+
+    # Generate PCM Audio Data (NES Square Wave)
+    foreach ($note in $notes) {
+        $totalDuration = $note.Duration + $(if ($null -ne $note.Rest) { $note.Rest } else { 0 })
+        $totalSamples = [int]($sampleRate * ($totalDuration / 1000))
+        $noteSamples = [int]($sampleRate * ($note.Duration / 1000))
+
+        for ($i = 0; $i -lt $totalSamples; $i++) {
+            if ($i -lt $noteSamples -and $note.Freq -gt 0) {
+                # Square wave synthesis for authentic 8-bit sound
+                $period = $sampleRate / $note.Freq
+                $wavePosition = $i % $period
+                $amplitude = 0.2
+                
+                $sample = if ($wavePosition -lt ($period / 2)) { $amplitude * 32767 } else { -$amplitude * 32767 }
+                $writer.Write([short][int]$sample)
+            } else {
+                $writer.Write([short]0)
+            }
+        }
+    }
+
+    # Finalize WAV headers
+    $dataLength = $msStream.Length - 44
+    $msStream.Position = 4
+    $writer.Write([int]($msStream.Length - 8))
+    $msStream.Position = 40
+    $writer.Write([int]$dataLength)
+
+    # Play generated audio
+    $msStream.Position = 0
+    $player = New-Object System.Media.SoundPlayer($msStream)
+    $player.PlaySync()
+
+    $writer.Close()
+    $msStream.Close()
 }
 
 function Get-InstalledDriverInfo([string]$infName) {
