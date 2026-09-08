@@ -198,12 +198,10 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
 }
 
 function Wait-UserConfirm([string]$backupMode) {
-    if ($backupMode -eq "luns") {
-        $waitMinutes = 5
-    } elseif ($backupMode -eq "userdata") {
+    $waitMinutes = 10
+
+    if ($backupMode -eq "userdata") {
         $waitMinutes = 40
-    } elseif ($backupMode -eq "partitions") {
-        $waitMinutes = 10
     }
 
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the partition." "Warning"
