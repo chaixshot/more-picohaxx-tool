@@ -508,7 +508,18 @@ function Select-BackupMode {
     }
 
     if ($null -ne $mode) {
-        $customPath = Read-HostLog "Enter custom backup folder path (press Enter for default)"
+        $inputPath = Read-HostLog "Enter custom backup folder path (press Enter for default)"
+        
+        # Check if user entered text AND whether that path actually exists
+        if ([string]::IsNullOrWhiteSpace($inputPath) -or -not (Test-Path -Path $inputPath)) {
+            if (-not [string]::IsNullOrWhiteSpace($inputPath)) {
+                Write-Log "Custom path '${cCyan}$inputPath${cReset}' does not exist. Falling back to default." "Warning"
+            }
+            $customPath = $null
+        } else {
+            $customPath = $inputPath
+        }
+
         return [PSCustomObject]@{ backupMode = $mode; customPath = $customPath }
     }
 
