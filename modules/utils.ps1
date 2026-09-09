@@ -595,13 +595,18 @@ function Play-BeepBeep {
     $msStream.Position = 40
     $writer.Write([int]$dataLength)
 
-    # Play generated audio
+    # Play generated audio asynchronously
     $msStream.Position = 0
     $player = New-Object System.Media.SoundPlayer($msStream)
-    $player.PlaySync()
+    $player.Play() # Non-blocking playback
 
-    $writer.Close()
-    $msStream.Close()
+    # Register an event or register object cleanup so memory isn't disposed during playback
+    # Store references on the global scope or script scope to prevent Garbage Collection:
+    $global:ActiveAudioPlayer = @{
+        Player = $player
+        Stream = $msStream
+        Writer = $writer
+    }
 }
 
 function Get-FileOrFolderDialog([string]$title = "", [int]$mode = 0, [string]$extension = "") {
