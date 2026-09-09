@@ -321,13 +321,15 @@ function Prepare-Firmware {
         }
         Write-Log " [${cCyan}0${cReset}] Cancel"
 
-        $choice = Read-HostLog "Choice"
-        if ($choice -eq '0' -or [string]::IsNullOrWhiteSpace($choice)) { return }
+        $selection = Read-HostLog "Choice [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
+        if ($selection -eq '0' -or [string]::IsNullOrWhiteSpace($selection)) { return }
 
         if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -le $options.Count) {
             $key = $options[[int]$selection - 1]
             $path += " > ${cCyan}$key${cReset}"
             $currentMenu = $currentMenu[$key]
+
+            Write-Header "Select Pico Firmware"
         } else {
             Write-Header "Select Pico Firmware"
             Write-Log "Invalid selection." "Warning"
