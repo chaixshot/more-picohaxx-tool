@@ -53,7 +53,7 @@ function BackupLUNs([string]$backupPath) {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-        Write-Host ""
+        Write-Log ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -100,7 +100,7 @@ function BackupUserData([string]$backupPath) {
 
     $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
 
-    Write-Host ""
+    Write-Log ""
     Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
 
     if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -152,7 +152,7 @@ function BackupPartitions([string]$backupPath) {
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
             $iCnt++
             
-            Write-Host ""
+            Write-Log ""
             Write-Log "[$iCnt/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
             if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -247,7 +247,7 @@ function FlashFirmware([string]$flashPath) {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
-        Write-Host ""
+        Write-Log ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -336,7 +336,7 @@ function FlashLUNs($flashList, [string]$flashPath) {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
-        Write-Host ""
+        Write-Log ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -367,7 +367,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
-        Write-Host ""
+        Write-Log ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -470,7 +470,7 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $isTemp
 
-        Write-Host ""
+        Write-Log ""
         Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
@@ -610,7 +610,7 @@ function CleanUpBackupFolder() {
 function ProcessCompleted([bool]$isExec = $true) {
     Play-BeepBeep
 
-    Write-Host ""
+    Write-Log ""
 
     # Delete /tools/TMP folder
     if (Test-Path -Path $edlTMP) {

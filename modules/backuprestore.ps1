@@ -76,10 +76,10 @@ function Select-BackupFolder {
     $backupFolders = $allBackupFolders | Sort-Object CreationTime -Descending
 
     if ($backupFolders.Count -gt 0) {
-        Write-Host "Available Backup Folders:" -ForegroundColor Cyan
+        Write-Log "Available Backup Folders:" -ForegroundColor Cyan
         for ($i = 0; $i -lt $backupFolders.Count; $i++) {
             $folder = $backupFolders[$i]
-            Write-Host " [${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
+            Write-Log "[${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
         }
         $selection = Read-HostLog "Select backup [${cCyan}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
     
@@ -240,7 +240,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
         return $false
     } else {
         Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Info"
-        Write-Host ""
+        Write-Log ""
 
         return $true
     }
@@ -256,12 +256,12 @@ function Wait-UserConfirm([string]$backupMode) {
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the partition." "Warning"
     Write-Log "This process takes at least ${cGreen}${waitMinutes} minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
-    Write-Host ""
+    Write-Log ""
     Write-Log "Do not disconnect the device and interrupt the process." "Warning"
     Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
     Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
     Write-Log "This can take a long time, do not panic if it looks stuck." "Warning"
-    Write-Host ""
+    Write-Log ""
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
     if ($confirmation -ne 'YES') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
@@ -370,13 +370,13 @@ function Folder-Compression([string]$folderPath) {
     Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
     Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
     Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
-    Write-Host ""
+    Write-Log ""
 
-    Write-Host "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
+    Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
     $confirmation = Read-HostLog "To proceed, type ${cYellow}'YES'${cReset} and press Enter"
 
     if ($confirmation -eq 'YES') {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Scanning target directory..." "Action"
 
 
@@ -425,7 +425,7 @@ function Folder-Compression([string]$folderPath) {
             $ratio = [math]::Round(($savedBytes / $sizeBeforeBytes) * 100, 2)
         }
 
-        Write-Host ""
+        Write-Log ""
         Write-Log "------------------------------------------------" "Info"
         Write-Log "Size Before: ${cYellow}${sizeBeforeGB} GB${cReset}" "Info"
         Write-Log "Size After:  ${cGreen}${sizeAfterGB} GB${cReset}" "Info"
@@ -447,21 +447,21 @@ function Folder-Compression([string]$folderPath) {
 
 function Select-BackupMode {
     Write-Header " Select Backup Mode"
-    Write-Host " [${cCyan}1${cReset}] Physical Binary Dump (LUNs)"
-    Write-Host "     ${cGray}-> Sector-by-sector clone of physical drives (LUN 0-6).${cReset}"
-    Write-Host "     ${cGray}-> Best for unbricking, GPT repair, and low-level recovery.${cReset}"
-    Write-Host "     ${cGray}-> Excludes bulk of UserData to save space (~12-15 GB).${cReset}"
-    Write-Host ""
-    Write-Host " [${cCyan}2${cReset}] User Personal Data (UserData)"
-    Write-Host "     ${cGray}-> Backup of the 'userdata' partition ONLY.${cReset}"
-    Write-Host "     ${cGray}-> Includes all apps, games, photos, and internal storage files.${cReset}"
-    Write-Host "     ${cGray}-> Size depends on usage (up to 128/256/512 GB).${cReset}"
-    Write-Host ""
-    Write-Host " [${cCyan}3${cReset}] System Partition Dump (Partitions)"
-    Write-Host "     ${cGray}-> Individual file per system partition (boot, abl, system, etc.).${cReset}"
-    Write-Host "     ${cGray}-> Best for general firmware backup or modding. Excludes userdata.${cReset}"
-    Write-Host "     ${cGray}-> Balanced safety and manageable size (~10-15 GB).${cReset}"
-    Write-Host ""
+    Write-Log "[${cCyan}1${cReset}] Physical Binary Dump (LUNs)"
+    Write-Log "    ${cGray}-> Sector-by-sector clone of physical drives (LUN 0-6).${cReset}"
+    Write-Log "    ${cGray}-> Best for unbricking, GPT repair, and low-level recovery.${cReset}"
+    Write-Log "    ${cGray}-> Excludes bulk of UserData to save space (~12-15 GB).${cReset}"
+    Write-Log ""
+    Write-Log "[${cCyan}2${cReset}] User Personal Data (UserData)"
+    Write-Log "    ${cGray}-> Backup of the 'userdata' partition ONLY.${cReset}"
+    Write-Log "    ${cGray}-> Includes all apps, games, photos, and internal storage files.${cReset}"
+    Write-Log "    ${cGray}-> Size depends on usage (up to 128/256/512 GB).${cReset}"
+    Write-Log ""
+    Write-Log "[${cCyan}3${cReset}] System Partition Dump (Partitions)"
+    Write-Log "    ${cGray}-> Individual file per system partition (boot, abl, system, etc.).${cReset}"
+    Write-Log "    ${cGray}-> Best for general firmware backup or modding. Excludes userdata.${cReset}"
+    Write-Log "    ${cGray}-> Balanced safety and manageable size (~10-15 GB).${cReset}"
+    Write-Log ""
 
     $choice = Read-HostLog "Select an option"
     $mode = $null
@@ -612,12 +612,12 @@ function Show-BackupRestoreMenu {
     $menuQuit = $false
     while (-not $menuQuit) {
         Write-Header "Backup/Restore Menu"
-        Write-Host " [${cCyan}1${cReset}] Backup Device"
-        Write-Host " [${cCyan}2${cReset}] Restore Device"
-        Write-Host " [${cCyan}3${cReset}] Compress Backup"
-        Write-Host ""
-        Write-Host " [${cCyan}r${cReset}] Reboot"
-        Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
+        Write-Log "[${cCyan}1${cReset}] Backup Device"
+        Write-Log "[${cCyan}2${cReset}] Restore Device"
+        Write-Log "[${cCyan}3${cReset}] Compress Backup"
+        Write-Log ""
+        Write-Log "[${cCyan}r${cReset}] Reboot"
+        Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
         $choice = Read-HostLog "Select an option"
 

@@ -22,32 +22,40 @@ $cGray = "$e[90m"
 $cDarkGray = "$e[90m"
 $cWhite = "$e[97m"
 
-function Write-Log([string]$message, [string]$type = "Info") {
-    $Color = switch ($type) {
-        "Success" {
-            [System.Media.SystemSounds]::Asterisk.Play()
-            $cGreen
+function Write-Log([string]$message, [string]$type, [string]$ForegroundColor) {
+    $params = @{}
+    if ($ForegroundColor) { $params['ForegroundColor'] = $ForegroundColor }
+
+    if ($type -in $null, "") {
+        Write-Host " $message" @params
+    } else {
+        $Color = switch ($type) {
+            "Success" {
+                if ($IsWindows -or $env:OS -like "*Windows*") { [System.Media.SystemSounds]::Asterisk.Play() }
+                $cGreen
+            }
+            "Warning" {
+                if ($IsWindows -or $env:OS -like "*Windows*") { [System.Media.SystemSounds]::Exclamation.Play() }
+                $cYellow
+            }
+            "Error" {
+                if ($IsWindows -or $env:OS -like "*Windows*") { [System.Media.SystemSounds]::Hand.Play() }
+                $cRed
+            }
+            "Action" {
+                $cMagenta
+            }
+            Default {
+                $cGray
+            }
         }
-        "Warning" {
-            [System.Media.SystemSounds]::Exclamation.Play()
-            $cYellow
-        }
-        "Error" {
-            [System.Media.SystemSounds]::Hand.Play()
-            $cRed
-        }
-        "Action" {
-            $cMagenta
-        }
-        Default {
-            $cGray
-        }
+
+        Write-Host " ${Color}[$type] ${cReset}$message" @params
     }
-    Write-Host "${Color}[$type] ${cReset}$message"
 }
 
 function Read-HostLog([string]$prompt) {
-    [Console]::Write("`n${prompt}: ${cGreen}")
+    [Console]::Write("`n${cGreen}>${cReset} ${prompt}: ${cGreen}")
 
     $inputResult = [Console]::ReadLine()
 
@@ -77,12 +85,12 @@ function Clean-LogFormat([string]$LogFile) {
 }
 
 function Write-Header([string]$title) {
-    Write-Host ""
-    Write-Host ""
-    Write-Host "================================================================="
-    Write-Host "================================================================="
-    Write-Host ""
-    Write-Host ""
+    Write-Log ""
+    Write-Log ""
+    Write-Log "================================================================="
+    Write-Log "================================================================="
+    Write-Log ""
+    Write-Log ""
     Clear-Host
 
     # Calculate the exact width needed for the border
@@ -90,10 +98,10 @@ function Write-Header([string]$title) {
     $BorderLength = $title.Length + 4
     $Border = "#" * $BorderLength
 
-    Write-Host " ${cDarkGray}$Border${cReset} "
-    Write-Host " ${cCyan}# $title #${cReset} "
-    Write-Host " ${cDarkGray}$Border${cReset} "
-    Write-Host ""
+    Write-Log "${cDarkGray}$Border${cReset} "
+    Write-Log "${cCyan}# $title #${cReset} "
+    Write-Log "${cDarkGray}$Border${cReset} "
+    Write-Log ""
 }
 
 # Function to check if a command exists
@@ -128,13 +136,13 @@ function IsFastbootMode {
 #########################################
 
 function Wait-Continue([string]$action = "continue...") {
-    Write-Host "`nPress ${cCyan}Enter${cReset} to $action" -NoNewline
+    Write-Log "`nPress ${cCyan}Enter${cReset} to $action" -NoNewline
     Read-Host | Out-Null
-    Write-Host ""
+    Write-Log ""
 }
 
 function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
-    Write-Host ""
+    Write-Log ""
     
     # Set labels based on mode
     if ($waitForDisconnect) {
@@ -150,7 +158,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         # Check condition: when waiting for disconnect, $isDetected must be $false
         if (($waitForDisconnect -and -not $isDetected) -or (-not $waitForDisconnect -and $isDetected)) {
             $msg = if ($waitForDisconnect) { "Fastboot device disconnected." } else { "Fastboot device detected." }
-            Write-Host "`r$msg                                       " -ForegroundColor Green
+            Write-Log "`r$msg" -ForegroundColor Green
             $success = $true
             break
         }
@@ -162,7 +170,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             if ([System.Console]::KeyAvailable) {
                 $key = [System.Console]::ReadKey($true)
                 if ($key.Key -eq "Escape") {
-                    Write-Host "`r  Skipped by user.                                         " -ForegroundColor Yellow
+                    Write-Log "`rSkipped by user." -ForegroundColor Yellow
                     $skipped = $true
                     break
                 }
@@ -174,7 +182,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         }
     }
     
-    Write-Host ""
+    Write-Log ""
     if (-not $success -and -not $waitForDisconnect) {
         Warning-FASTBOOT
     }
@@ -183,7 +191,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 }
 
 function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
-    Write-Host ""
+    Write-Log ""
     
     # Set labels based on mode
     if ($waitForDisconnect) {
@@ -199,7 +207,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         # Check condition: when waiting for disconnect, $isDetected must be $false
         if (($waitForDisconnect -and -not $isDetected) -or (-not $waitForDisconnect -and $isDetected)) {
             $msg = if ($waitForDisconnect) { "EDL device disconnected." } else { "EDL device detected." }
-            Write-Host "`r$msg                                       " -ForegroundColor Green
+            Write-Log "`r$msg" -ForegroundColor Green
             if (-not $waitForDisconnect) { Start-Sleep -Seconds 5 }
             $success = $true
             break
@@ -212,7 +220,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             if ([System.Console]::KeyAvailable) {
                 $key = [System.Console]::ReadKey($true)
                 if ($key.Key -eq "Escape") {
-                    Write-Host "`r  Skipped by user.                                         " -ForegroundColor Yellow
+                    Write-Log "`rSkipped by user." -ForegroundColor Yellow
                     $skipped = $true
                     break
                 }
@@ -224,7 +232,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         }
     }
     
-    Write-Host ""
+    Write-Log ""
     if (-not $success -and -not $waitForDisconnect) {
         Warning-EDl
     }
@@ -233,7 +241,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 }
 
 function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
-    Write-Host ""
+    Write-Log ""
     
     if ($waitForDisconnect) {
         Write-Log "Waiting for device to ${cCyan}DISCONNECT${cReset}..." "Action"
@@ -266,7 +274,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             }
 
             $msg = if ($waitForDisconnect) { "ADB device disconnected." } else { "ADB device detected and ready." }
-            Write-Host "`r$msg                                         " -ForegroundColor Green
+            Write-Log "`r$msg" -ForegroundColor Green
             $success = $true
             break
         }
@@ -278,7 +286,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             if ([System.Console]::KeyAvailable) {
                 $key = [System.Console]::ReadKey($true)
                 if ($key.Key -eq "Escape") {
-                    Write-Host "`r  Skipped by user.                                         " -ForegroundColor Yellow
+                    Write-Log "`rSkipped by user." -ForegroundColor Yellow
                     $skipped = $true
                     break
                 }
@@ -288,7 +296,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         if ($skipped) { break }
     }
     
-    Write-Host ""
+    Write-Log ""
     if (-not $success -and -not $waitForDisconnect) {
         Warning-ADB
     }
@@ -303,8 +311,8 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 function Select-Firehose {
     while ($null -eq $FirehoseTargetPath) {
         Write-Header "Select Firehose"
-        Write-Host " [${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
-        Write-Host " [${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
+        Write-Log "[${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
+        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
 
         $fhChoice = Read-HostLog "Select your device model to use the correct firehose"
 
@@ -348,7 +356,7 @@ function Invoke-PicoHaxxScript {
 
     $unlockCommand = "fastboot oem pico$encoded_serial unlock"
     Write-Log "Generated Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
-    Write-Host ""
+    Write-Log ""
 
     return $unlockCommand
 }
@@ -397,17 +405,17 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
                 } else {
                     # If the previous output was progress, ensure we start the next message on a new line
                     if ($lastWasProgress) {
-                        Write-Host ""
+                        Write-Log ""
                         $lastWasProgress = $false
                     }
-                    Write-Host $line
+                    Write-Log $line
                 }
             }
         }
 
         # Final cleanup newline if silent was false and last output was progress
         if (-not $silent -and $lastWasProgress) {
-            Write-Host ""
+            Write-Log ""
         }
 
         if ($LASTEXITCODE -ne 0) {
@@ -415,7 +423,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
             return $false
         }
     } catch {
-        if (-not $silent -and $lastWasProgress) { Write-Host "" }
+        if (-not $silent -and $lastWasProgress) { Write-Log "" }
         Write-Log "Exception during Execute-EdlCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
         return $false
     }
@@ -431,23 +439,23 @@ function Perform-Reboot {
     Write-Header "Reboot Selection"
 
     if (IsFastbootMode) {
-        Write-Host "Device detected: ${cCyan}FASTBOOT${cReset}"
+        Write-Log "Device detected: ${cCyan}FASTBOOT${cReset}"
     } elseif (IsAdbMode) {
-        Write-Host "Device detected: ${cGreen}ADB${cReset}"
+        Write-Log "Device detected: ${cGreen}ADB${cReset}"
     } elseif (IsEdlMode) {
-        Write-Host "Device detected: ${cGreen}EDL${cReset}"
+        Write-Log "Device detected: ${cGreen}EDL${cReset}"
     } else {
         Write-Log "No device detected." "Error"
         Write-Log "Please connect your device and ensure it is powered on." "Info"
         return
     }
 
-    Write-Host " [${cCyan}1${cReset}] Boot to SYSTEM"
+    Write-Log "[${cCyan}1${cReset}] Boot to SYSTEM"
     if (-not (IsEdlMode)) {
-        Write-Host " [${cCyan}2${cReset}] Boot to FASTBOOT"
+        Write-Log "[${cCyan}2${cReset}] Boot to FASTBOOT"
     }
-    Write-Host " [${cCyan}3${cReset}] Boot to RECOVERY"
-    Write-Host " [${cCyan}4${cReset}] Boot to EDL"
+    Write-Log "[${cCyan}3${cReset}] Boot to RECOVERY"
+    Write-Log "[${cCyan}4${cReset}] Boot to EDL"
 
     $choice = Read-HostLog "Select an option"
 
@@ -822,10 +830,10 @@ function Get-InstalledDriverInfo([string]$infName) {
 #########################################
 
 function Warning-ADB {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
     Write-Log "Please connect your device and enable USB Debug." "Info"
-    Write-Host ""
+    Write-Log ""
     Write-Log "1. Open PicoOS settings menu" "Info"
     Write-Log "2. Goto General > About" "Info"
     Write-Log "3. Tap '${cCyan}Software version${cReset}' 7 times quickly until the '${cCyan}Developer${cReset}' tab appears" "Info"
@@ -833,14 +841,14 @@ function Warning-ADB {
 }
 
 function Warning-FASTBOOT {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in FASTBOOT mode." "Error"
-    Write-Host "Manually boot to FASTBOOT by keep hold ${cYellow}Vol Down + Power${cReset}."
+    Write-Log "Manually boot to FASTBOOT by keep hold ${cYellow}Vol Down + Power${cReset}."
 }
 
 function Warning-EDL {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device not detected in EDL mode." "Error"
     Write-Log "Manually boot to EDL by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"
 }
@@ -857,49 +865,49 @@ function Warning-EDL-ManualReboot {
 #########################################
 
 function ADB-To-System {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     & $ADB reboot
 }
 
 function ADB-To-Fastboot {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
     & $ADB reboot bootloader
 }
 
 function ADB-To-Recovery {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
     & $ADB reboot recovery
 }
 
 function ADB-To-Edl {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     & $ADB reboot edl
 }
 
 function Fastboot-To-System {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     & $FASTBOOT reboot
 }
 
 function Fastboot-To-Fastboot {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
     & $FASTBOOT reboot bootloader
 }
 
 function Fastboot-To-Recovery {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
     & $FASTBOOT reboot recovery
 }
 
 function Fastboot-To-Edl {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
     Wait-Continue
@@ -912,7 +920,7 @@ function Fastboot-To-Edl {
 function Edl-To-System {
     Select-Firehose
 
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     
     # Run silently using Out-Null
@@ -924,7 +932,7 @@ function Edl-To-System {
 }
 
 function Edl-To-Recovery {
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     Write-Log "Keep holding ${cYellow}Vol Up${cReset} before continue" "Info"
     Wait-Continue
@@ -940,7 +948,7 @@ function Edl-To-Recovery {
 function Edl-To-Edl {
     Select-Firehose
 
-    Write-Host ""
+    Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
     Wait-Continue

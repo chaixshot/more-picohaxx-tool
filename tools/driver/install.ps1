@@ -4,12 +4,14 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit $proc.ExitCode
 }
 
+. (Get-Item "$PSScriptRoot/../../modules/utils.ps1").FullName
+
 # Find all .inf drivers in script's folder and subfolders
 Get-ChildItem -Path $PSScriptRoot -Recurse -Filter "*.inf" | ForEach-Object {
     $infFile = $_
     $infName = $infFile.Name
 
-    Write-Host "Checking for existing installations of $infName..." -ForegroundColor Cyan
+    Write-Log "Checking for existing installations of $infName..." "Action"
 
     # Fetch output from pnputil
     $enumOutput = (pnputil /enum-drivers) -join "`n"
@@ -23,7 +25,7 @@ Get-ChildItem -Path $PSScriptRoot -Recurse -Filter "*.inf" | ForEach-Object {
             # Extract the oem*.inf name using regex matching regardless of language label
             if ($block -match "(?i)(oem\d+\.inf)") {
                 $publishedName = $Matches[1]
-                Write-Host " Removing existing driver: $publishedName ($infName)..." -ForegroundColor Yellow
+                Write-Log "Removing existing driver: $publishedName ($infName)..." "Action"
                 
                 # Delete the driver package
                 $null = pnputil /delete-driver $publishedName /uninstall /force
@@ -37,6 +39,6 @@ Get-ChildItem -Path $PSScriptRoot -Recurse -Filter "*.inf" | ForEach-Object {
         }
     }
 
-    Write-Host "Installing: $($infFile.FullName)" -ForegroundColor Green
+    Write-Log "Installing $($infFile.FullName)..." "Action"
     pnputil /add-driver "`"$($infFile.FullName)`"" /install
 }

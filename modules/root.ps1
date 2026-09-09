@@ -40,7 +40,7 @@ function Perform-MagiskBoot([string]$bootImgPath) {
     Push-Location $MagiskTMP
     try {
         # Extract Required Assets from APK directly into $MagiskTMP
-        Write-Host ""
+        Write-Log ""
         Write-Log "Extracting binaries from Magisk APK..." "Action"
         Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -76,7 +76,7 @@ function Perform-MagiskBoot([string]$bootImgPath) {
         }
 
         # Unpack boot.img
-        Write-Host ""
+        Write-Log ""
         Write-Log "Unpacking $bootImgPath using magiskboot..." "Action"
         & $MagiskBoot unpack $bootImgPath 2>&1 | Write-Host
         if ($LASTEXITCODE -ne 0) {
@@ -129,7 +129,7 @@ SHA1=$sha1
         $env:PATCHVBMETAFLAG = "false"
 
         # Patch Ramdisk (Modern Magisk CPIO Injection)
-        Write-Host ""
+        Write-Log ""
         Write-Log "Injecting modern Magisk payload into ramdisk.cpio..." "Action"
 
         $cpioCommands = @(
@@ -156,7 +156,7 @@ SHA1=$sha1
         # Patch DTB / fstab if present (removes AVB verification flags on Qualcomm)
         foreach ($dt in @("dtb", "kernel_dtb", "extra")) {
             if (Test-Path $dt) {
-                Write-Host ""
+                Write-Log ""
                 Write-Log "Patching $dt fstab..." "Action"
                 & $MagiskBoot dtb $dt patch 2>&1 | Write-Host
             }
@@ -168,21 +168,21 @@ SHA1=$sha1
         }
 
         # Repack Image directly to destination path
-        Write-Host ""
+        Write-Log ""
         Write-Log "Repacking image into $outputImgPath..." "Action"
         & $MagiskBoot repack $bootImgPath $outputImgPath 2>&1 | Write-Host
         if ($LASTEXITCODE -ne 0) {
             throw "magiskboot repack failed with exit code ${LASTEXITCODE}."
         }
     } catch {
-        Write-Host ""
+        Write-Log ""
         Write-Log "$($_.Exception.Message)" "Error"
     } finally {
         # Safely restore original working directory
         Pop-Location
 
         # Cleanup Temporary Artifacts inside $MagiskTMP
-        Write-Host ""
+        Write-Log ""
         if (Test-Path -Path $MagiskTMP) {
             Write-Log "Deleting '${cCyan}$( $MagiskTMP )${cReset}' folder..." "Action"
             Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
@@ -202,7 +202,7 @@ function IsDeviceRooted {
     Write-Log "Checking Superuser access using ${cCyan}adb shell su -c id${cReset}..." "Action"
     $suOutputRaw = & $ADB shell "su -c id" 2>&1
     $suOutput = ($suOutputRaw -join "`n").Trim()
-    Write-Host $suOutput
+    Write-Log $suOutput
 
     if ($suOutput -match "uid=0(\(root\))?") {
         # Check and display Magisk version if available
@@ -217,7 +217,7 @@ function IsDeviceRooted {
     Write-Log "Checking fallback with ${cCyan}adb shell su 0 id${cReset}..." "Action"
     $altSuRaw = & $ADB shell "su 0 id" 2>&1
     $altSu = ($altSuRaw -join "`n").Trim()
-    Write-Host $altSu
+    Write-Log $altSu
 
     if ($altSu -match "uid=0(\(root\))?") {
         return $true
@@ -275,10 +275,10 @@ function Verify-RootState([string]$state = "root") {
     $statusText = if ($isRooted) { "ROOTED" } else { "NOT ROOTED" }
 
     if ($isSuccess) {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
     } else {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
         if ($isCheckRoot) {
             Write-Log "Ensure Magisk APK is installed and the patched boot image was successfully flashed." "Info"
@@ -467,13 +467,13 @@ function Show-RootMenu {
     $rootQuit = $false
     while (-not $rootQuit) {
         Write-Header "Pico Root Menu"
-        Write-Host " [${cCyan}1${cReset}] Prepare Boot Image"
-        Write-Host " [${cCyan}2${cReset}] Prepare Magisk"
-        Write-Host " [${cCyan}3${cReset}] Root With Magisk"
-        Write-Host ""
-        Write-Host " [${cCyan}u${cReset}] Unroot"
-        Write-Host " [${cCyan}r${cReset}] Reboot"
-        Write-Host " [${cCyan}0${cReset}] Back to Main Menu"
+        Write-Log "[${cCyan}1${cReset}] Prepare Boot Image"
+        Write-Log "[${cCyan}2${cReset}] Prepare Magisk"
+        Write-Log "[${cCyan}3${cReset}] Root With Magisk"
+        Write-Log ""
+        Write-Log "[${cCyan}u${cReset}] Unroot"
+        Write-Log "[${cCyan}r${cReset}] Reboot"
+        Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
         $choice = Read-HostLog "Select an option"
 

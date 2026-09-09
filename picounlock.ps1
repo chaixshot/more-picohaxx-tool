@@ -65,32 +65,32 @@ function Check-Prerequisites {
 
     if (-not (Test-Path $ADB) -and -not (Test-CommandExists "adb")) {
         Write-Log "${cYellow}$ADB${cReset} not found. Please add it to your ${cCyan}PATH${cReset} or place it in the script directory." "Error"
-        Write-Host ""
+        Write-Log ""
         $isReady = $false
     }
     if (-not (Test-Path $FASTBOOT) -and -not (Test-CommandExists "fastboot")) {
         Write-Log "${cYellow}$FASTBOOT${cReset} not found. Please add it to your ${cCyan}PATH${cReset} or place it in the script directory." "Error"
-        Write-Host ""
+        Write-Log ""
         $isReady = $false
     }
     if (-not (Test-Path $EDLNG)) {
         Write-Log "${cYellow}edl-ng${cReset} not found. Please place it in the script directory." "Error"
-        Write-Host ""
+        Write-Log ""
         $isReady = $false
     }
     if (-not (Test-Path $AblPath)) {
         Write-Log "'${cYellow}$AblPath${cReset}' not found. Please download it and place it correctly." "Error"
-        Write-Host ""
+        Write-Log ""
         $isReady = $false
     }
     if (-not (Test-Path $FirehoseDDR4Path)) {
         Write-Log "'${cYellow}$FirehoseDDR4Path${cReset}' not found. Please download it and place it correctly." "Error"
-        Write-Host ""
+        Write-Log ""
         $isReady = $false
     }
     if (-not (Test-Path $FirehoseDDR5Path)) {
         Write-Log "'${cYellow}$FirehoseDDR5Path${cReset}' not found. Please download it and place it correctly." "Error"
-        Write-Host ""
+        Write-Log ""
         $isReady = $false
     }
 
@@ -115,7 +115,7 @@ function Check-Prerequisites {
             pnputil /scan-devices | Out-Null
 
             # Verification step
-            Write-Host ""
+            Write-Log ""
             $verifyDrivers = pnputil /enum-drivers
             if ($verifyDrivers -match "qdl_winusb\.inf") {
                 Write-Log "Failed to completely remove '${cYellow}qdl_winusb.inf${cReset}'. Manual removal may be required." "Error"
@@ -130,7 +130,7 @@ function Check-Prerequisites {
             $isReady = $false
         }
 
-        Write-Host ""
+        Write-Log ""
     }
 
     # Check for EDL driver and offer to install it
@@ -310,7 +310,7 @@ function Flash-EngineeringABL {
             throw "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
         }
     } catch {
-        Write-Host ""
+        Write-Log ""
         Write-Log "$($_.Exception.Message)" "Error"
         Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         Wait-Continue
@@ -320,7 +320,7 @@ function Flash-EngineeringABL {
 
     Write-Log "Original ABL backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
     Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
-    Write-Host ""
+    Write-Log ""
     Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
     Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
     Wait-Continue
@@ -386,7 +386,7 @@ function Flash-BackupABL {
             throw "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
         }
     } catch {
-        Write-Host ""
+        Write-Log ""
         Write-Log "$($_.Exception.Message)" "Error"
         Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         Wait-Continue
@@ -417,9 +417,9 @@ function Get-LatestAblBackup([string]$FileName = "abl.bin") {
     if ($folders.Count -gt 1) {
         $selectedFolder = $null
         while (-not $selectedFolder) {
-            Write-Host "`nAvailable backup folders:" -ForegroundColor Cyan
+            Write-Log "`nAvailable backup folders:" -ForegroundColor Cyan
             for ($i = 0; $i -lt $folders.Count; $i++) {
-                Write-Host " [${cCyan}$i${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
+                Write-Log "[${cCyan}$i${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
             }
             $selection = Read-HostLog "Select a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, [${cYellow}c${cReset}] to cancel)"
 
@@ -485,7 +485,7 @@ function Perform-FastbootUnlock {
 
     # Check current state
     if (-not (IsFastbootUnlocked)) {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Bootloader status: ${cGreen}LOCKED${cReset}" "Warning"
         Write-Log "Your device will factory reset after the process." "Warning"
         Wait-Continue
@@ -495,18 +495,18 @@ function Perform-FastbootUnlock {
         return
     }
 
-    Write-Host ""
+    Write-Log ""
     Write-Log "Executing commands: ${cCyan}fastboot flashing unlock_critical${cReset}" "Action"
     & $FASTBOOT flashing unlock_critical
-    Write-Host ""
+    Write-Log ""
     Write-Log "Executing commands: ${cCyan}fastboot flashing unlock${cReset}" "Action"
     & $FASTBOOT flashing unlock
-    Write-Host ""
+    Write-Log ""
     Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 0${cReset}" "Action"
     & $FASTBOOT oem setenforce 0
 
     if (IsFastbootUnlocked) {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
         Write-Log "Unplug the device and plug it back in before continuing." "Warning"
 
@@ -516,7 +516,7 @@ function Perform-FastbootUnlock {
             Wait-Continue
         }
     } else {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Device does not report as fully unlocked. You may need to repeat the process." "Error"
         Wait-Continue
     }
@@ -553,7 +553,7 @@ function Perform-FastbootLock {
 
     # Check current state
     if (IsFastbootUnlocked) {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Bootloader status: ${cGreen}UNLOCKED${cReset}" "Warning"
         Write-Log "Your device will factory reset after the process." "Warning"
         Wait-Continue
@@ -571,18 +571,18 @@ function Perform-FastbootLock {
         Write-Log "No valid backup found to restore during lock process. Proceeding with caution." "Warning"
     }
 
-    Write-Host ""
+    Write-Log ""
     Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 1${cReset}" "Action"
     & $FASTBOOT oem setenforce 1
-    Write-Host ""
+    Write-Log ""
     Write-Log "Executing commands: ${cCyan}fastboot flashing lock${cReset}" "Action"
     & $FASTBOOT flashing lock
-    Write-Host ""
+    Write-Log ""
     Write-Log "Executing commands: ${cCyan}fastboot flashing lock_critical${cReset}" "Action"
     & $FASTBOOT flashing lock_critical
 
     if (-not (IsFastbootUnlocked)) {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Success"
         Write-Log "Unplug the device and plug it back in before continuing." "Warning"
         
@@ -592,7 +592,7 @@ function Perform-FastbootLock {
             Wait-Continue
         }
     } else {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Device does not report as fully locked. You may need to repeat the process." "Error"
         Wait-Continue
     }
@@ -606,11 +606,11 @@ function Show-FastbootFinalInstruction {
     Write-Header "Bootloader Finalizing"
     Write-Log "!!! CRITICAL NEXT STEP !!!" "Warning"
     Write-Log "If you want to ${cYellow}Root${cReset} the device, do it before flash backup ABL." "Warning"
-    Write-Host ""
+    Write-Log ""
     Write-Log "Check your device screen to confirm the current bootloader state." "Info"
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, your device will boot normally." "Info"
-    Write-Host ""
+    Write-Log ""
     Write-Log "If device does not boot normally, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up with ${cCyan}No command${cReset} as recovery mode." "Warning"
     Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
     Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Warning"
@@ -659,10 +659,10 @@ function Verify-FastbootState([string]$state) {
     $statusText = if ($isUnlocked) { "UNLOCKED" } else { "LOCKED" }
 
     if ($isSuccess) {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Bootloader status confirmed: ${cGreen}$statusText${cReset}" "Success"
     } else {
-        Write-Host ""
+        Write-Log ""
         Write-Log "Bootloader is still ${cRed}$statusText${cReset}." "Error"
         Write-Log "It is known that the unlock bits (written to protected RPMB storage) might not 'stick' immediately." "Info"
         Write-Log "Try a different USB port and cable, unplug the headset and plug it back in." "Info"
@@ -670,9 +670,9 @@ function Verify-FastbootState([string]$state) {
         Write-Log "Keep trying and don't lose hope." "Info"
 
         if ($IsRetryBootloader -ne 2) {
-            Write-Host ""
+            Write-Log ""
             Write-Log "Do you want to retry now?" "Info"
-            Write-Host "Type ${cYellow}'YES'${cReset} to manual retry, or type ${cYellow}'AUTO'${cReset} to keep it running."
+            Write-Log "Type ${cYellow}'YES'${cReset} to manual retry, or type ${cYellow}'AUTO'${cReset} to keep it running."
 
             $confirmation = Read-HostLog "Answer"
             if ($confirmation -eq 'YES') {
@@ -702,7 +702,7 @@ function IsFastbootUnlocked {
     Write-Log "Checking bootloader status using ${cCyan}fastboot oem device-info${cReset}..." "Action"
     $deviceInfoRaw = & $FASTBOOT oem device-info 2>&1
     $deviceInfo = $deviceInfoRaw -join "`n"
-    Write-Host $deviceInfo
+    Write-Log $deviceInfo
 
     if ($deviceInfo -match "Device\s*Unlocked\s*[:=]\s*true") {
         return $true
@@ -715,7 +715,7 @@ function IsFastbootUnlocked {
     Write-Log "Checking with ${cCyan}fastboot getvar unlocked${cReset}..." "Action"
     $unlockedVarRaw = & $FASTBOOT getvar unlocked 2>&1
     $unlockedVar = $unlockedVarRaw -join "`n"
-    Write-Host $unlockedVar
+    Write-Log $unlockedVar
 
     if ($unlockedVar -match "unlocked:\s*yes") {
         return $true
@@ -749,16 +749,18 @@ try {
     while (-not $quit) {
         Write-Header "PicoUnlock Main Menu"
 
-        Write-Host " [${cCyan}1${cReset}] Generate/Get UnlockCode"
-        Write-Host " [${cCyan}2${cReset}] Flash Engineering ABL"
-        Write-Host " [${cCyan}3${cReset}] Unlock bootloader"
-        Write-Host " [${cCyan}4${cReset}] Root ${cDarkGray}(Superuser)${cReset}"
-        Write-Host " [${cCyan}5${cReset}] Flash backup ABL ${cDarkGray}(Fix slow boot, EDL boot)${cReset}"
-        Write-Host ""
-        Write-Host " [${cCyan}l${cReset}] Lock bootloader"
-        Write-Host " [${cCyan}r${cReset}] Reboot"
-        Write-Host " [${cCyan}b${cReset}] Backup/Restore"
-        Write-Host " [${cCyan}0${cReset}] Exit"
+        Write-Log "[${cCyan}1${cReset}] Generate/Get UnlockCode"
+        Write-Log "[${cCyan}2${cReset}] Flash Engineering ABL"
+        Write-Log "[${cCyan}3${cReset}] Unlock bootloader"
+        Write-Log "[${cCyan}4${cReset}] Root ${cDarkGray}(Superuser)${cReset}"
+        Write-Log "[${cCyan}5${cReset}] Flash backup ABL ${cDarkGray}(Fix slow boot, EDL boot)${cReset}"
+        Write-Log ""
+        Write-Log "[${cCyan}l${cReset}] Lock bootloader"
+        Write-Log "[${cCyan}r${cReset}] Reboot"
+        Write-Log "[${cCyan}b${cReset}] Backup/Restore"
+        Write-Log "[${cCyan}0${cReset}] Exit"
+        Write-Log ""
+        Write-Log "Site: ${cYellow}https://github.com/chaixshot/more-picohaxx-tool${cReset}"
 
         $choice = Read-HostLog "Select an option"
 
@@ -813,7 +815,7 @@ try {
 } finally {
     Write-Header "Exited"
     Write-Log "Version: 1.2.0" "Info"
-    Write-Host ""
+    Write-Log ""
 
     try {
         Stop-Transcript
