@@ -152,6 +152,82 @@ function Select-BackupFolder {
     return $null
 }
 
+function Prepare-Downgrade {
+    Write-Header "Select Pico Firmware"
+
+    $FirmwareData = [ordered]@{
+        "Pico 4/4 Enterprise" = [ordered]@{
+            "Global" = [ordered]@{
+                "OEM"     = [ordered]@{
+                    "5.4.0" = "https://drive.google.com/file/d/1zs66s6-S3K3NinkwEtoEaFokNDIvuBTK/view?usp=sharing"
+                }
+                "NON-OEM" = [ordered]@{
+                    "5.4.0" = "https://drive.google.com/file/d/1KGg35ydXZo-3J0-PGeOrB09mFcUyzC7y/view?usp=sharing"
+                }
+            }
+        }
+        "Pico 4 Pro"          = [ordered]@{
+            "Global" = [ordered]@{
+                "OEM"     = [ordered]@{
+                    "5.4.0" = "https://drive.google.com/file/d/1q1pln-9w2Qx8_0KBVnba9os5iD-Pbt7O/view?usp=sharing"
+                }
+                "NON-OEM" = [ordered]@{
+                    "5.4.0" = "https://drive.google.com/file/d/10pTWnO5kjNBtSpraTEAQJEC7-0Malz4d/view?usp=sharing"
+                }
+            }
+        }
+    }
+
+    $currentMenu = $FirmwareData
+    $path = ""
+
+    while ($currentMenu -is [System.Collections.IDictionary]) {
+        $options = @($currentMenu.Keys)
+        Write-Log "${cYellow}Select an option${cReset}$path"
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
+        }
+        Write-Log " [${cCyan}0${cReset}] Cancel"
+
+        $selection = Read-HostLog "Choice [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
+        if ($selection -eq '0') {
+            return 
+        } elseif ([string]::IsNullOrWhiteSpace($selection)) {
+            break
+        }
+
+        if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -le $options.Count) {
+            $key = $options[[int]$selection - 1]
+            $path += " > ${cCyan}$key${cReset}"
+            $currentMenu = $currentMenu[$key]
+
+            Write-Header "Select Pico Firmware"
+        } else {
+            Write-Header "Select Pico Firmware"
+            Write-Log "Invalid selection." "Warning"
+        }
+    }
+
+    if ($currentMenu -is [string]) {
+        $firmwareUrl = $currentMenu
+        Write-Log "Firmware selection complete$path" "Success"
+        Write-Log "Download Link: ${cCyan}$firmwareUrl${cReset}" "Info"
+
+        $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
+        if ($openUrl -cin ('Y', 'y')) {
+            Start-Process $firmwareUrl
+        }
+
+        Write-Log "Using ${cCyan}Restore Device${cReset} menu to perform downgrade." "Info"
+        Write-Log "Option 1: Select downloaded ${cCyan}Pico4.7z${cReset} file in ${cCyan}Restore Device${cReset} menu." "Info"
+        Write-Log "Option 2: Using ${cCyan}PICO4_GLOBAL_OS_540_Downgrader${cReset} partitions file set." "Info"
+        Write-Log "     - Check in '${cCyan}.\helper\Flasher\Flash${cReset}' is it empty or not." "Info"
+        Write-Log "         - If folder empty, navigate to '${cCyan}.\UNBRICK\P4_Unbrick.exe${cReset}'. Finish only extraction process and close the program." "Info"
+        Write-Log "         - Recheck '${cCyan}.\helper\Flasher\Flash${cReset}' to confirm the partitions file exist." "Info"
+        Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
+    }
+}
+
 function Get-LunsSizeGB {
     try {
         # In EDL mode, use edl-ng to find total sectors across all LUNs
@@ -615,6 +691,7 @@ function Show-BackupRestoreMenu {
         Write-Log "[${cCyan}1${cReset}] Backup Device"
         Write-Log "[${cCyan}2${cReset}] Restore Device"
         Write-Log "[${cCyan}3${cReset}] Compress Backup"
+        Write-Log "[${cCyan}4${cReset}] Downgrade Device"
         Write-Log ""
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
@@ -649,6 +726,9 @@ function Show-BackupRestoreMenu {
                 if ($null -ne $backupInfo) {
                     Folder-Compression $backupInfo.Path
                 }
+            }
+            "4" {
+                Prepare-Downgrade
             }
             "r" {
                 Perform-Reboot

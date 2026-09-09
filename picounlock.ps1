@@ -749,7 +749,7 @@ try {
         Write-Log ""
         Write-Log "[${cCyan}l${cReset}] Lock bootloader"
         Write-Log "[${cCyan}r${cReset}] Reboot"
-        Write-Log "[${cCyan}b${cReset}] Backup/Restore"
+        Write-Log "[${cCyan}b${cReset}] Backup/Restore/Downgrade"
         Write-Log "[${cCyan}0${cReset}] Exit"
         Write-Log ""
         Write-Log "Site: ${cYellow}https://github.com/chaixshot/more-picohaxx-tool${cReset}"
