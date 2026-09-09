@@ -1,4 +1,4 @@
-# Pico 3/4 Bootloader Unlock & Root Tool & Data Backup
+# Pico 3/4 Bootloader Unlock & Root Tool & Data Backup & Downgrade
 
 <img height="300" alt="unlocked" src="./src/unlocked.jpg" /> <img height="300" alt="unlocked" src="./src/mainmenu.png" />
 
@@ -57,7 +57,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 * **Custom Restore Folder**: Paste a backup folder path directly into the menu. Automatically detects the backup type (`LUNs`, `UserData`, `Partitions`, or `Downgrade`) based on the files inside.
 * **Downgrade**: Supports downgrader folder file set.
 
-## How It Works
+## Unlock Bootloader
 
 1. **Perform Backup**: Perform **User Personal Data** backup before proceeding, as unlocking will wipe headset user data.
 1. **Get Chip ID**: Acquire headset `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`).
@@ -86,6 +86,19 @@ The tool includes an automated workflow to root headset directly from Windows:
 1. **Native Windows Patching**: Automatically patches `boot.img` on Windows using the integrated **MagiskBoot** tool without needing manual patching on the headset.
 1. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
 1. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
+
+## Rollback OS
+
+Automates full firmware downgrades and dynamic partition processing via EDL mode, allowing the device to roll back to any firmware version.
+
+* **Firmware Downloader:** Built-in tool to fetch required firmware download links directly.
+* **Archive Extraction:** Automatically extracts compressed firmware packages (`.zip`, `.rar`, `.7z`).
+* **Automated EDL Flashing:** Safely transitions the device into EDL mode and flashes system and firmware images sequentially.
+
+> [!WARNING]
+> Downgrading OS versions introduces encryption (`keystore`) and SELinux mismatch risks.
+> Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops.
+> Always perform a **User Personal Data** backup before proceed.
 
 ## Troubleshooting & Tips
 
@@ -161,12 +174,14 @@ This tool includes Unroot and lock Bootloader
 
 ## Credits
 
-* **[typlo](https://github.com/264312431)**: For finding this bypass method and the previous root exploit.
-* **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing and validation, Magisk4Pico.
+* **[typlo](https://github.com/264312431)**: Discovery of the bootloader bypass method and original root exploit.
+* **[Fallen Angel](https://github.com/FallenAngel-PP)**: Fearless testing, validation, and development of Magisk4Pico.
 * **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guideline flashing manager.
-* **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download CLI.
-* **[magiskboot](https://github.com/Pranav-Talmale/magiskboot)**: Windows port of Magisk's boot image patching tool.
-* **[7zip](https://github.com/ip7z/7zip)**: Extract archive file.
+* **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download (EDL) CLI tool.
+* **[magiskboot](https://github.com/Pranav-Talmale/magiskboot)**: Windows port of Magisk's boot image patching utility.
+* **[7zip](https://github.com/ip7z/7zip)**: Archive extraction utility.
+* **[brotli](https://github.com/google/brotli)**: Brotli compression and decompression binaries.
+* **[aosp15_partition_tools](https://github.com/Rprop/aosp15_partition_tools)**: Tools for building and manipulating `super.img` dynamic partitions.
 
 ---
 *For more technical details on the bypass mechanism, refer to the comments in `more-picohaxx.py`.*

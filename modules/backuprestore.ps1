@@ -11,6 +11,11 @@
 # --- Backup & Restore Functions ---
 $7ZIP = Join-Path $WorkingDir "tools\7z.exe"
 
+$BROTLI = Join-Path $WorkingDir "tools\rollback\brotli.exe"
+$Sdat2Img = Join-Path $WorkingDir "tools\rollback\sdat2img.exe"
+$Img2Simg = Join-Path $WorkingDir "tools\rollback\img2simg.exe"
+$LPMAKE = Join-Path $WorkingDir "tools\rollback\lpmake.exe"
+
 $LUNsBackupPath = "${BackupPath}\luns"
 $UserBackupPath = "${BackupPath}\userdata"
 $PartitionsBackupPath = "${BackupPath}\partitions"
@@ -204,13 +209,14 @@ function Prepare-Downgrade {
             Write-Header "Select Pico Firmware"
         } else {
             Write-Header "Select Pico Firmware"
-            Write-Log "Invalid selection." "Warning"
+            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+            Wait-Continue
         }
     }
 
     if ($currentMenu -is [string]) {
         $firmwareUrl = $currentMenu
-        Write-Log "Firmware selection complete$path" "Success"
+        Write-Log "Firmware selection$path" "Success"
         Write-Log "Download Link: ${cCyan}$firmwareUrl${cReset}" "Info"
 
         $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
@@ -219,6 +225,7 @@ function Prepare-Downgrade {
         }
     }
 
+    Write-Header "Select Pico Firmware"
     Write-Log "Using ${cCyan}Restore Device${cReset} menu to perform downgrade." "Info"
     Write-Log "Option 1: Select downloaded ${cCyan}Pico4.7z${cReset} file in ${cCyan}Restore Device${cReset} menu." "Info"
     Write-Log "Option 2: Using ${cCyan}PICO4_GLOBAL_OS_540_Downgrader${cReset} partitions file set." "Info"
@@ -226,6 +233,188 @@ function Prepare-Downgrade {
     Write-Log "         - If folder empty, navigate to '${cCyan}.\UNBRICK\P4_Unbrick.exe${cReset}'. Finish only extraction process and close the program." "Info"
     Write-Log "         - Recheck '${cCyan}.\helper\Flasher\Flash${cReset}' to confirm the partitions file exist." "Info"
     Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
+}
+
+function Perform-RollbackOS {
+    Write-Header "Downgrade Device"
+
+    if (-not (Wait-UserConfirm "rollback")) {
+        return $false
+    }
+
+    Write-Log ""
+    Write-Log "Select firmware downloaded file." "Warning"
+
+    $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z" 
+
+    if ([string]::IsNullOrWhiteSpace($firmwarePath)) {
+        Write-Log "No firmware path provided. Aborting." "Warning"
+        return $false
+    }
+
+    $isTempExtraction = $false
+    $extractedFolder = $firmwarePath
+
+    # Handle archive extraction
+    if ($firmwarePath -match '\.(rar|zip|7z)$' -and (Test-Path -Path $firmwarePath -PathType Leaf)) {
+        $extractedFolder = Extract-CompressedFile $firmwarePath
+        $isTempExtraction = $true
+    }
+
+    if (-not (Test-Path -Path $extractedFolder -PathType Container)) {
+        Write-Log "Target firmware directory '${cCyan}$extractedFolder${cReset}' does not exist." "Error"
+        return $false
+    }
+
+    $success = $true
+    Push-Location $extractedFolder
+
+    try {
+        # Brotli Decompression
+        Write-Log ""
+        Write-Log "Decompressing Brotli archives..." "Action"
+        $brFiles = @("system", "vendor", "product", "odm")
+        foreach ($part in $brFiles) {
+            $brPath = ".\${part}.new.dat.br"
+            $datPath = ".\${part}.new.dat"
+            if (Test-Path $brPath) {
+                & $BROTLI -d $brPath -o $datPath -v -f 2>&1 | Write-Host
+            } else {
+                throw "Required archive missing: $brPath"
+            }
+        }
+
+        # Convert Transfer Lists to Raw Images
+        Write-Log ""
+        Write-Log "Converting transfer lists to raw images..." "Action"
+        foreach ($part in $brFiles) {
+            $listPath = ".\${part}.transfer.list"
+            $datPath = ".\${part}.new.dat"
+            $imgPath = ".\${part}.img"
+            if ((Test-Path $listPath) -and (Test-Path $datPath)) {
+                & $Sdat2Img $listPath $datPath $imgPath 2>&1 | Write-Host
+            } else {
+                throw "Required conversion inputs missing for $part"
+            }
+        }
+
+        # Convert Input Images to Sparse Format
+        Write-Log ""
+        Write-Log "Converting raw images to sparse format..." "Action"
+        foreach ($part in $brFiles) {
+            $rawImg = ".\${part}.img"
+            $sparseImg = ".\${part}_sparse.img"
+            if (Test-Path $rawImg) {
+                & $Img2Simg $rawImg $sparseImg 2>&1 | Write-Host
+            } else {
+                throw "Raw image missing for sparse conversion: $rawImg"
+            }
+        }
+
+        # Calculate exact raw sizes for lpmake boundary allocation
+        $sysSize = (Get-Item .\system.img).Length
+        $venSize = (Get-Item .\vendor.img).Length
+        $prdSize = (Get-Item .\product.img).Length
+        $odmSize = (Get-Item .\odm.img).Length
+
+        $superSize = 8589934592
+        $groupSize = $superSize - 4194304
+
+        # Build RAW super.img for EDL
+        Write-Log ""
+        Write-Log "Building raw super.img with lpmake..." "Action"
+        & $LPMAKE `
+            --metadata-size 65536 `
+            --super-name super `
+            --metadata-slots 2 `
+            --device super:${superSize} `
+            --group qti_dynamic_partitions:${groupSize} `
+            --partition system:readonly:${sysSize}:qti_dynamic_partitions `
+            --image system=.\system_sparse.img `
+            --partition vendor:readonly:${venSize}:qti_dynamic_partitions `
+            --image vendor=.\vendor_sparse.img `
+            --partition product:readonly:${prdSize}:qti_dynamic_partitions `
+            --image product=.\product_sparse.img `
+            --partition odm:readonly:${odmSize}:qti_dynamic_partitions `
+            --image odm=.\odm_sparse.img `
+            --output .\super.img | Write-Host
+
+        if (-not (Test-Path ".\super.img")) {
+            throw "Failed to build super.img target."
+        }
+
+        # Device Reboot to EDL Mode
+        if (IsAdbMode) {
+            ADB-To-Edl
+        } elseif (IsFastbootMode) {
+            Fastboot-To-Edl
+        } elseif (-not (IsEdlMode)) {
+            Warning-EDL
+        }
+
+        if (-not (Wait-EdlMode 100)) {
+            return $false
+        }
+
+        # Flash Firmware Partitions via EDL
+        $flashMap = @(
+            @{ Part = "boot"; Path = ".\boot.img" },
+            @{ Part = "recovery"; Path = ".\recovery.img" },
+            @{ Part = "dtbo"; Path = ".\firmware-update\dtbo.img" },
+            @{ Part = "vbmeta"; Path = ".\firmware-update\vbmeta.img" },
+            @{ Part = "abl"; Path = ".\firmware-update\abl.elf" },
+            @{ Part = "aop"; Path = ".\firmware-update\aop.mbn" },
+            @{ Part = "tz"; Path = ".\firmware-update\tz.mbn" },
+            @{ Part = "hyp"; Path = ".\firmware-update\hyp.mbn" },
+            @{ Part = "devcfg"; Path = ".\firmware-update\devcfg.mbn" },
+            @{ Part = "dsp"; Path = ".\firmware-update\dspso.bin" },
+            @{ Part = "modem"; Path = ".\firmware-update\NON-HLOS.bin" },
+            @{ Part = "bluetooth"; Path = ".\firmware-update\BTFM.bin" },
+            @{ Part = "qupfw"; Path = ".\firmware-update\qupv3fw.elf" },
+            @{ Part = "imagefv"; Path = ".\firmware-update\imagefv.elf" },
+            @{ Part = "cmnlib"; Path = ".\firmware-update\cmnlib.mbn" },
+            @{ Part = "cmnlib64"; Path = ".\firmware-update\cmnlib64.mbn" },
+            @{ Part = "xbl"; Path = ".\firmware-update\xbl.elf" },
+            @{ Part = "xbl_config"; Path = ".\firmware-update\xbl_config.elf" },
+            @{ Part = "vbmeta_system"; Path = ".\firmware-update\vbmeta_system.img" },
+            @{ Part = "super"; Path = ".\super.img" }
+        )
+
+        foreach ($item in $flashMap) {
+            if (Test-Path $item.Path) {
+                Write-Log ""
+                Write-Log "Flashing firmware $($item.Part) to device..." "Action"
+                if (-not (Execute-EdlCommand "write-part $($item.Part) $($item.Path)")) {
+                    throw "Failed writing partition $($item.Part)"
+                }
+            } else {
+                Write-Log "Skipping missing non-critical image file: $($item.Path)" "Warning"
+            }
+        }
+    } catch {
+        Write-Log ""
+        Write-Log "Downgrade failed: $($_.Exception.Message)" "Error"
+        $success = $false
+    } finally {
+        Pop-Location
+
+        # Safely remove extracted files if created from archive input
+        if ($isTempExtraction -and (Test-Path -Path $extractedFolder)) {
+            Write-Log ""
+            Write-Log "Cleaning up temporary directory '${cCyan}${extractedFolder}${cReset}'..." "Action"
+            Remove-Item -Path $extractedFolder -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    Play-BeepBeep
+    if ($success) {
+        Write-Log "Device has downgraded successfully." "Success"
+    } else {
+        Write-Log "Downgrade process encountered errors." "Error"
+    }
+    
+    Wait-Continue
+    return $success
 }
 
 function Prepare-Firmware {
@@ -332,13 +521,14 @@ function Prepare-Firmware {
             Write-Header "Select Pico Firmware"
         } else {
             Write-Header "Select Pico Firmware"
-            Write-Log "Invalid selection." "Warning"
+            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+            Wait-Continue
         }
     }
 
     if ($currentMenu -is [string]) {
         $firmwareUrl = $currentMenu
-        Write-Log "Firmware selection complete$path" "Success"
+        Write-Log "Firmware selection$path" "Success"
         Write-Log "Download Link: ${cCyan}$firmwareUrl${cReset}" "Info"
 
         $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
@@ -443,10 +633,10 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
 }
 
 function Wait-UserConfirm([string]$backupMode) {
-    $waitMinutes = 10
-
-    if ($backupMode -eq "userdata") {
-        $waitMinutes = 40
+    $waitMinutes = switch ($backupMode) {
+        "userdata" { 40 }
+        "rollback" { 20 }
+        default { 10 }
     }
 
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the partition." "Warning"
@@ -813,7 +1003,7 @@ function Show-BackupRestoreMenu {
         Write-Log "[${cCyan}2${cReset}] Restore Device"
         Write-Log "[${cCyan}3${cReset}] Compress Backup"
         Write-Log "[${cCyan}4${cReset}] Downgrade Device"
-        Write-Log "[${cCyan}5${cReset}] Get Firmware"
+        Write-Log "[${cCyan}5${cReset}] Rollback OS"
         Write-Log ""
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
@@ -853,7 +1043,13 @@ function Show-BackupRestoreMenu {
                 Prepare-Downgrade
             }
             "5" {
+                Select-Firehose
                 Prepare-Firmware
+                if ([bool](Perform-RollbackOS)) {
+                    Edl-To-System
+                } else {
+                    Warning-EDL-ManualReboot
+                }
             }
             "r" {
                 Perform-Reboot
