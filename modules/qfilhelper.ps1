@@ -248,7 +248,7 @@ function FlashFirmware([string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Log ""
-        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
             $script:geFailed = 1
