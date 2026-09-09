@@ -796,7 +796,7 @@ try {
         Write-Log "[${cCyan}1${cReset}] Generate/Get UnlockCode"
         Write-Log "[${cCyan}2${cReset}] Flash Engineering ABL"
         Write-Log "[${cCyan}3${cReset}] Unlock bootloader"
-        Write-Log "[${cCyan}4${cReset}] Root ${cDarkGray}(Superuser)${cReset}"
+        Write-Log "[${cCyan}4${cReset}] Root/Flash Image"
         Write-Log "[${cCyan}5${cReset}] Flash backup ABL ${cDarkGray}(Fix slow boot, EDL boot)${cReset}"
         Write-Log ""
         Write-Log "[${cCyan}l${cReset}] Lock bootloader"

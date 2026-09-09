@@ -419,8 +419,8 @@ function Prepare-Magisk {
     Perform-MagiskBoot $bootImgPath
 }
 
-function Flash-BootImage([string]$imageName) {
-    Write-Header "Flash Boot Image"
+function FlashBoot-ViaFastboot([string]$imageName) {
+    Write-Header "Fastboot Flash Image"
 
     # Find image
     $bootImgPath = BootImage-Picker $imageName
@@ -459,6 +459,81 @@ function Flash-BootImage([string]$imageName) {
     }
 }
 
+function FlashBoot-ViaEDL([string]$imageName) {
+    Write-Header "EDL Flash Image"
+    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash boot image." "Warning"
+    Write-Log "${cRed}Bootloop${cReset} might occur if the bootloader is still in a ${cRed}locked${cReset} state." "Warning"
+    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+    if ($confirmation -ne 'yes') {
+        Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
+        return $false
+    }
+
+    # Find image
+    $bootImgPath = BootImage-Picker $imageName
+
+    if (-not $bootImgPath) {
+        return $false
+    }
+
+    # Device Reboot to EDL Mode
+    if (IsAdbMode) {
+        ADB-To-Edl
+    } elseif (IsFastbootMode) {
+        Fastboot-To-Edl
+    } elseif (-not (IsEdlMode)) {
+        Warning-EDL
+    }
+
+    if (-not (Wait-EdlMode 100)) {
+        return $false
+    }
+
+    if (Execute-EdlCommand "write-part boot $($bootImgPath.FullName)") {
+        Write-Log "Flash successful." "Success"
+        Wait-Continue
+
+        return $true
+    } else {
+        Write-Log "Failed to flash boot image." "Error"
+        Wait-Continue
+        
+        return $false
+    }
+}
+
+function Perform-FlashBoot([string]$imageName) {
+    $selection = ""
+
+    Write-Header "Select Flash Method"
+    Write-Log "[${cCyan}1${cReset}] ${cGreen}Fastboot${cReset} ${cDarkGray}(Require bootloader unlocked)${cReset}"
+    Write-Log "[${cCyan}2${cReset}] EDL ${cDarkGray}(Require bootloader unlocked, skip engineering ABL)${cReset}"
+
+    $selection = Read-HostLog "Select method to flash boot image"
+
+    if ($selection -eq "1") {
+        Write-Log "Using Fastboot." "Info"
+    } elseif ($selection -eq "2") {
+        Write-Log "Using EDL." "Info"
+    }
+
+    switch ($selection) {
+        "1" { 
+            return FlashBoot-ViaFastboot $imageName
+        }
+        "2" { 
+            return FlashBoot-ViaEDL $imageName
+        }
+        Default {
+            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+            return $false
+        }
+    }
+
+}
+
 #########################################
 #########################################
 #########################################
@@ -493,12 +568,12 @@ function Show-RootMenu {
                 Prepare-Magisk
             }
             "3" {
-                if (Flash-BootImage "magisk_patched") {
+                if (Perform-FlashBoot "magisk_patched") {
                     Verify-RootState "root"
                 }
             }
             "u" {
-                if (Flash-BootImage "boot") {
+                if (Perform-FlashBoot "boot") {
                     Verify-RootState "unroot"
                 }
             }
