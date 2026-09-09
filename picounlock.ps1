@@ -246,7 +246,6 @@ function Generate-UnlockCode {
 function Flash-EngineeringABL {
     Write-Header "Flashing Engineering ABL & Devinfo via EDL"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
-    Write-Log "This is a critical part of the unlock process." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
@@ -604,9 +603,10 @@ function Show-FastbootFinalInstruction {
     Write-Log "After rebooting, you will likely be prompted to perform a ${cYellow}factory reset${cReset}. This is expected." "Info"
     Write-Log "After the factory reset, your device will boot normally." "Info"
     Write-Log ""
-    Write-Log "If device does not boot normally, hold ${cYellow}Vol Up + Power${cReset} until the robot shows up with ${cCyan}No command${cReset} as recovery mode." "Warning"
-    Write-Log "In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
-    Write-Log "Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Warning"
+    Write-Log "If device does not boot normally, try to reboot again at first or perform ${cYellow}Factory Reset${cReset} menu." "Warning"
+    Write-Log "Or manually hold ${cYellow}Vol Up + Power${cReset} until the robot shows up with ${cCyan}No command${cReset} as recovery mode." "Warning"
+    Write-Log "   - In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Warning"
+    Write-Log "   - Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Warning"
     Wait-Continue
 
     if (-not (Wait-FastbootMode 100)) {
@@ -719,6 +719,58 @@ function IsFastbootUnlocked {
     return $null
 }
 
+function Perform-FactoryReset {
+    Write-Header "Factory Reset"
+    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to wipe user data partition." "Warning"
+    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
+
+    $confirmation = Read-HostLog "To proceed with factory reset, type [${cYellow}YES${cReset}] and press Enter"
+    if ($confirmation -ne 'yes') {
+        Write-Log "Factory reset aborted by user. No changes have been made." "Warning"
+        return $false
+    }
+
+    # Reboot to EDL mode
+    if (IsAdbMode) {
+        ADB-To-Edl
+    } elseif (IsFastbootMode) {
+        Fastboot-To-Edl
+    } elseif (-not (IsEdlMode)) {
+        Warning-EDL
+    }
+
+    if (-not (Wait-EdlMode 100)) {
+        return $false
+    }
+
+    $success = $false
+
+    try {
+        Write-Log "Erasing userdata partition..." "Action"
+        if (-not (Execute-EdlCommand "erase-part userdata")) {
+            throw "Failed to erase 'userdata' partition."
+        }
+
+        Write-Log "Erasing metadata partition..." "Action"
+        if (-not (Execute-EdlCommand "erase-part metadata")) {
+            throw "Failed to erase 'metadata' partition."
+        }
+
+        $success = $true
+    } catch {
+        Write-Log ""
+        Write-Log "Factory Reset failed: $($_.Exception.Message)" "Error"
+        Write-Log "EDL mode might have timed out. Reboot device into EDL and try again." "Warning"
+    } finally {
+        if ($success) {
+            Write-Log "Factory reset completed successfully." "Success"
+        }
+        Wait-Continue
+    }
+
+    return $success
+}
+
 # --------------------------------
 # ---- Main Script Execution -----
 # --------------------------------
@@ -749,6 +801,7 @@ try {
         Write-Log ""
         Write-Log "[${cCyan}l${cReset}] Lock bootloader"
         Write-Log "[${cCyan}r${cReset}] Reboot"
+        Write-Log "[${cCyan}reset${cReset}] Factory Reset"
         Write-Log "[${cCyan}b${cReset}] Backup/Restore/Downgrade"
         Write-Log "[${cCyan}0${cReset}] Exit"
         Write-Log ""
@@ -787,6 +840,14 @@ try {
             }
             "r" {
                 Perform-Reboot
+            }
+            "reset" {
+                Select-Firehose
+                if (Perform-FactoryReset) {
+                    Edl-To-System
+                } else {
+                    Warning-EDL-ManualReboot
+                }
             }
             "b" {
                 Show-BackupRestoreMenu

@@ -103,8 +103,8 @@ function Perform-MagiskBoot([string]$bootImgPath) {
                 & $ADB shell "rm -f /data/local/tmp/magisk" 2>&1 | Out-Null
             }
         } catch {
-            # Fallback to default
         }
+        
         if (-not $preinit) {
             $preinit = "cache"
         }
