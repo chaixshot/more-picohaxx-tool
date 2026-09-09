@@ -386,6 +386,8 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
     $outputLines = [System.Collections.Generic.List[string]]::new()
     
     try {
+        if ($FirehoseTargetPath -eq $null) { throw "No firesose selected" }
+
         $lastWasProgress = $false
         # Execute edl-ng and capture its output stream.
         # 2>&1 redirects stderr to stdout so we can process all output.
@@ -424,7 +426,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
         }
     } catch {
         if (-not $silent -and $lastWasProgress) { Write-Log "" }
-        Write-Log "Exception during Execute-EdlCommand: ${cCyan}$( $_.Exception.Message )${cReset}" "Error"
+        Write-Log "$($_.Exception.Message)" "Error"
         return $false
     }
 
