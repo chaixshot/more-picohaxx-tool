@@ -322,7 +322,7 @@ function BootImage-Picker($imageName) {
 function Pull-BootImage {
     Write-Header "Pull Boot Image"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to pull the boot image." "Warning"
-    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
     if ($confirmation -ne 'yes') {

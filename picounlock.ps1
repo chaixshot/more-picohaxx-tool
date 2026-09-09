@@ -246,7 +246,7 @@ function Generate-UnlockCode {
 function Flash-EngineeringABL {
     Write-Header "Flashing Engineering ABL & Devinfo via EDL"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
-    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
     if ($confirmation -ne 'yes') {
@@ -333,7 +333,7 @@ function Flash-BackupABL {
     Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
     Write-Log "Perform ${cYellow}Root${cReset} before doing this step." "Warning"
     Write-Log "Fastboot will no longer work for device modification." "Warning"
-    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $backupFolder = Get-LatestAblBackup -FileName ""
     if (-not $backupFolder) {
@@ -722,7 +722,7 @@ function IsFastbootUnlocked {
 function Perform-FactoryReset {
     Write-Header "Factory Reset"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to wipe user data partition." "Warning"
-    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $confirmation = Read-HostLog "To proceed with factory reset, type [${cYellow}YES${cReset}] and press Enter"
     if ($confirmation -ne 'yes') {

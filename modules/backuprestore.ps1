@@ -450,14 +450,14 @@ function Wait-UserConfirm([string]$backupMode) {
     }
 
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the partition." "Warning"
-    Write-Log "This process takes at least ${cGreen}${waitMinutes} minutes${cReset}. High speed ${cGreen}USB 3.0${cReset} is recommended." "Warning"
-    Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "This process takes about ${cGreen}${waitMinutes} minutes${cReset}, depends on PC power and USB speed." "Warning"
+    Write-Log "High speed ${cGreen}USB 3.2${cReset} is recommended." "Warning"
+    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
     Write-Log ""
     Write-Log "Do not disconnect the device and interrupt the process." "Warning"
     Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
     Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
-    Write-Log "This can take a long time, do not panic if it looks stuck." "Warning"
-    Write-Log ""
+    
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
     if ($confirmation -ne 'yes') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
