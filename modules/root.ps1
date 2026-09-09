@@ -324,8 +324,8 @@ function Pull-BootImage {
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to pull the boot image." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
-    if ($confirmation -ne 'YES') {
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+    if ($confirmation -ne 'yes') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return $false
     }
@@ -475,9 +475,9 @@ function Show-RootMenu {
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
-        $choice = Read-HostLog "Select an option"
+        $selection = Read-HostLog "Select an option"
 
-        switch ($choice) {
+        switch ($selection) {
             "1" {
                 Select-Firehose
 
@@ -509,7 +509,7 @@ function Show-RootMenu {
                 $rootQuit = $true
             }
             default {
-                Write-Log "Invalid option. Please try again." "Warning"
+                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
             }
         }
         if (-not $rootQuit) {

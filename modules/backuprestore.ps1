@@ -81,9 +81,9 @@ function Select-BackupFolder {
             $folder = $backupFolders[$i]
             Write-Log "[${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
         }
-        $selection = Read-HostLog "Select backup [${cCyan}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
+        $selection = Read-HostLog "Select backup [${cYellow}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
     
-        if ($selection -ceq 'a') {
+        if ($selection -eq 'a') {
             $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
         }
     } else {
@@ -92,7 +92,7 @@ function Select-BackupFolder {
         $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
     }
 
-    if ($selection -ceq 'c') {
+    if ($selection -eq 'c') {
         Write-Log "Operation cancelled by user." "Info"
         return $null
     }
@@ -148,7 +148,7 @@ function Select-BackupFolder {
         }
     }
 
-    Write-Log "Invalid input: '$selection'." "Error"
+    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
     return $null
 }
 
@@ -262,8 +262,8 @@ function Wait-UserConfirm([string]$backupMode) {
     Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
     Write-Log "This can take a long time, do not panic if it looks stuck." "Warning"
     Write-Log ""
-    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
-    if ($confirmation -ne 'YES') {
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+    if ($confirmation -ne 'yes') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return $false
     }
@@ -373,9 +373,9 @@ function Folder-Compression([string]$folderPath) {
     Write-Log ""
 
     Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
-    $confirmation = Read-HostLog "To proceed, type ${cYellow}'YES'${cReset} and press Enter"
+    $confirmation = Read-HostLog "To proceed, type [${cYellow}YES${cReset}] and press Enter"
 
-    if ($confirmation -eq 'YES') {
+    if ($confirmation -eq 'yes') {
         Write-Log ""
         Write-Log "Scanning target directory..." "Action"
 
@@ -463,20 +463,20 @@ function Select-BackupMode {
     Write-Log "    ${cGray}-> Balanced safety and manageable size (~10-15 GB).${cReset}"
     Write-Log ""
 
-    $choice = Read-HostLog "Select an option"
+    $selection = Read-HostLog "Select an option"
     $mode = $null
 
-    if ($choice -eq "1") {
+    if ($selection -eq "1") {
         $mode = "luns"
-    } elseif ($choice -eq "2") {
+    } elseif ($selection -eq "2") {
         $mode = "userdata"
-    } elseif ($choice -eq "3") {
+    } elseif ($selection -eq "3") {
         $mode = "partitions"
     }
 
     if ($null -ne $mode) {
         $inputPath = Read-HostLog "Custom backup folder [${cYellow}A${cReset}], enter to default"
-        if ($inputPath -eq "a") {
+        if ($inputPath -eq 'a') {
             $inputPath = Get-FileOrFolderDialog "Select backup folder" 1
         }
 
@@ -494,7 +494,7 @@ function Select-BackupMode {
         return [PSCustomObject]@{ backupMode = $mode; customPath = $customPath }
     }
 
-    Write-Log "Invalid option." "Warning"
+    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
 
     return $null
 }
@@ -619,9 +619,9 @@ function Show-BackupRestoreMenu {
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
-        $choice = Read-HostLog "Select an option"
+        $selection = Read-HostLog "Select an option"
 
-        switch ($choice) {
+        switch ($selection) {
             "1" {
                 $targetBackup = Select-BackupMode
                 if ($null -ne $targetBackup) {
@@ -657,7 +657,7 @@ function Show-BackupRestoreMenu {
                 $menuQuit = $true
             }
             default {
-                Write-Log "Invalid option. Please try again." "Warning"
+                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
             }
         }
         if (-not $menuQuit) {

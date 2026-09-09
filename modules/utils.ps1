@@ -67,7 +67,7 @@ function Read-HostLog([string]$prompt) {
         Write-Information "`n> ${prompt}: ${inputResult}"
     } 6>$null
 
-    return $inputResult
+    return $inputResult.ToString().ToLower().Trim()
 }
 
 function Clean-LogFormat([string]$LogFile) {
@@ -314,16 +314,16 @@ function Select-Firehose {
         Write-Log "[${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
         Write-Log "[${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
 
-        $fhChoice = Read-HostLog "Select your device model to use the correct firehose"
+        $selection = Read-HostLog "Select your device model to use the correct firehose"
 
-        if ($fhChoice -eq "1") {
+        if ($selection -eq "1") {
             $script:FirehoseTargetPath = $FirehoseDDR4Path
             Write-Log "Using DDR 4 Firehose." "Info"
-        } elseif ($fhChoice -eq "2") {
+        } elseif ($selection -eq "2") {
             $script:FirehoseTargetPath = $FirehoseDDR5Path
             Write-Log "Using DDR 5 Firehose." "Info"
         } else {
-            Write-Log "Invalid option. Please select 1 or 2." "Error"
+            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
             Wait-Continue
         }
     }
@@ -457,50 +457,50 @@ function Perform-Reboot {
     Write-Log "[${cCyan}3${cReset}] Boot to RECOVERY"
     Write-Log "[${cCyan}4${cReset}] Boot to EDL"
 
-    $choice = Read-HostLog "Select an option"
+    $selection = Read-HostLog "Select an option"
 
     if (IsFastbootMode) {
-        if ($choice -eq "1") {
+        if ($selection -eq "1") {
             Fastboot-To-System
             return
-        } elseif ($choice -eq "2") {
+        } elseif ($selection -eq "2") {
             Fastboot-To-Fastboot
             return
-        } elseif ($choice -eq "3") {
+        } elseif ($selection -eq "3") {
             Fastboot-To-Recovery
             return
-        } elseif ($choice -eq "4") {
+        } elseif ($selection -eq "4") {
             Fastboot-To-Edl
             return
         }
     } elseif (IsAdbMode) {
-        if ($choice -eq "1") {
+        if ($selection -eq "1") {
             ADB-To-System
             return
-        } elseif ($choice -eq "2") {
+        } elseif ($selection -eq "2") {
             ADB-To-Fastboot
             return
-        } elseif ($choice -eq "3") {
+        } elseif ($selection -eq "3") {
             ADB-To-Recovery
             return
-        } elseif ($choice -eq "4") {
+        } elseif ($selection -eq "4") {
             ADB-To-Edl
             return
         }
     } elseif (IsEdlMode) {
-        if ($choice -eq "1") {
+        if ($selection -eq "1") {
             Edl-To-System
             return
-        } elseif ($choice -eq "3") {
+        } elseif ($selection -eq "3") {
             Edl-To-Recovery
             return
-        } elseif ($choice -eq "4") {
+        } elseif ($selection -eq "4") {
             Edl-To-Edl
             return
         }
     }
 
-    Write-Log "Invalid option." "Warning"
+    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
 }
 
 function Play-BeepBeep {

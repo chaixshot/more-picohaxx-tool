@@ -100,7 +100,7 @@ function Check-Prerequisites {
     if ($qdlDrivers) {
         Write-Log "Found legacy/conflicting driver '${cYellow}qdl_winusb.inf${cReset}' installed." "Warning"
         Write-Log "This driver is known to cause issues with current EDL flashing tools." "Info"
-        $deleteChoice = Read-HostLog "Do you want to ${cRed}delete${cReset} it? (${cCyan}y${cReset}/n)"
+        $deleteChoice = Read-HostLog "Do you want to ${cRed}delete${cReset} it? [${cYellow}Y${cReset}/n]"
         if ($deleteChoice -eq 'y') {
             foreach ($match in $qdlDrivers) {
                 # Extract oemXX.inf from the line above the match
@@ -171,8 +171,8 @@ function Check-Prerequisites {
         Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
         $actionVerb = if ($needsUpdate) { "update" } else { "install" }
 
-        $choice = Read-HostLog "Press ${cCyan}Y${cReset} to $actionVerb the drivers now, or ${cYellow}N${cReset} to skip (Requires Administrator privileges)"
-        if ($choice -eq 'Y' -or $choice -eq 'y') {
+        $choice = Read-HostLog "Press [${cYellow}Y${cReset}] to $actionVerb the drivers now, or [${cYellow}N${cReset}] to skip (Requires Administrator privileges)"
+        if ($choice -eq 'y') {
             if (-not (Test-Path $DriverInstall)) {
                 Write-Log "Driver installation script not found at '${cYellow}$DriverInstall${cReset}'." "Error"
                 $isReady = $false
@@ -249,8 +249,8 @@ function Flash-EngineeringABL {
     Write-Log "This is a critical part of the unlock process." "Warning"
     Write-Log "Make sure the device is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type ${cYellow}'YES'${cReset} and press Enter"
-    if ($confirmation -ne 'YES') {
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+    if ($confirmation -ne 'yes') {
         Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return $false
     }
@@ -353,8 +353,8 @@ function Flash-BackupABL {
     }
 
     Write-Log "Target backup folder: ${cGreen}$backupFolder${cReset}" "Info"
-    $confirmation = Read-HostLog "Are you sure you want to flash this backup? (Type ${cYellow}'YES'${cReset})"
-    if ($confirmation -ne 'YES') {
+    $confirmation = Read-HostLog "Are you sure you want to flash this backup? [${cYellow}Y${cReset}/n]"
+    if ($confirmation -ne 'y') {
         Write-Log "Restore aborted by user." "Warning"
         return $false
     }
@@ -414,44 +414,37 @@ function Get-LatestAblBackup([string]$FileName = "abl.bin") {
         return $null
     }
 
-    if ($folders.Count -gt 1) {
-        $selectedFolder = $null
-        while (-not $selectedFolder) {
-            Write-Log "`nAvailable backup folders:" -ForegroundColor Cyan
-            for ($i = 0; $i -lt $folders.Count; $i++) {
-                Write-Log "[${cCyan}$i${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
-            }
-            $selection = Read-HostLog "Select a backup folder (enter index or folder name, default [${cCyan}0${cReset}] for latest, [${cYellow}c${cReset}] to cancel)"
+    $selectedFolder = $null
+    while (-not $selectedFolder) {
+        Write-Log ""
+        Write-Log "Available backup folders:" -ForegroundColor Cyan
+        for ($i = 0; $i -lt $folders.Count; $i++) {
+            Write-Log "[${cCyan}$( $i + 1 )${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
+        }
+        $selection = Read-HostLog "Select backup [${cYellow}1-$( $folders.Count )${cReset}], cancel [${cYellow}C${cReset}]"
 
-            if ( [string]::IsNullOrWhiteSpace($selection)) {
-                $selection = "0"
-            }
+        if ( [string]::IsNullOrWhiteSpace($selection)) {
+            $selection = "0"
+        }
 
-            if ($selection -eq 'c') {
-                Write-Log "Operation cancelled." "Warning"
-                return $null
-            }
+        if ($selection -eq 'c') {
+            Write-Log "Operation cancelled by user." "Info"
+            return $null
+        }
 
-            # Check if it matches a folder name directly
-            $selectedFolder = $folders | Where-Object { $_.Name -eq $selection } | Select-Object -First 1
-
-            # If not, check if it's an index
-            if (-not $selectedFolder -and $selection -match '^\d+$') {
-                $index = [int]$selection
-                if ($index -ge 0 -and $index -lt $folders.Count) {
-                    $selectedFolder = $folders[$index]
-                }
-            }
-
-            if (-not $selectedFolder) {
-                Clear-Host
-                Write-Log "Invalid selection '$selection'. Please try again or type '${cCyan}c${cReset}' to cancel." "Warning"
+        if ($selection -match '^\d+$') {
+            $index = [int]$selection - 1
+            if ($index -ge 0 -and $index -lt $folders.Count) {
+                $selectedFolder = $folders[$index]
             }
         }
-        return Join-Path -Path $selectedFolder.FullName -ChildPath $FileName
+
+        if (-not $selectedFolder) {
+            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+        }
     }
 
-    return Join-Path -Path $folders[0].FullName -ChildPath $FileName
+    return Join-Path -Path $selectedFolder.FullName -ChildPath $FileName
 }
 
 # ----------------------------
@@ -466,8 +459,8 @@ function Perform-FastbootUnlock {
         Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
         Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Restore${cReset} menu." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter"
-        if ($confirmation -ne 'YES') {
+        $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type [${cYellow}YES${cReset}] and press Enter"
+        if ($confirmation -ne 'yes') {
             Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
             return
         }
@@ -534,8 +527,8 @@ function Perform-FastbootLock {
         Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
         Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Restore${cReset} menu." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type ${cYellow}'YES'${cReset} and press Enter"
-        if ($confirmation -ne 'YES') {
+        $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type [${cYellow}YES${cReset}] and press Enter"
+        if ($confirmation -ne 'yes') {
             Write-Log "Reboot to FASTBOOT aborted by user. No changes have been made." "Warning"
             return
         }
@@ -672,12 +665,11 @@ function Verify-FastbootState([string]$state) {
         if ($IsRetryBootloader -ne 2) {
             Write-Log ""
             Write-Log "Do you want to retry now?" "Info"
-            Write-Log "Type ${cYellow}'YES'${cReset} to manual retry, or type ${cYellow}'AUTO'${cReset} to keep it running."
 
-            $confirmation = Read-HostLog "Answer"
-            if ($confirmation -eq 'YES') {
+            $confirmation = Read-HostLog "Manual retry [${cYellow}YES${cReset}], keep it running [${cYellow}AUTO${cReset}]"
+            if ($confirmation -eq 'yes') {
                 $script:IsRetryBootloader = 1
-            } elseif ($confirmation -eq 'AUTO') {
+            } elseif ($confirmation -eq 'auto') {
                 $script:IsRetryBootloader = 2
             }
         }
@@ -762,9 +754,9 @@ try {
         Write-Log ""
         Write-Log "Site: ${cYellow}https://github.com/chaixshot/more-picohaxx-tool${cReset}"
 
-        $choice = Read-HostLog "Select an option"
+        $selection = Read-HostLog "Select an option"
 
-        switch ($choice) {
+        switch ($selection) {
             "1" {
                 Generate-UnlockCode
             }
@@ -803,7 +795,7 @@ try {
                 $quit = $true
             }
             default {
-                Write-Log "Invalid option. Please try again." "Warning"
+                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
             }
         }
         if (-not $quit) {
