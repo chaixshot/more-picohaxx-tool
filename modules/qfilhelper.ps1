@@ -8,8 +8,7 @@
 #>
 
 # --- Local Variables ---
-$workingDirectory = "tools"
-$edlTMP = "${workingDirectory}\TMP"
+$edlTMP = Join-Path $WorkingDir "tools\TMP"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gaLunsOnline = @()

@@ -27,23 +27,23 @@
 # --- Script Configuration ---
 # ----------------------------
 $WorkingDir = $PSScriptRoot
-$LogsPath = ".\logs"
-$DriverInstall = ".\tools\driver\install.ps1"
-$DeviceSerial = ".\serial_number.txt"
+$LogsPath = Join-Path $WorkingDir "logs"
+$DriverInstall = Join-Path $WorkingDir "tools\driver\install.ps1"
+$DeviceSerial = Join-Path $WorkingDir "serial_number.txt"
 
-$FirehoseDDR4Path = Join-Path $PSScriptRoot "tools\firehoses\prog_firehose_ddr.elf"
-$FirehoseDDR5Path = Join-Path $PSScriptRoot "tools\firehoses\prog_firehose_lite.elf"
+$FirehoseDDR4Path = Join-Path $WorkingDir "tools\firehoses\prog_firehose_ddr.elf"
+$FirehoseDDR5Path = Join-Path $WorkingDir "tools\firehoses\prog_firehose_lite.elf"
 $FirehoseTargetPath = $null
 
-$AblPath = ".\tools\engineering\abl.elf"
-$DevInfoPath = ".\tools\engineering\devinfo"
+$AblPath = Join-Path $WorkingDir "tools\engineering\abl.elf"
+$DevInfoPath = Join-Path $WorkingDir "tools\engineering\devinfo"
 
-$BackupPath = ".\backup"
+$BackupPath = Join-Path $WorkingDir "backup"
 $AblBackupPath = "${BackupPath}\abl"
 
-$EDLNG = ".\tools\edl-ng.exe"
-$ADB = ".\tools\adb.exe"
-$FASTBOOT = ".\tools\fastboot.exe"
+$EDLNG = Join-Path $WorkingDir "tools\edl-ng.exe"
+$ADB = Join-Path $WorkingDir "tools\adb.exe"
+$FASTBOOT = Join-Path $WorkingDir "tools\fastboot.exe"
 
 $TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
 
