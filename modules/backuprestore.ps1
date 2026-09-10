@@ -57,6 +57,46 @@ function Extract-CompressedFile($filePath) {
     return $destPath
 }
 
+function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$HeaderCallback) {
+    $currentMenu = $MenuData
+    $path = ""
+
+    while ($currentMenu -is [System.Collections.IDictionary]) {
+        & $HeaderCallback 
+
+        $options = @($currentMenu.Keys)
+        Write-Log "${cYellow}Select an option${cReset}$path"
+        for ($i = 0; $i -lt $options.Count; $i++) {
+            Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
+        }
+
+        $selection = Read-HostLog "Choice [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
+        if ([string]::IsNullOrWhiteSpace($selection)) { 
+            return $null 
+        }
+
+        if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -ge 1 -and [int]$selection -le $options.Count) {
+            $key = $options[[int]$selection - 1]
+            $path += " > ${cCyan}$key${cReset}"
+            $currentMenu = $currentMenu[$key]
+        } else {
+            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+            Wait-Continue
+        }
+    }
+
+    & $HeaderCallback 
+    if ($currentMenu -is [string]) {
+        Write-Log "Firmware selected$($path)" "Success"
+        Write-Log "Download Link: ${cCyan}$($currentMenu)${cReset}" "Info"
+
+        $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
+        if ($openUrl -cin ('Y', 'y')) {
+            Start-Process $currentMenu
+        }
+    }
+}
+
 function Select-BackupFolder {
     $result = $null
 
@@ -166,81 +206,34 @@ function Select-BackupFolder {
 }
 
 function Prepare-Downgrade {
-    Write-Header "Select Pico Firmware"
-
     $FirmwareData = [ordered]@{
         "Pico 4/4 Enterprise" = [ordered]@{
             "Global" = [ordered]@{
-                "OEM"     = [ordered]@{
-                    "5.4.0" = "https://drive.google.com/file/d/1zs66s6-S3K3NinkwEtoEaFokNDIvuBTK/view?usp=sharing"
-                }
-                "NON-OEM" = [ordered]@{
-                    "5.4.0" = "https://drive.google.com/file/d/1KGg35ydXZo-3J0-PGeOrB09mFcUyzC7y/view?usp=sharing"
-                }
+                "OEM"     = [ordered]@{ "5.4.0" = "https://drive.google.com/file/d/1zs66s6-S3K3NinkwEtoEaFokNDIvuBTK/view?usp=sharing" }
+                "NON-OEM" = [ordered]@{ "5.4.0" = "https://drive.google.com/file/d/1KGg35ydXZo-3J0-PGeOrB09mFcUyzC7y/view?usp=sharing" }
             }
         }
         "Pico 4 Pro"          = [ordered]@{
             "Global" = [ordered]@{
-                "OEM"     = [ordered]@{
-                    "5.4.0" = "https://drive.google.com/file/d/1q1pln-9w2Qx8_0KBVnba9os5iD-Pbt7O/view?usp=sharing"
-                }
-                "NON-OEM" = [ordered]@{
-                    "5.4.0" = "https://drive.google.com/file/d/10pTWnO5kjNBtSpraTEAQJEC7-0Malz4d/view?usp=sharing"
-                }
+                "OEM"     = [ordered]@{ "5.4.0" = "https://drive.google.com/file/d/1q1pln-9w2Qx8_0KBVnba9os5iD-Pbt7O/view?usp=sharing" }
+                "NON-OEM" = [ordered]@{ "5.4.0" = "https://drive.google.com/file/d/10pTWnO5kjNBtSpraTEAQJEC7-0Malz4d/view?usp=sharing" }
             }
         }
     }
 
-    $currentMenu = $FirmwareData
-    $path = ""
-
-    while ($currentMenu -is [System.Collections.IDictionary]) {
-        $options = @($currentMenu.Keys)
-        Write-Log "${cYellow}Select an option${cReset}$path"
-        for ($i = 0; $i -lt $options.Count; $i++) {
-            Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
-        }
-        Write-Log " [${cCyan}0${cReset}] Cancel"
-
-        $selection = Read-HostLog "Choice [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
-        if ($selection -eq '0') {
-            return 
-        } elseif ([string]::IsNullOrWhiteSpace($selection)) {
-            break
-        }
-
-        if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -le $options.Count) {
-            $key = $options[[int]$selection - 1]
-            $path += " > ${cCyan}$key${cReset}"
-            $currentMenu = $currentMenu[$key]
-
-            Write-Header "Select Pico Firmware"
-        } else {
-            Write-Header "Select Pico Firmware"
-            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-            Wait-Continue
-        }
+    $header = {
+        Write-Header "Downgrade Device"
+        Write-Log "Downgrade device OS to 5.4.0. Using ${cCyan}Restore Device${cReset} menu to perform downgrade." "Info"
+        Write-Log "Option 1: Use provided ${cCyan}Pico4.7z${cReset} file downloaded from this menu in ${cCyan}Restore Device${cReset} menu." "Info"
+        Write-Log "Option 2: Using ${cCyan}PICO4_GLOBAL_OS_540_Downgrader${cReset} partitions file set." "Info"
+        Write-Log "     - Check in '${cCyan}.\helper\Flasher\Flash${cReset}' is it empty or not." "Info"
+        Write-Log "         - If folder empty, navigate to '${cCyan}.\UNBRICK\P4_Unbrick.exe${cReset}'. Finish only extraction process and close the program." "Info"
+        Write-Log "         - Recheck '${cCyan}.\helper\Flasher\Flash${cReset}' to confirm the partitions file exist." "Info"
+        Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
+        Write-Log ""
     }
 
-    if ($currentMenu -is [string]) {
-        $firmwareUrl = $currentMenu
-        Write-Log "Firmware selection$path" "Success"
-        Write-Log "Download Link: ${cCyan}$firmwareUrl${cReset}" "Info"
-
-        $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
-        if ($openUrl -cin ('Y', 'y')) {
-            Start-Process $firmwareUrl
-        }
-    }
-
-    Write-Header "Select Pico Firmware"
-    Write-Log "Using ${cCyan}Restore Device${cReset} menu to perform downgrade." "Info"
-    Write-Log "Option 1: Select downloaded ${cCyan}Pico4.7z${cReset} file in ${cCyan}Restore Device${cReset} menu." "Info"
-    Write-Log "Option 2: Using ${cCyan}PICO4_GLOBAL_OS_540_Downgrader${cReset} partitions file set." "Info"
-    Write-Log "     - Check in '${cCyan}.\helper\Flasher\Flash${cReset}' is it empty or not." "Info"
-    Write-Log "         - If folder empty, navigate to '${cCyan}.\UNBRICK\P4_Unbrick.exe${cReset}'. Finish only extraction process and close the program." "Info"
-    Write-Log "         - Recheck '${cCyan}.\helper\Flasher\Flash${cReset}' to confirm the partitions file exist." "Info"
-    Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
+    Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
 function Perform-RollbackOS {
@@ -250,7 +243,7 @@ function Perform-RollbackOS {
     $pushedLocation = $false
 
     try {
-        Write-Header "Downgrade Device"
+        Write-Header "Rollback OS"
 
         if (-not (Wait-UserConfirm "rollback")) {
             throw "Aborted by user. No changes have been made."
@@ -433,9 +426,7 @@ function Perform-RollbackOS {
     return $success
 }
 
-function Prepare-Firmware {
-    Write-Header "Select Pico Firmware"
-    
+function Prepare-Firmware {    
     $FirmwareData = [ordered]@{
         "Pico 4" = [ordered]@{
             "Global"  = [ordered]@{
@@ -515,43 +506,16 @@ function Prepare-Firmware {
         }
     }
 
-    $currentMenu = $FirmwareData
-    $path = ""
-
-    while ($currentMenu -is [System.Collections.IDictionary]) {
-        $options = @($currentMenu.Keys)
-        Write-Log "${cYellow}Select an option${cReset}$path"
-        for ($i = 0; $i -lt $options.Count; $i++) {
-            Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
-        }
-        Write-Log " [${cCyan}0${cReset}] Cancel"
-
-        $selection = Read-HostLog "Choice [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
-        if ($selection -eq '0' -or [string]::IsNullOrWhiteSpace($selection)) { return }
-
-        if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -le $options.Count) {
-            $key = $options[[int]$selection - 1]
-            $path += " > ${cCyan}$key${cReset}"
-            $currentMenu = $currentMenu[$key]
-
-            Write-Header "Select Pico Firmware"
-        } else {
-            Write-Header "Select Pico Firmware"
-            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-            Wait-Continue
-        }
+    $header = {
+        Write-Header "Select Pico Firmware"
+        Write-Log "Change device OS to any version." "Info"
+        Write-Log "Use provided ${cCyan}firmware.zip${cReset} file downloaded from this menu in the next step." "Info"
+        Write-Log "Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops." "Warning"
+        Write-Log "Always perform a ${cCyan}User Personal Data${cReset} backup before proceed." "Warning"
+        Write-Log ""
     }
 
-    if ($currentMenu -is [string]) {
-        $firmwareUrl = $currentMenu
-        Write-Log "Firmware selection$path" "Success"
-        Write-Log "Download Link: ${cCyan}$firmwareUrl${cReset}" "Info"
-
-        $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
-        if ($openUrl -cin ('Y', 'y')) {
-            Start-Process $firmwareUrl
-        }
-    }
+    Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
 function Get-LunsSizeGB {
@@ -683,7 +647,6 @@ function Wait-UserConfirm([string]$backupMode) {
     
     $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
     if ($confirmation -ne 'yes') {
-        Write-Log "Reboot to EDL aborted by user. No changes have been made." "Warning"
         return $false
     }
 
@@ -1057,7 +1020,7 @@ function Show-BackupRestoreMenu {
         Write-Log "[${cCyan}1${cReset}] Backup Device"
         Write-Log "[${cCyan}2${cReset}] Restore Device"
         Write-Log "[${cCyan}3${cReset}] Compress Backup"
-        Write-Log "[${cCyan}4${cReset}] Downgrade Device"
+        Write-Log "[${cCyan}4${cReset}] Downgrade Device ${cDarkGray}(Legacy)${cReset}"
         Write-Log "[${cCyan}5${cReset}] Rollback OS"
         Write-Log ""
         Write-Log "[${cCyan}r${cReset}] Reboot"
