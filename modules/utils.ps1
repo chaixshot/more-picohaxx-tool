@@ -517,108 +517,122 @@ function Perform-Reboot {
 }
 
 function Play-BeepBeep {
-    $sampleRate = 22050
-    $bpm = 100
-    
-    # Base duration units based on tempo (100 BPM)
-    $quarter = [int](60000 / $bpm)          # 600ms
-    $triplet = [int]($quarter / 3)         # 200ms
+    # Track objects to dispose in finally block if an error occurs
+    $msStream = $null
+    $writer = $null
+    $player = $null
 
-    # Exact sheet music transcription (Freq in Hz, Duration in ms, Rest in ms)
-    $notes = @(
-        # --- INTRO ---
-        @{ Freq = 659; Duration = 100; Rest = 50 },  # E5
-        @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
-        @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
-        @{ Freq = 523; Duration = 100; Rest = 50 },  # C5
-        @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
-        @{ Freq = 784; Duration = 200; Rest = 400 }, # G5
-        @{ Freq = 392; Duration = 200; Rest = 400 }, # G4
-
-        # --- MAIN THEME (SYNCATED LINE) ---
-        @{ Freq = 523; Duration = 200; Rest = 250 }, # C5
-        @{ Freq = 392; Duration = 200; Rest = 250 }, # G4
-        @{ Freq = 330; Duration = 200; Rest = 250 }, # E4
+    try {
+        $sampleRate = 22050
+        $bpm = 100
         
-        @{ Freq = 440; Duration = 120; Rest = 30 },  # A4
-        @{ Freq = 494; Duration = 120; Rest = 30 },  # B4
-        @{ Freq = 466; Duration = 120; Rest = 30 },  # Bb4
-        @{ Freq = 440; Duration = 150; Rest = 150 }, # A4
+        # Base duration units based on tempo (100 BPM)
+        $quarter = [int](60000 / $bpm)          # 600ms
+        $triplet = [int]($quarter / 3)         # 200ms
 
-        # Triplet run up
-        @{ Freq = 392; Duration = $triplet - 30; Rest = 30 }, # G4
-        @{ Freq = 659; Duration = $triplet - 30; Rest = 30 }, # E5
-        @{ Freq = 784; Duration = $triplet - 30; Rest = 30 }, # G5
+        # Sheet music transcription (Freq in Hz, Duration in ms, Rest in ms)
+        $notes = @(
+            # --- INTRO ---
+            @{ Freq = 659; Duration = 100; Rest = 50 },  # E5
+            @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
+            @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
+            @{ Freq = 523; Duration = 100; Rest = 50 },  # C5
+            @{ Freq = 659; Duration = 100; Rest = 200 }, # E5
+            @{ Freq = 784; Duration = 200; Rest = 400 }, # G5
+            @{ Freq = 392; Duration = 200; Rest = 400 }, # G4
 
-        @{ Freq = 880; Duration = 200; Rest = 100 }, # A5
-        @{ Freq = 698; Duration = 100; Rest = 50 },  # F5
-        @{ Freq = 784; Duration = 100; Rest = 150 }, # G5
-        @{ Freq = 659; Duration = 200; Rest = 100 }, # E5
-        @{ Freq = 523; Duration = 100; Rest = 50 },  # C5
-        @{ Freq = 587; Duration = 100; Rest = 50 },  # D5
-        @{ Freq = 494; Duration = 200; Rest = 200 }  # B4
-    )
+            # --- MAIN THEME (SYNCATED LINE) ---
+            @{ Freq = 523; Duration = 200; Rest = 250 }, # C5
+            @{ Freq = 392; Duration = 200; Rest = 250 }, # G4
+            @{ Freq = 330; Duration = 200; Rest = 250 }, # E4
+            
+            @{ Freq = 440; Duration = 120; Rest = 30 },  # A4
+            @{ Freq = 494; Duration = 120; Rest = 30 },  # B4
+            @{ Freq = 466; Duration = 120; Rest = 30 },  # Bb4
+            @{ Freq = 440; Duration = 150; Rest = 150 }, # A4
 
-    $msStream = New-Object System.IO.MemoryStream
-    $writer = New-Object System.IO.BinaryWriter($msStream)
+            # Triplet run up
+            @{ Freq = 392; Duration = $triplet - 30; Rest = 30 }, # G4
+            @{ Freq = 659; Duration = $triplet - 30; Rest = 30 }, # E5
+            @{ Freq = 784; Duration = $triplet - 30; Rest = 30 }, # G5
 
-    # WAV Header setup
-    $writer.Write([char[]]"RIFF")
-    $writer.Write([int]0)
-    $writer.Write([char[]]"WAVEfmt ")
-    $writer.Write([int]16)
-    $writer.Write([short]1)
-    $writer.Write([short]1)
-    $writer.Write([int]$sampleRate)
-    $writer.Write([int]($sampleRate * 2))
-    $writer.Write([short]2)
-    $writer.Write([short]16)
-    $writer.Write([char[]]"data")
-    $writer.Write([int]0)
+            @{ Freq = 880; Duration = 200; Rest = 100 }, # A5
+            @{ Freq = 698; Duration = 100; Rest = 50 },  # F5
+            @{ Freq = 784; Duration = 100; Rest = 150 }, # G5
+            @{ Freq = 659; Duration = 200; Rest = 100 }, # E5
+            @{ Freq = 523; Duration = 100; Rest = 50 },  # C5
+            @{ Freq = 587; Duration = 100; Rest = 50 },  # D5
+            @{ Freq = 494; Duration = 200; Rest = 200 }  # B4
+        )
 
-    # Audio driver pre-roll (500ms silence)
-    $prerollSamples = [int]($sampleRate * 0.5)
-    for ($i = 0; $i -lt $prerollSamples; $i++) { $writer.Write([short]0) }
+        $msStream = New-Object System.IO.MemoryStream
+        $writer = New-Object System.IO.BinaryWriter($msStream)
 
-    # Generate PCM Audio Data (NES Square Wave)
-    foreach ($note in $notes) {
-        $totalDuration = $note.Duration + $(if ($null -ne $note.Rest) { $note.Rest } else { 0 })
-        $totalSamples = [int]($sampleRate * ($totalDuration / 1000))
-        $noteSamples = [int]($sampleRate * ($note.Duration / 1000))
+        # WAV Header setup
+        $writer.Write([char[]]"RIFF")
+        $writer.Write([int]0)
+        $writer.Write([char[]]"WAVEfmt ")
+        $writer.Write([int]16)
+        $writer.Write([int16]1)                  # PCM format
+        $writer.Write([int16]1)                  # Mono channel
+        $writer.Write([int]$sampleRate)
+        $writer.Write([int]($sampleRate * 2))     # Byte rate
+        $writer.Write([int16]2)                  # Block align
+        $writer.Write([int16]16)                 # Bits per sample
+        $writer.Write([char[]]"data")
+        $writer.Write([int]0)
 
-        for ($i = 0; $i -lt $totalSamples; $i++) {
-            if ($i -lt $noteSamples -and $note.Freq -gt 0) {
-                # Square wave synthesis for authentic 8-bit sound
-                $period = $sampleRate / $note.Freq
-                $wavePosition = $i % $period
-                $amplitude = 0.2
-                
-                $sample = if ($wavePosition -lt ($period / 2)) { $amplitude * 32767 } else { - $amplitude * 32767 }
-                $writer.Write([short][int]$sample)
-            } else {
-                $writer.Write([short]0)
+        # Pre-roll silence (500ms)
+        $prerollSamples = [int]($sampleRate * 0.5)
+        for ($i = 0; $i -lt $prerollSamples; $i++) { $writer.Write([int16]0) }
+
+        # Generate PCM Audio Data
+        foreach ($note in $notes) {
+            $totalDuration = $note.Duration + $(if ($null -ne $note.Rest) { $note.Rest } else { 0 })
+            $totalSamples = [int]($sampleRate * ($totalDuration / 1000))
+            $noteSamples = [int]($sampleRate * ($note.Duration / 1000))
+
+            for ($i = 0; $i -lt $totalSamples; $i++) {
+                if ($i -lt $noteSamples -and $note.Freq -gt 0) {
+                    $period = $sampleRate / $note.Freq
+                    $wavePosition = $i % $period
+                    $amplitude = 0.2
+                    
+                    $sample = if ($wavePosition -lt ($period / 2)) { $amplitude * 32767 } else { - $amplitude * 32767 }
+                    $writer.Write([int16][int]$sample)
+                } else {
+                    $writer.Write([int16]0)
+                }
             }
         }
-    }
 
-    # Finalize WAV headers
-    $dataLength = $msStream.Length - 44
-    $msStream.Position = 4
-    $writer.Write([int]($msStream.Length - 8))
-    $msStream.Position = 40
-    $writer.Write([int]$dataLength)
+        # Finalize WAV headers
+        $dataLength = [int]($msStream.Length - 44)
+        $msStream.Position = 4
+        $writer.Write([int]($msStream.Length - 8))
+        $msStream.Position = 40
+        $writer.Write([int]$dataLength)
 
-    # Play generated audio asynchronously
-    $msStream.Position = 0
-    $player = New-Object System.Media.SoundPlayer($msStream)
-    $player.Play() # Non-blocking playback
+        # Play audio
+        $msStream.Position = 0
+        $player = New-Object System.Media.SoundPlayer($msStream)
+        $player.Play()
 
-    # Register an event or register object cleanup so memory isn't disposed during playback
-    # Store references on the global scope or script scope to prevent Garbage Collection:
-    $global:ActiveAudioPlayer = @{
-        Player = $player
-        Stream = $msStream
-        Writer = $writer
+        # Prevent Garbage Collection during playback
+        $global:ActiveAudioPlayer = @{
+            Player = $player
+            Stream = $msStream
+            Writer = $writer
+        }
+
+        return $true
+    } catch {
+        # Clean up stream objects if synthesis failed midway
+        if ($writer) { $writer.Dispose() }
+        if ($msStream) { $msStream.Dispose() }
+        if ($player) { $player.Dispose() }
+        
+        return $false
     }
 }
 
