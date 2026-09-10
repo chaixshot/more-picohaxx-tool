@@ -578,14 +578,6 @@ function Perform-FastbootLock {
             throw ""
         }
 
-        $backupPath = Get-LatestAblBackup
-        if ($backupPath -and (Test-Path $backupPath) -and (Get-Item $backupPath).Length -gt 0) {
-            Write-Log "Flashing original ABL from backup: ${cGreen}$backupPath${cReset}" "Action"
-            & $FASTBOOT flash abl $backupPath
-        } else {
-            Write-Log "No valid backup found to restore during lock process. Proceeding with caution." "Warning"
-        }
-
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 1${cReset}" "Action"
         & $FASTBOOT oem setenforce 1
