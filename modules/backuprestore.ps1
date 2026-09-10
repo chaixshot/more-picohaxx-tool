@@ -367,6 +367,7 @@ function Perform-RollbackOS {
         }
 
         # Flash Firmware Partitions via EDL
+        $xblSuffix = if ($SelectedFirehose -eq 2) { "_ddr5" } else { "" }
         $flashMap = @(
             @{ Part = "boot"; Path = ".\boot.img" },
             @{ Part = "recovery"; Path = ".\recovery.img" },
@@ -384,8 +385,8 @@ function Perform-RollbackOS {
             @{ Part = "imagefv"; Path = ".\firmware-update\imagefv.elf" },
             @{ Part = "cmnlib"; Path = ".\firmware-update\cmnlib.mbn" },
             @{ Part = "cmnlib64"; Path = ".\firmware-update\cmnlib64.mbn" },
-            @{ Part = "xbl"; Path = ".\firmware-update\xbl.elf" },
-            @{ Part = "xbl_config"; Path = ".\firmware-update\xbl_config.elf" },
+            @{ Part = "xbl"; Path = ".\firmware-update\xbl$xblSuffix.elf" },
+            @{ Part = "xbl_config"; Path = ".\firmware-update\xbl_config$xblSuffix.elf" },
             @{ Part = "vbmeta_system"; Path = ".\firmware-update\vbmeta_system.img" },
             @{ Part = "super"; Path = ".\super.img" }
         )
