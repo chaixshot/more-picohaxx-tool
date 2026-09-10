@@ -330,20 +330,85 @@ function Flash-EngineeringABL {
 }
 
 function Flash-BackupABL {
-    Write-Header "Restoring Backup ABL"
-    Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
-    Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
-    Write-Log "Perform ${cYellow}Root${cReset} before doing this step." "Warning"
-    Write-Log "Fastboot will no longer work for device modification." "Warning"
-    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
-
     $success = $false
+    $header = {
+        Write-Header "Select Pico Firmware"
+        Write-Log "Change device OS to any version." "Info"
+        Write-Log "Use provided ${cCyan}firmware.zip${cReset} file downloaded from this menu in the next step." "Info"
+        Write-Log "Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops." "Warning"
+        Write-Log "Always perform a ${cCyan}User Personal Data${cReset} backup before proceeding." "Warning"
+        Write-Header "Restoring Backup ABL"
+        Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
+        Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode." "Info"
+        Write-Log "Perform ${cYellow}Root${cReset} before doing this step." "Warning"
+        Write-Log "Fastboot will no longer work for device modification." "Warning"
+        Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+    }
+
+    function Get-LatestAblBackup {
+        $result = $null
+
+        try {
+            if (-not (Test-Path -Path $AblBackupPath -PathType Container)) {
+                throw "The specified backup directory '${cYellow}$AblBackupPath${cReset}' does not exist."
+            }
+
+            $folders = Get-ChildItem -Path $AblBackupPath -Directory |
+                Where-Object { $_.Name -match '^\d+$|^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
+                Sort-Object -Property LastWriteTime -Descending
+
+            if (-not $folders) {
+                throw "No valid backup folders found in '${cYellow}$AblBackupPath${cReset}'."
+            }
+
+            $selectedFolder = $null
+            while (-not $selectedFolder) {
+                & $header
+
+                Write-Log ""
+                Write-Log "Available backup folders:" "Info"
+                for ($i = 0; $i -lt $folders.Count; $i++) {
+                    Write-Log "[${cCyan}$($i + 1)${cReset}] $($folders[$i].Name) ${cGreen}($($folders[$i].CreationTime))${cReset}"
+                }
+                $selection = Read-HostLog "Select backup [${cYellow}1-$($folders.Count)${cReset}], cancel [${cYellow}C${cReset}]"
+
+                if ([string]::IsNullOrWhiteSpace($selection)) {
+                    $selection = "0"
+                }
+
+                if ($selection -eq 'c') {
+                    throw "Aborted by user. No changes have been made."
+                }
+
+                if ($selection -match '^\d+$') {
+                    $index = [int]$selection - 1
+                    if ($index -ge 0 -and $index -lt $folders.Count) {
+                        $selectedFolder = $folders[$index]
+                    }
+                }
+
+                if (-not $selectedFolder) {
+                    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+                    Wait-Continue
+                }
+            }
+
+            $result = $selectedFolder.FullName
+        } catch {
+            if ($_.Exception.Message) {
+                Write-Log "$($_.Exception.Message)" "Error"
+            }
+        }
+
+        return $result
+    }
 
     try {
-        $backupFolder = Get-LatestAblBackup -FileName ""
+        $backupFolder = Get-LatestAblBackup
         if (-not $backupFolder) {
             throw "No valid backup folder found."
         }
+
         $backupAbl = Join-Path $backupFolder "abl.bin"
         $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
 
@@ -369,18 +434,18 @@ function Flash-BackupABL {
         }
 
         if (-not (Wait-EdlMode 100)) {
-            throw ""
+            throw "Device failed to enter EDL mode."
         }
 
         # Flash backup ABL
-        $null = Execute-EdlCommand "write-part abl $backupAbl"
+        $null = Execute-EdlCommand "write-part abl `"$backupAbl`""
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
             throw "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
         # Flash backup DEVINFO
-        $null = Execute-EdlCommand "write-part devinfo $backupDevInfo"
+        $null = Execute-EdlCommand "write-part devinfo `"$backupDevInfo`""
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
             throw "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
@@ -400,62 +465,6 @@ function Flash-BackupABL {
     }
     
     return $success
-}
-
-function Get-LatestAblBackup([string]$FileName = "abl.bin") {
-    $result = $null
-
-    try {
-        if (-not (Test-Path -Path $AblBackupPath -PathType Container)) {
-            throw "The specified backup directory '${cYellow}$AblBackupPath${cReset}' does not exist."
-        }
-
-        $folders = Get-ChildItem -Path $AblBackupPath -Directory |
-        Where-Object { $_.Name -match '^\d+$|^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
-        Sort-Object -Property LastWriteTime -Descending
-
-        if (-not $folders) {
-            throw "No valid backup folders found in '${cYellow}$AblBackupPath${cReset}'."
-        }
-
-        $selectedFolder = $null
-        while (-not $selectedFolder) {
-            Write-Log ""
-            Write-Log "Available backup folders:" -ForegroundColor Cyan
-            for ($i = 0; $i -lt $folders.Count; $i++) {
-                Write-Log "[${cCyan}$( $i + 1 )${cReset}] $( $folders[$i].Name ) ${cGreen}($( $folders[$i].CreationTime ))${cReset}"
-            }
-            $selection = Read-HostLog "Select backup [${cYellow}1-$( $folders.Count )${cReset}], cancel [${cYellow}C${cReset}]"
-
-            if ([string]::IsNullOrWhiteSpace($selection)) {
-                $selection = "0"
-            }
-
-            if ($selection -eq 'c') {
-                throw "Aborted by user. No changes have been made."
-            }
-
-            if ($selection -match '^\d+$') {
-                $index = [int]$selection - 1
-                if ($index -ge 0 -and $index -lt $folders.Count) {
-                    $selectedFolder = $folders[$index]
-                }
-            }
-
-            if (-not $selectedFolder) {
-                Write-Header "Restoring Backup ABL"
-                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-            }
-        }
-
-        $result = Join-Path -Path $selectedFolder.FullName -ChildPath $FileName
-    } catch {
-        if ($_.Exception.Message) {
-            Write-Log "$($_.Exception.Message)" "Error"
-        }
-    }
-
-    return $result
 }
 
 # ----------------------------

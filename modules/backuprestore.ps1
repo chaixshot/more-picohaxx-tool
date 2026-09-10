@@ -63,6 +63,7 @@ function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$
 
     while ($currentMenu -is [System.Collections.IDictionary]) {
         & $HeaderCallback 
+        Write-Log ""
 
         $options = @($currentMenu.Keys)
         Write-Log "${cYellow}Select an option${cReset}$path"
@@ -230,7 +231,6 @@ function Prepare-Downgrade {
         Write-Log "         - If folder empty, navigate to '${cCyan}.\UNBRICK\P4_Unbrick.exe${cReset}'. Finish only extraction process and close the program." "Info"
         Write-Log "         - Recheck '${cCyan}.\helper\Flasher\Flash${cReset}' to confirm the partitions file exist." "Info"
         Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
-        Write-Log ""
     }
 
     Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
@@ -545,7 +545,6 @@ function Prepare-Firmware {
         Write-Log "Use provided ${cCyan}firmware.zip${cReset} file downloaded from this menu in the next step." "Info"
         Write-Log "Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops." "Warning"
         Write-Log "Always perform a ${cCyan}User Personal Data${cReset} backup before proceed." "Warning"
-        Write-Log ""
     }
 
     Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
