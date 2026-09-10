@@ -311,20 +311,23 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 function Select-Firehose {
     while ($null -eq $FirehoseTargetPath) {
         Write-Header "Select Firehose"
-        Write-Log "[${cCyan}1${cReset}] Pico 4 / Pico Neo 3 (DDR 4)"
-        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro (DDR 5)"
+        Write-Log "[${cCyan}1${cReset}] Pico 4 ${cYellow}/${cReset} Pico 4 Enterprise ${cYellow}/${cReset} Pico Neo 3 ${cDarkGray}(DDR 4)${cReset}"
+        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro ${cDarkGray}(DDR 5)${cReset}"
 
         $selection = Read-HostLog "Select your device model to use the correct firehose"
-
-        if ($selection -eq "1") {
-            $script:FirehoseTargetPath = $FirehoseDDR4Path
-            Write-Log "Using DDR 4 Firehose." "Info"
-        } elseif ($selection -eq "2") {
-            $script:FirehoseTargetPath = $FirehoseDDR5Path
-            Write-Log "Using DDR 5 Firehose." "Info"
-        } else {
-            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-            Wait-Continue
+        switch ($selection) {
+            "1" { 
+                $script:FirehoseTargetPath = $FirehoseDDR4Path
+                Write-Log "Using DDR 4 Firehose." "Info"
+            }
+            "2" { 
+                $script:FirehoseTargetPath = $FirehoseDDR5Path
+                Write-Log "Using DDR 5 Firehose." "Info"
+            }
+            Default {
+                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+                Wait-Continue
+            }
         }
     }
 }
@@ -861,7 +864,7 @@ function Warning-EDL {
 }
 
 function Warning-EDL-ManualReboot {
-    Write-Header "Post Steps"
+    Write-Log ""
     Write-Log "Your device will not automatically reboot." "Info"
     Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
     Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"

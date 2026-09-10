@@ -214,7 +214,7 @@ function Check-Prerequisites {
 }
 
 function Generate-UnlockCode {
-    Write-Header "Generating Unlock Code"
+    Write-Header "Generate Unlock Code"
 
     if (IsAdbMode) {
         $rawSerial = & $ADB shell "cat /sys/devices/soc0/serial_number" 2>$null
@@ -244,7 +244,7 @@ function Generate-UnlockCode {
 # ----------------------------
 
 function Flash-EngineeringABL {
-    Write-Header "Flashing Engineering ABL & Devinfo via EDL"
+    Write-Header "Flashing Engineering ABL"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
     Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
@@ -328,7 +328,7 @@ function Flash-EngineeringABL {
 }
 
 function Flash-BackupABL {
-    Write-Header "Restoring Original Partitions via EDL"
+    Write-Header "Restoring Backup ABL"
     Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
     Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode" "Info"
     Write-Log "Perform ${cYellow}Root${cReset} before doing this step." "Warning"
@@ -451,7 +451,7 @@ function Get-LatestAblBackup([string]$FileName = "abl.bin") {
 # ----------------------------
 
 function Perform-FastbootUnlock {
-    Write-Header "Performing Unlock Bootloader"
+    Write-Header "Unlock Bootloader"
 
     if ($IsRetryBootloader -eq 0) {
         Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
@@ -519,7 +519,7 @@ function Perform-FastbootUnlock {
 }
 
 function Perform-FastbootLock {
-    Write-Header "Performing Lock Bootloader"
+    Write-Header "Lock Bootloader"
 
     if ($IsRetryBootloader -eq 0) {
         Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to lock bootloader." "Warning"
@@ -722,6 +722,7 @@ function IsFastbootUnlocked {
 function Perform-FactoryReset {
     Write-Header "Factory Reset"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to wipe user data partition." "Warning"
+    Write-Log "Factory reset may be required to prevent non-bootable states or bootloops from data mismatch." "Warning"
     Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $confirmation = Read-HostLog "To proceed with factory reset, type [${cYellow}YES${cReset}] and press Enter"
@@ -781,8 +782,8 @@ if (-not (Test-Path $LogsPath)) {
 $LogFile = "$LogsPath\${TimeStamp}_console.log"
 Start-Transcript -Path $LogFile -Append
 
-$host.UI.RawUI.WindowTitle = "more-picohaxx"
-[System.Console]::Title = "more-picohaxx"
+$host.UI.RawUI.WindowTitle = "more-picohaxx-tool"
+[System.Console]::Title = "more-picohaxx-tool"
 
 try {
     if (Check-Prerequisites) {
@@ -791,15 +792,15 @@ try {
 
     $quit = $false
     while (-not $quit) {
-        Write-Header "PicoUnlock Main Menu"
+        Write-Header "PicoUnlock"
 
-        Write-Log "[${cCyan}1${cReset}] Generate/Get UnlockCode"
+        Write-Log "[${cCyan}1${cReset}] Generate-Get Unlock Code"
         Write-Log "[${cCyan}2${cReset}] Flash Engineering ABL"
-        Write-Log "[${cCyan}3${cReset}] Unlock bootloader"
+        Write-Log "[${cCyan}3${cReset}] Unlock Bootloader"
         Write-Log "[${cCyan}4${cReset}] Root/Flash Image"
-        Write-Log "[${cCyan}5${cReset}] Flash backup ABL ${cDarkGray}(Fix slow boot, EDL boot)${cReset}"
+        Write-Log "[${cCyan}5${cReset}] Flash Backup ABL ${cDarkGray}(Fix slow boot, EDL boot)${cReset}"
         Write-Log ""
-        Write-Log "[${cCyan}l${cReset}] Lock bootloader"
+        Write-Log "[${cCyan}l${cReset}] Lock Bootloader"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}reset${cReset}] Factory Reset"
         Write-Log "[${cCyan}b${cReset}] Backup/Restore/Downgrade"
@@ -808,7 +809,6 @@ try {
         Write-Log "Site: ${cYellow}https://github.com/chaixshot/more-picohaxx-tool${cReset}"
 
         $selection = Read-HostLog "Select an option"
-
         switch ($selection) {
             "1" {
                 Generate-UnlockCode

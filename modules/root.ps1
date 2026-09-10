@@ -512,18 +512,13 @@ function Perform-FlashBoot([string]$imageName) {
     Write-Log "[${cCyan}2${cReset}] EDL ${cDarkGray}(Require bootloader unlocked, skip engineering ABL)${cReset}"
 
     $selection = Read-HostLog "Select method to flash boot image"
-
-    if ($selection -eq "1") {
-        Write-Log "Using Fastboot." "Info"
-    } elseif ($selection -eq "2") {
-        Write-Log "Using EDL." "Info"
-    }
-
     switch ($selection) {
         "1" { 
+            Write-Log "Using Fastboot." "Info"
             return FlashBoot-ViaFastboot $imageName
         }
         "2" { 
+            Write-Log "Using EDL." "Info"
             return FlashBoot-ViaEDL $imageName
         }
         Default {
@@ -541,7 +536,7 @@ function Perform-FlashBoot([string]$imageName) {
 function Show-RootMenu {
     $rootQuit = $false
     while (-not $rootQuit) {
-        Write-Header "Pico Root Menu"
+        Write-Header "Root/Flash Image"
         Write-Log "[${cCyan}1${cReset}] Prepare Boot Image"
         Write-Log "[${cCyan}2${cReset}] Prepare Magisk"
         Write-Log "[${cCyan}3${cReset}] Root With Magisk"
@@ -551,7 +546,6 @@ function Show-RootMenu {
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
         $selection = Read-HostLog "Select an option"
-
         switch ($selection) {
             "1" {
                 Select-Firehose

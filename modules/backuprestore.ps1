@@ -998,7 +998,7 @@ function Restore-Backup($backupInfo) {
 function Show-BackupRestoreMenu {
     $menuQuit = $false
     while (-not $menuQuit) {
-        Write-Header "Backup/Restore Menu"
+        Write-Header "Backup/Restore/Downgrade"
         Write-Log "[${cCyan}1${cReset}] Backup Device"
         Write-Log "[${cCyan}2${cReset}] Restore Device"
         Write-Log "[${cCyan}3${cReset}] Compress Backup"
@@ -1009,7 +1009,6 @@ function Show-BackupRestoreMenu {
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
         $selection = Read-HostLog "Select an option"
-
         switch ($selection) {
             "1" {
                 $targetBackup = Select-BackupMode
