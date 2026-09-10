@@ -354,8 +354,8 @@ function Flash-BackupABL {
             }
 
             $folders = Get-ChildItem -Path $AblBackupPath -Directory |
-                Where-Object { $_.Name -match '^\d+$|^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
-                Sort-Object -Property LastWriteTime -Descending
+            Where-Object { $_.Name -match '^\d+$|^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
+            Sort-Object -Property LastWriteTime -Descending
 
             if (-not $folders) {
                 throw "No valid backup folders found in '${cYellow}$AblBackupPath${cReset}'."
@@ -915,7 +915,9 @@ try {
         }
     }
 } catch {
-    Write-Log "An unexpected error occurred: $_" "Error"
+    $errInfo = $_.InvocationInfo
+    $errMsg = "'$($errInfo.ScriptName)' at line $($errInfo.ScriptLineNumber): $_"
+    Write-Log $errMsg "Error"
 } finally {
     Write-Header "Exited"
     Write-Log "Version: 1.3.0" "Info"
