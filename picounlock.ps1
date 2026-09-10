@@ -33,7 +33,6 @@ $DeviceSerial = Join-Path $WorkingDir "serial_number.txt"
 
 $FirehoseDDR4Path = Join-Path $WorkingDir "tools\firehoses\prog_firehose_ddr.elf"
 $FirehoseDDR5Path = Join-Path $WorkingDir "tools\firehoses\prog_firehose_lite.elf"
-$FirehoseTargetPath = $null
 
 $AblPath = Join-Path $WorkingDir "tools\engineering\abl.elf"
 $DevInfoPath = Join-Path $WorkingDir "tools\engineering\devinfo"

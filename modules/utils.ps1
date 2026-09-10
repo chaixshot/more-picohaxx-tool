@@ -9,6 +9,7 @@
 #>
 
 # --- Utility Functions ---
+$SelectedFirehose = 0
 
 $e = [char]27
 $cReset = "$e[0m"
@@ -308,7 +309,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 #########################################
 
 function Select-Firehose {
-    while ($null -eq $FirehoseTargetPath) {
+    while ($SelectedFirehose -eq 0) {
         Write-Header "Select Firehose"
         Write-Log "[${cCyan}1${cReset}] Pico 4 ${cYellow}/${cReset} Pico 4 Enterprise ${cYellow}/${cReset} Pico Neo 3 ${cDarkGray}(DDR 4)${cReset}"
         Write-Log "[${cCyan}2${cReset}] Pico 4 Pro ${cDarkGray}(DDR 5)${cReset}"
@@ -316,11 +317,11 @@ function Select-Firehose {
         $selection = Read-HostLog "Select your device model to use the correct firehose"
         switch ($selection) {
             "1" { 
-                $script:FirehoseTargetPath = $FirehoseDDR4Path
+                $script:SelectedFirehose = 1
                 Write-Log "Using DDR 4 Firehose." "Info"
             }
             "2" { 
-                $script:FirehoseTargetPath = $FirehoseDDR5Path
+                $script:SelectedFirehose = 2
                 Write-Log "Using DDR 5 Firehose." "Info"
             }
             Default {
@@ -408,13 +409,19 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
     $success = $false
 
     try {
-        if ($FirehoseTargetPath -eq $null) {
+        if ($SelectedFirehose -eq 0) {
             throw "No firesose selected"
+        }
+
+        $firehose = switch ($SelectedFirehose) {
+            1 { $FirehoseDDR4Path }
+            2 { $FirehoseDDR5Path }
+            Default { $FirehoseDDR4Path }
         }
 
         # Execute edl-ng and capture its output stream.
         # 2>&1 redirects stderr to stdout so we can process all output.
-        $expression = "& `"$EDLNG`" --loader $FirehoseTargetPath --memory UFS $sCMDLine 2>&1"
+        $expression = "& `"$EDLNG`" --loader $firehose --memory UFS $sCMDLine 2>&1"
 
         Invoke-Expression $expression | ForEach-Object {
             $line = $_.ToString().TrimEnd()
