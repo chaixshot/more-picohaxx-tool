@@ -76,7 +76,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 1. **Flash Backup ABL**: Flash original firmware `abl` image to restore boot capability.
 1. **Restore Userdata**: Restore backed-up user data
 
-## Rooting with Magisk
+## Root with Magisk
 
 The tool includes an automated workflow to root headset directly from Windows:
 
@@ -85,6 +85,15 @@ The tool includes an automated workflow to root headset directly from Windows:
 1. **Native Windows Patching**: Automatically patches `boot.img` on Windows using the integrated **MagiskBoot** tool without needing manual patching on the headset.
 1. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
 1. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
+
+### Root Tweak
+
+Recommend [Magisk](https://github.com/topjohnwu/magisk) modules and [Xposed Framework](https://github.com/JingMatrix/Vector) apps
+
+* Core framework [Vector](https://github.com/JingMatrix/Vector) and [NyaZygisk](https://github.com/HSSkyBoy/NyaZygisk)
+* Magisk modules: [pico-screenshot-hires](https://github.com/hhhbwc/pico-screenshot-hires) | [pico4-aggressive-fan](https://github.com/hhhbwc/pico4-aggressive-fan)
+* Xposed modules: [PicoDockShortcut](https://github.com/chaixshot/PicoDockShortcut) | [Pico3dResolution](https://github.com/chaixshot/Pico3dResolution) | [PicoNeverSleep](https://github.com/chaixshot/PicoNeverSleep) | [Pico-4-IME-Unlock](https://github.com/Skyrimus/Pico-4-IME-Unlock) | [PicoFanControl](https://github.com/Seva167/PicoFanControl) | [pico-resfix](https://github.com/hhhbwc/pico-resfix) | [pico4-winlimit](https://github.com/hhhbwc/pico4-winlimit) | [PICO-Custom-Wallpaper](https://github.com/hhhbwc/PICO-Custom-Wallpaper) | [pico4-sleep-mode](https://github.com/hhhbwc/pico4-sleep-mode) | [pico4-quest3-swap](https://github.com/hhhbwc/pico4-quest3-swap)
+* Other: [PICO-4-GPU-Overclocking](https://github.com/hhhbwc/PICO-4-GPU-Overclocking) | [pico4_120hz](https://github.com/hhhbwc/pico4_120hz)
 
 ## Flash Custom Image
 
