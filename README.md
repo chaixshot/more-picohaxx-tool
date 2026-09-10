@@ -55,7 +55,6 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 
 * **Backup Selector**: Select between different backup sets using the menu.
 * **Custom Restore Folder**: Paste a backup folder path directly into the menu. Automatically detects the backup type (`LUNs`, `UserData`, `Partitions`, or `Downgrade`) based on the files inside.
-* **Downgrade**: Supports downgrader folder file set.
 
 ## Unlock Bootloader
 
@@ -87,11 +86,16 @@ The tool includes an automated workflow to root headset directly from Windows:
 1. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
 1. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
 
+## Flash Custom Image
+
+When the bootloader is unlocked, the device can flash a custom image via EDL mode. This will help with stable development from Engineering ABL unstable boot.
+
 ## Rollback OS
 
-Automates full firmware downgrades and dynamic partition processing via EDL mode, allowing the device to roll back to any firmware version.
+Full firmware downgrades and dynamic partition processing, allowing the device to roll back to any firmware version.
 
-* **Firmware Downloader:** Built-in tool to fetch required firmware download links directly.
+* **Downgrade**: Introduction to using the legacy downgrade 5.6.0 partition file set.
+* **Firmware Downloader:** Built-in menu to get firmware version download links.
 * **Archive Extraction:** Automatically extracts compressed firmware packages (`.zip`, `.rar`, `.7z`).
 * **Automated EDL Flashing:** Safely transitions the device into EDL mode and flashes system and firmware images sequentially.
 
