@@ -333,7 +333,9 @@ function BootImage-Picker($imageName) {
             throw ""
         }
 
-        Write-Log "Could not find any ${cYellow}'$imageName.img'${cReset} file automatically." "Warning"
+        if (-not [string]::IsNullOrEmpty($imageName)) {
+            Write-Log "Could not find any ${cYellow}'$imageName.img'${cReset} file automatically." "Warning"
+        }
 
         $selectedPath = Get-FileOrFolderDialog "Select $imageName.img" 0 ".img"
 
@@ -580,6 +582,7 @@ function Perform-FlashBoot([string]$imageName) {
             return FlashBoot-ViaFastboot $imageName
         }
         "2" { 
+            Select-Firehose
             Write-Log "Using EDL." "Info"
             return FlashBoot-ViaEDL $imageName
         }
@@ -603,6 +606,7 @@ function Show-RootMenu {
         Write-Log "[${cCyan}2${cReset}] Prepare Magisk"
         Write-Log "[${cCyan}3${cReset}] Root With Magisk"
         Write-Log ""
+        Write-Log "[${cCyan}f${cReset}] Flash Custom Image"
         Write-Log "[${cCyan}u${cReset}] Unroot"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
@@ -627,6 +631,9 @@ function Show-RootMenu {
                 if (Perform-FlashBoot "magisk_patched") {
                     Verify-RootState "root"
                 }
+            }
+            "f" {
+                if (Perform-FlashBoot "") {}
             }
             "u" {
                 if (Perform-FlashBoot "boot") {
