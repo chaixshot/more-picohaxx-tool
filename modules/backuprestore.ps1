@@ -59,14 +59,15 @@ function Extract-CompressedFile($filePath) {
 
 function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$HeaderCallback) {
     $currentMenu = $MenuData
-    $path = ""
+    $destinationPath = ""
+    $selectPath = ""
 
     while ($currentMenu -is [System.Collections.IDictionary]) {
         & $HeaderCallback 
         Write-Log ""
 
         $options = @($currentMenu.Keys)
-        Write-Log "${cYellow}Select an option${cReset}$path"
+        Write-Log "${cYellow}Select an option${cReset}$selectPath"
         for ($i = 0; $i -lt $options.Count; $i++) {
             Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
         }
@@ -78,7 +79,7 @@ function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$
 
         if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -ge 1 -and [int]$selection -le $options.Count) {
             $key = $options[[int]$selection - 1]
-            $path += " > ${cCyan}$key${cReset}"
+            $selectPath += " > ${cCyan}$key${cReset}"
             $currentMenu = $currentMenu[$key]
         } else {
             Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
@@ -88,14 +89,47 @@ function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$
 
     & $HeaderCallback 
     if ($currentMenu -is [string]) {
-        Write-Log "Firmware selected$($path)" "Success"
-        Write-Log "Download Link: ${cCyan}$($currentMenu)${cReset}" "Info"
+        $uri = [System.Uri]$currentMenu
+        Write-Log "Firmware selected$($selectPath)" "Success"
+        Write-Log "Download Link: ${cCyan}$($uri)${cReset}" "Info"
 
         $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
-        if ($openUrl -cin ('Y', 'y')) {
-            Start-Process $currentMenu
+        if ($openUrl -eq 'y') {
+            $outFile = Get-FileOrFolderDialog "Select save location" 1
+        
+            if (-not $outFile) {
+                Write-Log "No save location selected." "Error"
+                return $null 
+            }
+
+            $fileName = [System.IO.Path]::GetFileName($uri.AbsolutePath)
+
+            if ([string]::IsNullOrWhiteSpace($fileName)) { 
+                $fileName = "firmware.zip" 
+            }
+
+            $destinationPath = Join-Path -Path $outFile -ChildPath $fileName
+            try {
+                Write-Log "Downloading firmware to '${cCyan}$destinationPath${cReset}'..." "Action"
+                Invoke-WebRequest -Uri $uri -OutFile $destinationPath
+
+                # Verify download success via disk check
+                if ((Test-Path -Path $destinationPath -PathType Leaf) -and ((Get-Item $destinationPath).Length -gt 0)) {
+                    Write-Log "Downloaded '${cCyan}$fileName${cReset}' successfully." "Success"
+                } else {
+                    throw "Downloaded file is missing or empty."
+                }
+            } catch {
+                if ($_.Exception.Message) {
+                    Write-Log "$($_.Exception.Message)" "Error"
+                }
+            } finally {
+                Wait-Continue
+            }
         }
     }
+
+    return $destinationPath
 }
 
 function Select-BackupFolder {
@@ -233,10 +267,10 @@ function Prepare-Downgrade {
         Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
     }
 
-    Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
+    $null = Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
-function Perform-RollbackOS {
+function Perform-RollbackOS([string]$firmwarePath) {
     $success = $false
     $isTempExtraction = $false
     $extractedFolder = $null
@@ -251,12 +285,15 @@ function Perform-RollbackOS {
         }
 
         Write-Log ""
-        Write-Log "Select firmware downloaded file." "Warning"
+        if ((Test-Path -Path $firmwarePath -PathType Leaf)) {
+            Write-Log "Using downloaded '${cGreen}$firmwarePath${cReset}' from previous step." "Success"
+        } else {
+            Write-Log "Select firmware downloaded file." "Warning"
+            $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z"
+        }
 
-        $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z" 
-
-        if ([string]::IsNullOrWhiteSpace($firmwarePath)) {
-            throw "No firmware path provided. Aborting."
+        if (-not(Test-Path -Path $firmwarePath) -or -not([System.IO.Path]::GetExtension($firmwarePath) -in @('.zip', '.rar', '.7z'))) {
+            throw "No firmware file provided."
         }
 
         $extractedFolder = $firmwarePath
@@ -547,7 +584,7 @@ function Prepare-Firmware {
         Write-Log "Always perform a ${cCyan}User Personal Data${cReset} backup before proceed." "Warning"
     }
 
-    Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
+    return Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
 function Get-LunsSizeGB {
@@ -1093,8 +1130,8 @@ function Show-BackupRestoreMenu {
             }
             "5" {
                 Select-Firehose
-                Prepare-Firmware
-                if ([bool](Perform-RollbackOS)) {
+                $downloadedPath = Prepare-Firmware
+                if ([bool](Perform-RollbackOS $downloadedPath)) {
                     Edl-To-System
                 } else {
                     Warning-EDL-ManualReboot
