@@ -823,6 +823,104 @@ function Perform-FactoryReset {
     return $success
 }
 
+function SystemUpdate-Management {
+    Write-Header "System Update Management"
+
+    # Ensure device is in ADB mode
+    if (IsFastbootMode) {
+        Fastboot-To-System
+    } elseif (IsEdlMode) {
+        Edl-To-System
+    } elseif (-not (IsAdbMode)) {
+        Warning-ADB
+    }
+
+    if (-not (Wait-AdbMode 500)) {
+        throw "ADB device connection timed out."
+    }
+    try {
+        $selection = ""
+        while ($selection -eq "") {
+            Write-Header "Update Management"
+            Write-Log "[${cCyan}1${cReset}] Disable Auto System Update"
+            Write-Log "[${cCyan}2${cReset}] Enable Auto System Update"
+
+            $selection = Read-HostLog "Select an option"
+            switch ($selection) {
+                "1" { 
+                    Write-Log "Disabling system update..." "Action"
+
+                    & $ADB shell setprop persist.accept.systemupdates.ota 0
+                    & $ADB shell setprop persist.accept.systemupdates.app 0
+                    & $ADB shell setprop persist.accept.systemupdates 0
+                    & $ADB shell setprop pvr.update.app 0
+
+                    & $ADB shell settings put global pvr_update 0
+                    & $ADB shell settings put global pvr_update_silent 0
+                    & $ADB shell settings put global pvr_update_auto_upgrade 0
+                    & $ADB shell settings put global pvr_update_auto_update 0
+
+                    $out = & $ADB shell pm disable-user --user 0 com.pvr.version 2>&1
+                    if ($out -and ($out -match "Error" -or $out -match "Exception")) { throw "pm disable-user failed: $out" }
+
+                    $out = & $ADB shell pm uninstall --user 0 com.picovr.updatesystem 2>&1
+                    if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall updatesystem failed: $out" }
+
+                    $out = & $ADB shell pm uninstall --user 0 com.picovr.firmwareupdate 2>&1
+                    if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall firmwareupdate failed: $out" }
+
+                    $out = & $ADB shell pm uninstall --user 0 com.android.dynsystem 2>&1
+                    if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall dynsystem failed: $out" }
+
+                    & $ADB shell update_engine_client --suspend
+                    & $ADB shell update_engine_client --cancel
+                    & $ADB shell update_engine_client --reset_status
+                    & $ADB shell update_engine_client --switch_slot=false
+
+                    Write-Log "System update disabled. " "Success"
+                }
+                "2" { 
+                    Write-Log "Enabling system update..." "Action"
+
+                    & $ADB shell setprop persist.accept.systemupdates.ota 1
+                    & $ADB shell setprop persist.accept.systemupdates.app 1
+                    & $ADB shell setprop persist.accept.systemupdates 1
+                    & $ADB shell setprop pvr.update.app 1
+
+                    & $ADB shell settings put global pvr_update 1
+                    & $ADB shell settings put global pvr_update_silent 1
+                    & $ADB shell settings put global pvr_update_auto_upgrade 1
+                    & $ADB shell settings put global pvr_update_auto_update 1
+
+                    $out = & $ADB shell pm enable com.pvr.version 2>&1
+                    if ($out -and ($out -match "Error" -or $out -match "Exception")) { throw "pm enable failed: $out" }
+
+                    $out = & $ADB shell cmd package install-existing com.picovr.updatesystem 2>&1
+                    if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing updatesystem failed: $out" }
+
+                    $out = & $ADB shell cmd package install-existing com.picovr.firmwareupdate 2>&1
+                    if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing firmwareupdate failed: $out" }
+
+                    $out = & $ADB shell cmd package install-existing com.android.dynsystem 2>&1
+                    if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing dynsystem failed: $out" }
+
+                    & $ADB shell update_engine_client --reset_status
+
+                    Write-Log "System update enabled. " "Success"
+                }
+                Default {
+                    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+                    Wait-Continue
+                }
+            }
+        }
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
+    }
+}
+
 # --------------------------------
 # ---- Main Script Execution -----
 # --------------------------------
@@ -854,6 +952,7 @@ try {
         Write-Log "[${cCyan}l${cReset}] Lock Bootloader"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}reset${cReset}] Factory Reset"
+        Write-Log "[${cCyan}update${cReset}] Enable-Disable Auto System Update"
         Write-Log "[${cCyan}b${cReset}] Backup/Restore/Downgrade"
         Write-Log "[${cCyan}0${cReset}] Exit"
         Write-Log ""
@@ -899,6 +998,9 @@ try {
                 } else {
                     Warning-EDL-ManualReboot
                 }
+            }
+            "update" {
+                SystemUpdate-Management
             }
             "b" {
                 Show-BackupRestoreMenu
