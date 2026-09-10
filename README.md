@@ -16,7 +16,7 @@ This repository contains a comprehensive set of tools and scripts for unlock Boo
 
 * **Pico 4**: Confirmed working.
 * **Pico 4 Pro**: Confirmed working.
-* **Pico Neo 3**: Not confirmed yet, but should work the same (uses ABL and devinfo from Pico 3 firmware).
+* **Pico Neo 3**: Confirmed working.
 
 ## Prerequisites
 
@@ -64,7 +64,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 1. **Generate Token**: Use `more-picohaxx.py` to generate `fastboot oem picoXXXXXXXX unlock` unlock command.
 1. **Flash Engineering ABL**: Flash the old `abl` and `devinfo` via EDL.
     * **Firehose Selection**: Choose the correct firehose based on headset hardware:
-        * **Pico 4 / Pico Neo 3**: Select **DDR 4** (Standard firehose).
+        * **Pico 4 / Pico 4 Enterprise / Pico Neo 3**: Select **DDR 4** (Standard firehose).
         * **Pico 4 Pro**: Select **DDR 5** (Lite firehose).
 1. **Fastboot Unlock**: Issue the generated command from **Generate Token**, followed by:
     * `fastboot flashing unlock_critical`
