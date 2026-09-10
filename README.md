@@ -170,7 +170,6 @@ This tool includes Unroot and lock Bootloader
 * `tools/magisk`: Rooting the headset after unlocking.
 * `logs`: Everything that is written on the console.
 * `backup`: Default headset backup which is `abl`, `partitions`, and `boot.img`.
-* `serial_number.txt`: Store headset serial number.
 
 ## Credits
 

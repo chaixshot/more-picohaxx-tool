@@ -29,7 +29,6 @@
 $WorkingDir = $PSScriptRoot
 $LogsPath = Join-Path $WorkingDir "logs"
 $DriverInstall = Join-Path $WorkingDir "tools\driver\install.ps1"
-$DeviceSerial = Join-Path $WorkingDir "serial_number.txt"
 
 $FirehoseDDR4Path = Join-Path $WorkingDir "tools\firehoses\prog_firehose_ddr.elf"
 $FirehoseDDR5Path = Join-Path $WorkingDir "tools\firehoses\prog_firehose_lite.elf"
@@ -38,7 +37,8 @@ $AblPath = Join-Path $WorkingDir "tools\engineering\abl.elf"
 $DevInfoPath = Join-Path $WorkingDir "tools\engineering\devinfo"
 
 $BackupPath = Join-Path $WorkingDir "backup"
-$AblBackupPath = "${BackupPath}\abl"
+$AblBackupPath = Join-Path $BackupPath "abl"
+$DeviceSerial = Join-Path $BackupPath "serial_number.txt"
 
 $EDLNG = Join-Path $WorkingDir "tools\edl-ng.exe"
 $ADB = Join-Path $WorkingDir "tools\adb.exe"

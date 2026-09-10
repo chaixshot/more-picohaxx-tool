@@ -16,9 +16,9 @@ $Sdat2Img = Join-Path $WorkingDir "tools\rollback\sdat2img.exe"
 $Img2Simg = Join-Path $WorkingDir "tools\rollback\img2simg.exe"
 $LPMAKE = Join-Path $WorkingDir "tools\rollback\lpmake.exe"
 
-$LUNsBackupPath = "${BackupPath}\luns"
-$UserBackupPath = "${BackupPath}\userdata"
-$PartitionsBackupPath = "${BackupPath}\partitions"
+$LUNsBackupPath = Join-Path $BackupPath "luns"
+$UserBackupPath = Join-Path $BackupPath "userdata"
+$PartitionsBackupPath = Join-Path $BackupPath "partitions"
 
 # Define Kernel32 API for reliable NTFS compressed size calculation
 if (-not ([System.Management.Automation.PSTypeName]'Native.Win32').Type) {
