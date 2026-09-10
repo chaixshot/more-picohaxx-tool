@@ -241,6 +241,7 @@ function Perform-RollbackOS {
     $isTempExtraction = $false
     $extractedFolder = $null
     $pushedLocation = $false
+    $lastError = $null
 
     try {
         Write-Header "Rollback OS"
@@ -259,6 +260,14 @@ function Perform-RollbackOS {
         }
 
         $extractedFolder = $firmwarePath
+        $fileList = Get-ChildItem -Path $firmwarePath -Recurse -File -Force -ErrorAction SilentlyContinue
+        $maxFileSizeBytes = ($fileList | Measure-Object -Property Length -Maximum).Maximum
+        $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
+
+        if (-not (Verify-DiskSpace -targetPath $firmwarePath -manualSizeGB ($requiredSpaceGB * 5))) {
+            throw ""
+        }
+        Wait-Continue
 
         # Handle archive extraction
         if ($firmwarePath -match '\.(rar|zip|7z)$' -and (Test-Path -Path $firmwarePath -PathType Leaf)) {
@@ -282,6 +291,7 @@ function Perform-RollbackOS {
             $datPath = ".\${part}.new.dat"
             if (Test-Path $brPath) {
                 & $BROTLI -d $brPath -o $datPath -v -f 2>&1 | Write-Host
+                Remove-Item -Path $brPath -Recurse -Force -ErrorAction SilentlyContinue
             } else {
                 throw "Required archive missing: $brPath"
             }
@@ -296,6 +306,7 @@ function Perform-RollbackOS {
             $imgPath = ".\${part}.img"
             if ((Test-Path $listPath) -and (Test-Path $datPath)) {
                 & $Sdat2Img $listPath $datPath $imgPath 2>&1 | Write-Host
+                Remove-Item -Path $datPath -Recurse -Force -ErrorAction SilentlyContinue
             } else {
                 throw "Required conversion inputs missing for $part"
             }
@@ -342,8 +353,26 @@ function Perform-RollbackOS {
             --image odm=.\odm_sparse.img `
             --output .\super.img | Write-Host
 
-        if (-not (Test-Path ".\super.img")) {
+        # Cleanup system.img, vendor.img, product.img, odm.img, system_sparse.img, vendor_sparse.img, product_sparse.img, odm_sparse.img
+        foreach ($part in @("system", "vendor", "product", "odm")) {
+            $Path = ".\${part}.img"
+            if (Test-Path $Path) {
+                Remove-Item -Path $Path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+
+            $Path = ".\${part}_sparse.img"
+            if (Test-Path $Path) {
+                Remove-Item -Path $Path -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+
+        $superImg = Get-Item ".\super.img" -ErrorAction SilentlyContinue
+        if (-not $superImg) {
             throw "Failed to build super.img target."
+        } elseif ($superImg.Length -lt ($superSize / 2)) {
+            throw "super.img falls short of the minimum size."
+        } elseif ($superImg.Length -eq 0) {
+            throw "super.img was created but is 0 bytes (empty file)."
         }
 
         # Device Reboot to EDL Mode
@@ -387,7 +416,7 @@ function Perform-RollbackOS {
         foreach ($item in $flashMap) {
             if (Test-Path $item.Path) {
                 Write-Log ""
-                Write-Log "Flashing firmware $($item.Part) to device..." "Action"
+                Write-Log "Flashing firmware ${cCyan}$($item.Part)${cReset} to device..." "Action"
                 if (-not (Execute-EdlCommand "write-part $($item.Part) $($item.Path)")) {
                     throw "Failed writing partition $($item.Part)"
                 }
@@ -399,6 +428,7 @@ function Perform-RollbackOS {
         $success = $true
     } catch {
         if ($_.Exception.Message) {
+            $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
@@ -413,11 +443,14 @@ function Perform-RollbackOS {
             Remove-Item -Path $extractedFolder -Recurse -Force -ErrorAction SilentlyContinue
         }
 
-        Play-BeepBeep
+        if ($lastError.Message -notlike "*Abort*") {
+            Play-BeepBeep
+        }
+
         if ($success) {
-            Write-Log "Device has downgraded successfully." "Success"
+            Write-Log "Device has rollbacked successfully." "Success"
         } else {
-            Write-Log "Downgrade process encountered errors." "Error"
+            Write-Log "Rollback process encountered errors." "Error"
         }
 
         Wait-Continue
