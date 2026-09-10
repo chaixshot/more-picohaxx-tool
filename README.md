@@ -134,9 +134,9 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 ### Manual Boot
 
 * System: Hold <kbd>Power</kbd> until Pico logo shows up.
-* [Recovery mode](https://wikipedia.org/wiki/Android_recovery_mode): Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd> until dead robot shows up.
-* [Fastboot mode](https://wikipedia.org/wiki/Fastboot): Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> until menu shows up.
-* [EDL mode](https://wikipedia.org/wiki/Qualcomm_EDL_mode): Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
+* [Recovery mode](https://wikipedia.org/wiki/Android_recovery_mode) (Dead robot): Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd> until dead robot shows up.
+* [Fastboot mode](https://wikipedia.org/wiki/Fastboot) (Left eye menu): Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> until menu shows up.
+* [EDL mode](https://wikipedia.org/wiki/Qualcomm_EDL_mode) (Black screen): Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
 
 ### Recovery Mode
 

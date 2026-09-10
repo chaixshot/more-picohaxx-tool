@@ -918,7 +918,7 @@ try {
     Write-Log "An unexpected error occurred: $_" "Error"
 } finally {
     Write-Header "Exited"
-    Write-Log "Version: 1.2.0" "Info"
+    Write-Log "Version: 1.3.0" "Info"
     Write-Log ""
 
     try {
