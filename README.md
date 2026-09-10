@@ -62,7 +62,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 1. **Perform Backup**: Perform **User Personal Data** backup before proceeding, as unlocking will wipe headset user data.
 1. **Get Chip ID**: Acquire headset `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`).
 1. **Generate Token**: Use `more-picohaxx.py` to generate `fastboot oem picoXXXXXXXX unlock` unlock command.
-1. **Flash Engineering ABL**: Flash the old `abl` and `devinfo` via EDL.
+1. **Flash engineering ABL**: Flash the old `abl` and `devinfo` via EDL.
     * **Firehose Selection**: Choose the correct firehose based on headset hardware:
         * **Pico 4 / Pico 4 Enterprise / Pico Neo 3**: Select **DDR 4** (Standard firehose).
         * **Pico 4 Pro**: Select **DDR 5** (Lite firehose).

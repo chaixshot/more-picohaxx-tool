@@ -138,7 +138,6 @@ function IsFastbootMode {
 function Wait-Continue([string]$action = "continue...") {
     Write-Log "`nPress ${cCyan}Enter${cReset} to $action" -NoNewline
     Read-Host | Out-Null
-    Write-Log ""
 }
 
 function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
@@ -158,7 +157,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         # Check condition: when waiting for disconnect, $isDetected must be $false
         if (($waitForDisconnect -and -not $isDetected) -or (-not $waitForDisconnect -and $isDetected)) {
             $msg = if ($waitForDisconnect) { "Fastboot device disconnected." } else { "Fastboot device detected." }
-            Write-Log "`r$msg" -ForegroundColor Green
+            Write-Log "`r$msg                                " -ForegroundColor Green
             $success = $true
             break
         }
@@ -170,7 +169,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             if ([System.Console]::KeyAvailable) {
                 $key = [System.Console]::ReadKey($true)
                 if ($key.Key -eq "Escape") {
-                    Write-Log "`rSkipped by user." -ForegroundColor Yellow
+                    Write-Log "`rSkipped by user.                                " -ForegroundColor Yellow
                     $skipped = $true
                     break
                 }
@@ -207,7 +206,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
         # Check condition: when waiting for disconnect, $isDetected must be $false
         if (($waitForDisconnect -and -not $isDetected) -or (-not $waitForDisconnect -and $isDetected)) {
             $msg = if ($waitForDisconnect) { "EDL device disconnected." } else { "EDL device detected." }
-            Write-Log "`r$msg" -ForegroundColor Green
+            Write-Log "`r$msg                                " -ForegroundColor Green
             if (-not $waitForDisconnect) { Start-Sleep -Seconds 5 }
             $success = $true
             break
@@ -220,7 +219,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             if ([System.Console]::KeyAvailable) {
                 $key = [System.Console]::ReadKey($true)
                 if ($key.Key -eq "Escape") {
-                    Write-Log "`rSkipped by user." -ForegroundColor Yellow
+                    Write-Log "`rSkipped by user.                                " -ForegroundColor Yellow
                     $skipped = $true
                     break
                 }
@@ -274,7 +273,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             }
 
             $msg = if ($waitForDisconnect) { "ADB device disconnected." } else { "ADB device detected and ready." }
-            Write-Log "`r$msg" -ForegroundColor Green
+            Write-Log "`r$msg                                " -ForegroundColor Green
             $success = $true
             break
         }
@@ -286,7 +285,7 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
             if ([System.Console]::KeyAvailable) {
                 $key = [System.Console]::ReadKey($true)
                 if ($key.Key -eq "Escape") {
-                    Write-Log "`rSkipped by user." -ForegroundColor Yellow
+                    Write-Log "`rSkipped by user.                                " -ForegroundColor Yellow
                     $skipped = $true
                     break
                 }
@@ -333,65 +332,86 @@ function Select-Firehose {
 }
 
 function Invoke-PicoHaxxScript {
-    if (Test-Path $DeviceSerial) {
-        $Serial = [long](Get-Content -Path $DeviceSerial -Raw).Trim()
-    } else {
-        Write-Log "Serial number not provided and '${DeviceSerial}' not found." "Error"
-        return $null
-    }
+    $unlockCommand = $null
 
-    $key = "0XD9J6FB3ATQIHNM46XYZZZOPQRSTUVWXYZ"
-    $val = [int64]$Serial -band 0xF7F3F37F
-
-    $encoded_serial = ""
-    if ($val -eq 0) {
-        $encoded_serial = $key[0]
-    } else {
-        $encoded_chars = New-Object System.Collections.Generic.List[char]
-        while ($val -gt 0) {
-            $index = $val -band 0xF
-            $encoded_chars.Add($key[[int]$index])
-            $val = [math]::Floor($val / 16)
+    try {
+        if (-not (Test-Path $DeviceSerial)) {
+            throw "Serial number not provided and '${DeviceSerial}' not found."
         }
-        $encoded_chars.Reverse()
-        $encoded_serial = -join $encoded_chars
-    }
 
-    $unlockCommand = "fastboot oem pico$encoded_serial unlock"
-    Write-Log "Generated Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
-    Write-Log ""
+        $Serial = [long](Get-Content -Path $DeviceSerial -Raw).Trim()
+
+        $key = "0XD9J6FB3ATQIHNM46XYZZZOPQRSTUVWXYZ"
+        $val = [int64]$Serial -band 0xF7F3F37F
+
+        $encoded_serial = ""
+        if ($val -eq 0) {
+            $encoded_serial = $key[0]
+        } else {
+            $encoded_chars = New-Object System.Collections.Generic.List[char]
+            while ($val -gt 0) {
+                $index = $val -band 0xF
+                $encoded_chars.Add($key[[int]$index])
+                $val = [math]::Floor($val / 16)
+            }
+            $encoded_chars.Reverse()
+            $encoded_serial = -join $encoded_chars
+        }
+
+        $unlockCommand = "fastboot oem pico$encoded_serial unlock"
+        Write-Log "Generated Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
+        Write-Log ""
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
+    }
 
     return $unlockCommand
 }
 
 function Execute-UnlockCommand {
-    $unlockCmd = Invoke-PicoHaxxScript
-    if (-not $unlockCmd) {
-        Write-Log "Unlock command generation failed. Please run 'Generate UnlockCode' first." "Error"
-        return $false
+    $success = $false
+
+    try {
+        $unlockCmd = Invoke-PicoHaxxScript
+        if (-not $unlockCmd) {
+            throw "Unlock command generation failed. Please run 'Generate UnlockCode' first."
+        }
+
+        Write-Log "Executing commands: ${cCyan}$unlockCmd${cReset}" "Action"
+        $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
+        Invoke-Expression $cmdToRun
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "Failed to execute unlock command." "Error"
+            throw "Please make sure ${cYellow}Flash engineering ABL${cReset} is successful and don't ${cYellow}Flash backup ABL${cReset} yet."
+        }
+
+        $success = $true
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
+    } finally {
+        if ($success) {
+            Write-Log "Unlock command executed successfully." "Success"
+        }
     }
 
-    Write-Log "Executing commands: ${cCyan}$unlockCmd${cReset}" "Action"
-    $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
-    Invoke-Expression $cmdToRun
-
-    if ($LASTEXITCODE -eq 0) {
-        Write-Log "Unlock command executed successfully." "Success"
-        return $true
-    } else {
-        Write-Log "Failed to execute unlock command." "Error"
-        Write-Log "Please make sure ${cYellow}Flash Engineering ABL${cReset} is successful and don't ${cYellow}Flash backup ABL${cReset} yet." "Error"
-        return $false
-    }
+    return $success
 }
 
 function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
     $outputLines = [System.Collections.Generic.List[string]]::new()
-    
-    try {
-        if ($FirehoseTargetPath -eq $null) { throw "No firesose selected" }
+    $lastWasProgress = $false
+    $success = $false
 
-        $lastWasProgress = $false
+    try {
+        if ($FirehoseTargetPath -eq $null) {
+            throw "No firesose selected"
+        }
+
         # Execute edl-ng and capture its output stream.
         # 2>&1 redirects stderr to stdout so we can process all output.
         $expression = "& `"$EDLNG`" --loader $FirehoseTargetPath --memory UFS $sCMDLine 2>&1"
@@ -418,94 +438,75 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
             }
         }
 
+        if ($LASTEXITCODE -ne 0) {
+            throw "edl-ng failed with ExitCode: $LASTEXITCODE"
+        }
+
+        $success = $true
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
+    } finally {
         # Final cleanup newline if silent was false and last output was progress
         if (-not $silent -and $lastWasProgress) {
             Write-Log ""
         }
-
-        if ($LASTEXITCODE -ne 0) {
-            Write-Log "edl-ng failed with ExitCode: $LASTEXITCODE" "Error"
-            return $false
-        }
-    } catch {
-        if (-not $silent -and $lastWasProgress) { Write-Log "" }
-        Write-Log "$($_.Exception.Message)" "Error"
-        return $false
     }
 
     if ($silent) {
         return $outputLines
     } else {
-        return $true
+        return $success
     }
 }
 
 function Perform-Reboot {
     Write-Header "Reboot Selection"
 
-    if (IsFastbootMode) {
-        Write-Log "Device detected: ${cCyan}FASTBOOT${cReset}"
-    } elseif (IsAdbMode) {
-        Write-Log "Device detected: ${cGreen}ADB${cReset}"
-    } elseif (IsEdlMode) {
-        Write-Log "Device detected: ${cGreen}EDL${cReset}"
-    } else {
-        Write-Log "No device detected." "Error"
-        Write-Log "Please connect your device and ensure it is powered on." "Info"
-        return
-    }
-
-    Write-Log "[${cCyan}1${cReset}] Boot to SYSTEM"
-    if (-not (IsEdlMode)) {
-        Write-Log "[${cCyan}2${cReset}] Boot to FASTBOOT"
-    }
-    Write-Log "[${cCyan}3${cReset}] Boot to RECOVERY"
-    Write-Log "[${cCyan}4${cReset}] Boot to EDL"
-
-    $selection = Read-HostLog "Select an option"
-
-    if (IsFastbootMode) {
-        if ($selection -eq "1") {
-            Fastboot-To-System
-            return
-        } elseif ($selection -eq "2") {
-            Fastboot-To-Fastboot
-            return
-        } elseif ($selection -eq "3") {
-            Fastboot-To-Recovery
-            return
-        } elseif ($selection -eq "4") {
-            Fastboot-To-Edl
-            return
+    try {
+        if (IsFastbootMode) {
+            Write-Log "Device detected: ${cCyan}FASTBOOT${cReset}"
+        } elseif (IsAdbMode) {
+            Write-Log "Device detected: ${cGreen}ADB${cReset}"
+        } elseif (IsEdlMode) {
+            Write-Log "Device detected: ${cGreen}EDL${cReset}"
+        } else {
+            Write-Log "No device detected." "Error"
+            throw "Please connect your device and ensure it is powered on."
         }
-    } elseif (IsAdbMode) {
-        if ($selection -eq "1") {
-            ADB-To-System
-            return
-        } elseif ($selection -eq "2") {
-            ADB-To-Fastboot
-            return
-        } elseif ($selection -eq "3") {
-            ADB-To-Recovery
-            return
-        } elseif ($selection -eq "4") {
-            ADB-To-Edl
-            return
+
+        Write-Log "[${cCyan}1${cReset}] Boot to SYSTEM"
+        if (-not (IsEdlMode)) {
+            Write-Log "[${cCyan}2${cReset}] Boot to FASTBOOT"
         }
-    } elseif (IsEdlMode) {
-        if ($selection -eq "1") {
-            Edl-To-System
-            return
-        } elseif ($selection -eq "3") {
-            Edl-To-Recovery
-            return
-        } elseif ($selection -eq "4") {
-            Edl-To-Edl
-            return
+        Write-Log "[${cCyan}3${cReset}] Boot to RECOVERY"
+        Write-Log "[${cCyan}4${cReset}] Boot to EDL"
+
+        $selection = Read-HostLog "Select an option"
+
+        if (IsFastbootMode) {
+            if ($selection -eq "1") { Fastboot-To-System; throw "" }
+            elseif ($selection -eq "2") { Fastboot-To-Fastboot; throw "" }
+            elseif ($selection -eq "3") { Fastboot-To-Recovery; throw "" }
+            elseif ($selection -eq "4") { Fastboot-To-Edl; throw "" }
+        } elseif (IsAdbMode) {
+            if ($selection -eq "1") { ADB-To-System; throw "" }
+            elseif ($selection -eq "2") { ADB-To-Fastboot; throw "" }
+            elseif ($selection -eq "3") { ADB-To-Recovery; throw "" }
+            elseif ($selection -eq "4") { ADB-To-Edl; throw "" }
+        } elseif (IsEdlMode) {
+            if ($selection -eq "1") { Edl-To-System; throw "" }
+            elseif ($selection -eq "3") { Edl-To-Recovery; throw "" }
+            elseif ($selection -eq "4") { Edl-To-Edl; throw "" }
+        }
+
+        throw "Invalid input: [${cYellow}$selection${cReset}]"
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
         }
     }
-
-    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
 }
 
 function Play-BeepBeep {
@@ -864,7 +865,7 @@ function Warning-EDL {
 }
 
 function Warning-EDL-ManualReboot {
-    Write-Log ""
+    Write-Header "EDL Manual Reboot"
     Write-Log "Your device will not automatically reboot." "Info"
     Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
     Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"

@@ -58,103 +58,111 @@ function Extract-CompressedFile($filePath) {
 }
 
 function Select-BackupFolder {
-    Write-Header "Select Backup Folder"
+    $result = $null
 
-    $backupSources = @(
-        @{ Path = $LUNsBackupPath; Type = "luns" },
-        @{ Path = $UserBackupPath; Type = "userdata" },
-        @{ Path = $PartitionsBackupPath; Type = "partitions" }
-    )
+    try {
+        Write-Header "Select Backup Folder"
 
-    $allBackupFolders = New-Object System.Collections.Generic.List[PSObject]
+        $backupSources = @(
+            @{ Path = $LUNsBackupPath; Type = "luns" },
+            @{ Path = $UserBackupPath; Type = "userdata" },
+            @{ Path = $PartitionsBackupPath; Type = "partitions" }
+        )
 
-    foreach ($source in $backupSources) {
-        if (Test-Path $source.Path) {
-            $folders = Get-ChildItem -Path $source.Path -Directory
-            foreach ($f in $folders) {
-                $f | Add-Member -MemberType NoteProperty -Name "BackupType" -Value $source.Type
-                $allBackupFolders.Add($f)
-            }
-        }
-    }
+        $allBackupFolders = New-Object System.Collections.Generic.List[PSObject]
 
-    $backupFolders = $allBackupFolders | Sort-Object CreationTime -Descending
-
-    if ($backupFolders.Count -gt 0) {
-        Write-Log "Available Backup Folders:" -ForegroundColor Cyan
-        for ($i = 0; $i -lt $backupFolders.Count; $i++) {
-            $folder = $backupFolders[$i]
-            Write-Log "[${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
-        }
-        $selection = Read-HostLog "Select backup [${cYellow}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
-    
-        if ($selection -eq 'a') {
-            $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
-        }
-    } else {
-        Write-Log "No backup folders found in default directories." "Warning"
-        
-        $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
-    }
-
-    if ($selection -eq 'c') {
-        Write-Log "Operation cancelled by user." "Info"
-        return $null
-    }
-
-    # Check if user pasted a compressed file
-    if ($selection -match '\.(rar|zip|7z)$' -and (Test-Path -Path $selection -PathType Leaf)) {
-        $selection = Extract-CompressedFile $selection
-    }
-
-    # Check if user pasted a path
-    if (Test-Path -Path $selection -PathType Container) {
-        $pastedPath = (Get-Item -Path $selection).FullName
-        $detectedType = $null
-
-        foreach ($type in @("luns", "userdata", "partitions", "downgrade", "downgradeDDR5")) {
-            if (Verify-Backup -backupMode $type -folderPath $pastedPath -silent) {
-                $detectedType = $type
-                break
+        foreach ($source in $backupSources) {
+            if (Test-Path $source.Path) {
+                $folders = Get-ChildItem -Path $source.Path -Directory
+                foreach ($f in $folders) {
+                    $f | Add-Member -MemberType NoteProperty -Name "BackupType" -Value $source.Type
+                    $allBackupFolders.Add($f)
+                }
             }
         }
 
-        if ($null -ne $detectedType) {
-            $typeName = switch ($detectedType) {
-                "luns" { "LUNs" }
-                "userdata" { "User Data" }
-                "partitions" { "Partitions" }
-                "downgrade" { "Downgrade Pico 4/4 Enterprice" }
-                "downgradeDDR5" { "Downgrade Pico 4 Pro" }
-                default { $detectedType }
-            }
-            Write-Log "Detected valid ${cYellow}$typeName${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
-            Wait-Continue
+        $backupFolders = $allBackupFolders | Sort-Object CreationTime -Descending
 
-            return [PSCustomObject]@{
-                Path = $pastedPath
-                Type = $detectedType
+        if ($backupFolders.Count -gt 0) {
+            Write-Log "Available Backup Folders:" -ForegroundColor Cyan
+            for ($i = 0; $i -lt $backupFolders.Count; $i++) {
+                $folder = $backupFolders[$i]
+                Write-Log "[${cCyan}$( $i + 1 )${cReset}] $( $folder.Name ) ${cYellow}[$( $folder.BackupType )]${cReset} ${cGreen}($( $folder.CreationTime ))${cReset}"
+            }
+            $selection = Read-HostLog "Select backup [${cYellow}1-$( $backupFolders.Count )${cReset}], custom backup [${cYellow}A${cReset}], cancel [${cYellow}C${cReset}]"
+
+            if ($selection -eq 'a') {
+                $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
             }
         } else {
-            Write-Log "The provided folder does not contain a valid backup set." "Error"
-            return $null
+            Write-Log "No backup folders found in default directories." "Warning"
+            $selection = Get-FileOrFolderDialog "Select backup folder for file" 2 ".rar, .zip, .7z"
+        }
+
+        if ($selection -eq 'c') {
+            throw "Aborted by user. No changes have been made."
+        }
+
+        # Check if user pasted a compressed file
+        if ($selection -match '\.(rar|zip|7z)$' -and (Test-Path -Path $selection -PathType Leaf)) {
+            $selection = Extract-CompressedFile $selection
+        }
+
+        # Check if user pasted a path
+        if (Test-Path -Path $selection -PathType Container) {
+            $pastedPath = (Get-Item -Path $selection).FullName
+            $detectedType = $null
+
+            foreach ($type in @("luns", "userdata", "partitions", "downgrade", "downgradeDDR5")) {
+                if (Verify-Backup -backupMode $type -folderPath $pastedPath -silent) {
+                    $detectedType = $type
+                    break
+                }
+            }
+
+            if ($null -ne $detectedType) {
+                $typeName = switch ($detectedType) {
+                    "luns" { "LUNs" }
+                    "userdata" { "User Data" }
+                    "partitions" { "Partitions" }
+                    "downgrade" { "Downgrade Pico 4/4 Enterprice" }
+                    "downgradeDDR5" { "Downgrade Pico 4 Pro" }
+                    default { $detectedType }
+                }
+                Write-Log "Detected valid ${cYellow}$typeName${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
+                Wait-Continue
+
+                $result = [PSCustomObject]@{
+                    Path = $pastedPath
+                    Type = $detectedType
+                }
+                throw ""
+            } else {
+                throw "The provided folder does not contain a valid backup set."
+            }
+        }
+
+        # Proceed with numeric selection
+        if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -ge 1 -and [int]$selection -le $backupFolders.Count) {
+            $targetBackup = $backupFolders[[int]$selection - 1]
+            Write-Log "Selected backup: ${cCyan}$($targetBackup.Name)${cReset} [${cYellow}$($targetBackup.BackupType)${cReset}] ${cGreen}($($targetBackup.CreationTime))${cReset}" "Success"
+            Wait-Continue
+
+            $result = [PSCustomObject]@{
+                Path = $targetBackup.FullName
+                Type = $targetBackup.BackupType
+            }
+            throw ""
+        }
+
+        throw "Invalid input: [${cYellow}$selection${cReset}]"
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
         }
     }
 
-    # Proceed with numeric selection
-    if ([int]::TryParse($selection, [ref]$null) -and [int]$selection -ge 1 -and [int]$selection -le $backupFolders.Count) {
-        $targetBackup = $backupFolders[[int]$selection - 1]
-        Write-Log "Selected backup: ${cCyan}$($targetBackup.Name)${cReset} [${cYellow}$($targetBackup.BackupType)${cReset}] ${cGreen}($($targetBackup.CreationTime))${cReset}" "Success"
-        Wait-Continue
-
-        return [PSCustomObject]@{
-            Path = $targetBackup.FullName
-            Type = $targetBackup.BackupType
-        }
-    }
-
-    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-    return $null
+    return $result
 }
 
 function Prepare-Downgrade {
@@ -236,40 +244,42 @@ function Prepare-Downgrade {
 }
 
 function Perform-RollbackOS {
-    Write-Header "Downgrade Device"
-
-    if (-not (Wait-UserConfirm "rollback")) {
-        return $false
-    }
-
-    Write-Log ""
-    Write-Log "Select firmware downloaded file." "Warning"
-
-    $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z" 
-
-    if ([string]::IsNullOrWhiteSpace($firmwarePath)) {
-        Write-Log "No firmware path provided. Aborting." "Warning"
-        return $false
-    }
-
+    $success = $false
     $isTempExtraction = $false
-    $extractedFolder = $firmwarePath
-
-    # Handle archive extraction
-    if ($firmwarePath -match '\.(rar|zip|7z)$' -and (Test-Path -Path $firmwarePath -PathType Leaf)) {
-        $extractedFolder = Extract-CompressedFile $firmwarePath
-        $isTempExtraction = $true
-    }
-
-    if (-not (Test-Path -Path $extractedFolder -PathType Container)) {
-        Write-Log "Target firmware directory '${cCyan}$extractedFolder${cReset}' does not exist." "Error"
-        return $false
-    }
-
-    $success = $true
-    Push-Location $extractedFolder
+    $extractedFolder = $null
+    $pushedLocation = $false
 
     try {
+        Write-Header "Downgrade Device"
+
+        if (-not (Wait-UserConfirm "rollback")) {
+            throw "Aborted by user. No changes have been made."
+        }
+
+        Write-Log ""
+        Write-Log "Select firmware downloaded file." "Warning"
+
+        $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z" 
+
+        if ([string]::IsNullOrWhiteSpace($firmwarePath)) {
+            throw "No firmware path provided. Aborting."
+        }
+
+        $extractedFolder = $firmwarePath
+
+        # Handle archive extraction
+        if ($firmwarePath -match '\.(rar|zip|7z)$' -and (Test-Path -Path $firmwarePath -PathType Leaf)) {
+            $extractedFolder = Extract-CompressedFile $firmwarePath
+            $isTempExtraction = $true
+        }
+
+        if (-not (Test-Path -Path $extractedFolder -PathType Container)) {
+            throw "Target firmware directory '${cCyan}$extractedFolder${cReset}' does not exist."
+        }
+
+        Push-Location $extractedFolder
+        $pushedLocation = $true
+
         # Brotli Decompression
         Write-Log ""
         Write-Log "Decompressing Brotli archives..." "Action"
@@ -353,7 +363,7 @@ function Perform-RollbackOS {
         }
 
         if (-not (Wait-EdlMode 100)) {
-            return $false
+            throw ""
         }
 
         # Flash Firmware Partitions via EDL
@@ -391,12 +401,16 @@ function Perform-RollbackOS {
                 Write-Log "Skipping missing non-critical image file: $($item.Path)" "Warning"
             }
         }
+
+        $success = $true
     } catch {
-        Write-Log ""
-        Write-Log "Downgrade failed: $($_.Exception.Message)" "Error"
-        $success = $false
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
     } finally {
-        Pop-Location
+        if ($pushedLocation) {
+            Pop-Location
+        }
 
         # Safely remove extracted files if created from archive input
         if ($isTempExtraction -and (Test-Path -Path $extractedFolder)) {
@@ -404,16 +418,17 @@ function Perform-RollbackOS {
             Write-Log "Cleaning up temporary directory '${cCyan}${extractedFolder}${cReset}'..." "Action"
             Remove-Item -Path $extractedFolder -Recurse -Force -ErrorAction SilentlyContinue
         }
+
+        Play-BeepBeep
+        if ($success) {
+            Write-Log "Device has downgraded successfully." "Success"
+        } else {
+            Write-Log "Downgrade process encountered errors." "Error"
+        }
+
+        Wait-Continue
     }
 
-    Play-BeepBeep
-    if ($success) {
-        Write-Log "Device has downgraded successfully." "Success"
-    } else {
-        Write-Log "Downgrade process encountered errors." "Error"
-    }
-    
-    Wait-Continue
     return $success
 }
 
@@ -539,10 +554,13 @@ function Prepare-Firmware {
 }
 
 function Get-LunsSizeGB {
+    $lunsSize = 15
+
     try {
         # In EDL mode, use edl-ng to find total sectors across all LUNs
         $gpt = Execute-EdlCommand "printgpt" -silent $true
         $totalSizeGB = 0
+
         foreach ($line in $gpt) {
             if ($line -match "Backup LBA:\s+(\d+)") {
                 $lastLba = [long]$matches[1]
@@ -550,22 +568,31 @@ function Get-LunsSizeGB {
                 $totalSizeGB += ($lastLba + 1) * 4096 / 1GB
             }
         }
+
         if ($totalSizeGB -gt 0) {
             $userdataSize = Get-UserdataSizeGB
-            return [math]::Round($totalSizeGB - $userdataSize, 2) + 1
+            $lunsSize = [math]::Round($totalSizeGB - $userdataSize, 2) + 1
+            throw ""
         }
+
+        throw "Could not determine partition size."
     } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
     }
 
-    Write-Log "Could not determine partition size." "Warning"
-    return 15
+    return $lunsSize
 }
 
 function Get-UserdataSizeGB {
+    $userdataSize = 110
+
     try {
         # In EDL mode, use edl-ng to find userdata partition size
         $gpt = Execute-EdlCommand "printgpt --lun 0" $true
         $isUserdataBlock = $false
+
         foreach ($line in $gpt) {
             if ($line -match "Name:\s+userdata") {
                 $isUserdataBlock = $true
@@ -574,19 +601,24 @@ function Get-UserdataSizeGB {
             # Look for the Size line following the userdata Name line
             if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
                 $sizeMiB = [double]$matches[1]
-                return [math]::Round($sizeMiB / 1024, 2) + 1
+                $userdataSize = [math]::Round($sizeMiB / 1024, 2) + 1
+                throw ""
             }
             # If we hit a new partition or header, reset the flag
             if ($line -match "Name:" -or $line -match "--- GPT Header") {
                 $isUserdataBlock = $false
             }
         }
+
+        throw "Could not determine userdata partition size."
     } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+            Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
+        }
     }
 
-    Write-Log "Could not determine userdata partition size." "Warning"
-    Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
-    return 110
+    return $userdataSize
 }
 
 function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$manualSizeGB) {
@@ -660,117 +692,118 @@ function Wait-UserConfirm([string]$backupMode) {
 function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent) {
     $verifySuccess = $true
 
-    if ($backupMode -eq "luns") {
-        $lunsFiles = @("lun0_complete.bin", "lun1_complete.bin", "lun2_complete.bin", "lun3_complete.bin", "lun4_complete.bin", "lun5_complete.bin")
-        foreach ($file in $lunsFiles) {
-            if (-not (Test-Path -Path (Join-Path $folderPath $file))) {
-                $verifySuccess = $false
-                break
+    try {
+        if ($backupMode -eq "luns") {
+            $lunsFiles = @("lun0_complete.bin", "lun1_complete.bin", "lun2_complete.bin", "lun3_complete.bin", "lun4_complete.bin", "lun5_complete.bin")
+            foreach ($file in $lunsFiles) {
+                if (-not (Test-Path -Path (Join-Path $folderPath $file))) {
+                    throw "Required backup file missing: $file"
+                }
             }
+        }
+
+        if ($backupMode -eq "userdata") {
+            $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
+            foreach ($file in $userDataFiles) {
+                $filePath = Join-Path $folderPath $file
+                if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
+                    throw "Required userdata file missing or empty: $file"
+                }
+            }
+        }
+
+        if ($backupMode -eq "partitions") {
+            $partitionFiles = @("lun0_cache.bin", "lun0_frp.bin", "lun0_keystore.bin", "lun0_metadata.bin", "lun0_misc.bin", "lun0_persist.bin", "lun0_picocfg.bin", "lun0_rawdump.bin", "lun0_recovery.bin", "lun0_ssd.bin", "lun0_super.bin", "lun0_vbmeta_system.bin", "lun0_vbmeta_systembak.bin", "lun0_vm_system.bin", "lun0_vm_systembak.bin", "lun1_last_parti.bin", "lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_last_parti.bin", "lun2_xblbak.bin", "lun2_xbl_configbak.bin", "lun3_align_to_128k_1.bin", "lun3_cdt.bin", "lun3_ddr.bin", "lun3_last_parti.bin", "lun3_mdmddr.bin", "lun4_abl.bin", "lun4_ablbak.bin", "lun4_aop.bin", "lun4_aopbak.bin", "lun4_apdp.bin", "lun4_bluetooth.bin", "lun4_bluetoothbak.bin", "lun4_boot.bin", "lun4_bootbak.bin", "lun4_cmnlib.bin", "lun4_cmnlib64.bin", "lun4_cmnlib64bak.bin", "lun4_cmnlibbak.bin", "lun4_devcfg.bin", "lun4_devcfgbak.bin", "lun4_devinfo.bin", "lun4_dip.bin", "lun4_dsp.bin", "lun4_dspbak.bin", "lun4_dtbo.bin", "lun4_dtbobak.bin", "lun4_featenabler.bin", "lun4_featenablerbak.bin", "lun4_hyp.bin", "lun4_hypbak.bin", "lun4_imagefv.bin", "lun4_imagefvbak.bin", "lun4_keymaster.bin", "lun4_keymasterbak.bin", "lun4_last_parti.bin", "lun4_limits.bin", "lun4_limits_cdsp.bin", "lun4_logdump.bin", "lun4_logfs.bin", "lun4_mdtp.bin", "lun4_mdtpbak.bin", "lun4_mdtpsecapp.bin", "lun4_mdtpsecappbak.bin", "lun4_modem.bin", "lun4_modembak.bin", "lun4_msadp.bin", "lun4_multiimgoem.bin", "lun4_multiimgoembak.bin", "lun4_multiimgqti.bin", "lun4_multiimgqtibak.bin", "lun4_qupfw.bin", "lun4_qupfwbak.bin", "lun4_secdata.bin", "lun4_spunvm.bin", "lun4_storsec.bin", "lun4_tz.bin", "lun4_tzbak.bin", "lun4_uefisecapp.bin", "lun4_uefisecappbak.bin", "lun4_uefivarstore.bin", "lun4_vbmeta.bin", "lun4_vbmetabak.bin", "lun4_vm_data.bin", "lun4_vm_keystore.bin", "lun4_vm_linux.bin", "lun4_vm_linuxbak.bin", "lun5_align_to_128k_2.bin", "lun5_fsc.bin", "lun5_fsg.bin", "lun5_last_parti.bin", "lun5_mdm1m9kefs1.bin", "lun5_mdm1m9kefs2.bin", "lun5_mdm1m9kefs3.bin", "lun5_mdm1m9kefsc.bin", "lun5_modemst1.bin", "lun5_modemst2.bin")
+            foreach ($file in $partitionFiles) {
+                $filePath = Join-Path $folderPath $file
+                if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
+                    throw "Required partition file missing or empty: $file"
+                }
+            }
+        }
+
+        if ($backupMode -eq "downgrade") {
+            $partitionFiles = @("lun0_recovery.bin", "lun0_super.bin", "lun0_vbmeta_system.bin", "lun0_vbmeta_systembak.bin", "lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin", "lun4_abl.bin", "lun4_ablbak.bin", "lun4_aop.bin", "lun4_aopbak.bin", "lun4_bluetooth.bin", "lun4_bluetoothbak.bin", "lun4_boot.bin", "lun4_bootbak.bin", "lun4_cmnlib.bin", "lun4_cmnlib64.bin", "lun4_cmnlib64bak.bin", "lun4_cmnlibbak.bin", "lun4_devcfg.bin", "lun4_devcfgbak.bin", "lun4_dsp.bin", "lun4_dspbak.bin", "lun4_dtbo.bin", "lun4_dtbobak.bin", "lun4_hyp.bin", "lun4_hypbak.bin", "lun4_imagefv.bin", "lun4_imagefvbak.bin", "lun4_modem.bin", "lun4_modembak.bin", "lun4_qupfw.bin", "lun4_qupfwbak.bin", "lun4_tz.bin", "lun4_tzbak.bin", "lun4_vbmeta.bin", "lun4_vbmetabak.bin")
+            foreach ($file in $partitionFiles) {
+                $filePath = Join-Path $folderPath $file
+                if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
+                    throw "Required downgrade file missing or empty: $file"
+                }
+            }
+        }
+        
+        if ($backupMode -eq "downgradeDDR5") {
+            $partitionFiles = @("lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin")
+            foreach ($file in $partitionFiles) {
+                $filePath = Join-Path $folderPath $file
+                if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
+                    throw "Required downgradeDDR5 file missing or empty: $file"
+                }
+            }
+        }
+
+        $folderSize = (Get-ChildItem -Path $folderPath -Recurse | Measure-Object -Property Length -Sum).Sum
+        $sizeGB = $folderSize / 1GB
+        $sizeFormatted = "{0:N2}" -f $sizeGB
+
+        $minSizeGB = switch ($backupMode) {
+            "downgrade" { 9 }
+            "downgradeDDR5" { 8 }
+            "firmware" { 6 }
+            default { 12 }
+        }
+
+        if ($sizeGB -lt $minSizeGB) {
+            throw "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is less than minimum expected (${cYellow}$minSizeGB GB${cReset})."
+        }
+
+        if (-not $silent) { 
+            Write-Log "Backup verification successful. Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success" 
+        }
+    } catch {
+        $verifySuccess = $false
+        if (-not $silent -and $_.Exception.Message) {
+            Write-Log "Backup verification failed: required backup sets are missing or empty." "Error"
         }
     }
 
-    if ($backupMode -eq "userdata") {
-        $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
-        foreach ($file in $userDataFiles) {
-            $filePath = Join-Path $folderPath $file
-            if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
-                $verifySuccess = $false
-                break
-            }
-        }
-    }
-
-    if ($backupMode -eq "partitions") {
-        $partitionFiles = @("lun0_cache.bin", "lun0_frp.bin", "lun0_keystore.bin", "lun0_metadata.bin", "lun0_misc.bin", "lun0_persist.bin", "lun0_picocfg.bin", "lun0_rawdump.bin", "lun0_recovery.bin", "lun0_ssd.bin", "lun0_super.bin", "lun0_vbmeta_system.bin", "lun0_vbmeta_systembak.bin", "lun0_vm_system.bin", "lun0_vm_systembak.bin", "lun1_last_parti.bin", "lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_last_parti.bin", "lun2_xblbak.bin", "lun2_xbl_configbak.bin", "lun3_align_to_128k_1.bin", "lun3_cdt.bin", "lun3_ddr.bin", "lun3_last_parti.bin", "lun3_mdmddr.bin", "lun4_abl.bin", "lun4_ablbak.bin", "lun4_aop.bin", "lun4_aopbak.bin", "lun4_apdp.bin", "lun4_bluetooth.bin", "lun4_bluetoothbak.bin", "lun4_boot.bin", "lun4_bootbak.bin", "lun4_cmnlib.bin", "lun4_cmnlib64.bin", "lun4_cmnlib64bak.bin", "lun4_cmnlibbak.bin", "lun4_devcfg.bin", "lun4_devcfgbak.bin", "lun4_devinfo.bin", "lun4_dip.bin", "lun4_dsp.bin", "lun4_dspbak.bin", "lun4_dtbo.bin", "lun4_dtbobak.bin", "lun4_featenabler.bin", "lun4_featenablerbak.bin", "lun4_hyp.bin", "lun4_hypbak.bin", "lun4_imagefv.bin", "lun4_imagefvbak.bin", "lun4_keymaster.bin", "lun4_keymasterbak.bin", "lun4_last_parti.bin", "lun4_limits.bin", "lun4_limits_cdsp.bin", "lun4_logdump.bin", "lun4_logfs.bin", "lun4_mdtp.bin", "lun4_mdtpbak.bin", "lun4_mdtpsecapp.bin", "lun4_mdtpsecappbak.bin", "lun4_modem.bin", "lun4_modembak.bin", "lun4_msadp.bin", "lun4_multiimgoem.bin", "lun4_multiimgoembak.bin", "lun4_multiimgqti.bin", "lun4_multiimgqtibak.bin", "lun4_qupfw.bin", "lun4_qupfwbak.bin", "lun4_secdata.bin", "lun4_spunvm.bin", "lun4_storsec.bin", "lun4_tz.bin", "lun4_tzbak.bin", "lun4_uefisecapp.bin", "lun4_uefisecappbak.bin", "lun4_uefivarstore.bin", "lun4_vbmeta.bin", "lun4_vbmetabak.bin", "lun4_vm_data.bin", "lun4_vm_keystore.bin", "lun4_vm_linux.bin", "lun4_vm_linuxbak.bin", "lun5_align_to_128k_2.bin", "lun5_fsc.bin", "lun5_fsg.bin", "lun5_last_parti.bin", "lun5_mdm1m9kefs1.bin", "lun5_mdm1m9kefs2.bin", "lun5_mdm1m9kefs3.bin", "lun5_mdm1m9kefsc.bin", "lun5_modemst1.bin", "lun5_modemst2.bin")
-        foreach ($file in $partitionFiles) {
-            $filePath = Join-Path $folderPath $file
-            if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
-                $verifySuccess = $false
-                break
-            }
-        }
-    }
-
-    if ($backupMode -eq "downgrade") {
-        $partitionFiles = @("lun0_recovery.bin", "lun0_super.bin", "lun0_vbmeta_system.bin", "lun0_vbmeta_systembak.bin", "lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin", "lun4_abl.bin", "lun4_ablbak.bin", "lun4_aop.bin", "lun4_aopbak.bin", "lun4_bluetooth.bin", "lun4_bluetoothbak.bin", "lun4_boot.bin", "lun4_bootbak.bin", "lun4_cmnlib.bin", "lun4_cmnlib64.bin", "lun4_cmnlib64bak.bin", "lun4_cmnlibbak.bin", "lun4_devcfg.bin", "lun4_devcfgbak.bin", "lun4_dsp.bin", "lun4_dspbak.bin", "lun4_dtbo.bin", "lun4_dtbobak.bin", "lun4_hyp.bin", "lun4_hypbak.bin", "lun4_imagefv.bin", "lun4_imagefvbak.bin", "lun4_modem.bin", "lun4_modembak.bin", "lun4_qupfw.bin", "lun4_qupfwbak.bin", "lun4_tz.bin", "lun4_tzbak.bin", "lun4_vbmeta.bin", "lun4_vbmetabak.bin")
-        foreach ($file in $partitionFiles) {
-            $filePath = Join-Path $folderPath $file
-            if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
-                $verifySuccess = $false
-                break
-            }
-        }
-    }
-    
-    if ($backupMode -eq "downgradeDDR5") {
-        $partitionFiles = @("lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin")
-        foreach ($file in $partitionFiles) {
-            $filePath = Join-Path $folderPath $file
-            if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
-                $verifySuccess = $false
-                break
-            }
-        }
-    }
-
-    if (-not $verifySuccess) {
-        if (-not $silent) { Write-Log "Backup verification failed: required backup sets are missing or empty." "Error" }
-        return $false
-    }
-
-    $folderSize = (Get-ChildItem -Path $folderPath -Recurse | Measure-Object -Property Length -Sum).Sum
-    $sizeGB = $folderSize / 1GB
-    $sizeFormatted = "{0:N2}" -f $sizeGB
-
-    $minSizeGB = switch ($backupMode) {
-        "downgrade" { 9 }
-        "downgradeDDR5" { 8 }
-        "firmware" { 6 }
-        default { 12 }
-    }
-    if ($sizeGB -lt $minSizeGB) {
-        if (-not $silent) { Write-Log "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is less than minimum expected (${cYellow}$minSizeGB GB${cReset})." "Error" }
-        return $false
-    }
-
-    if (-not $silent) { Write-Log "Backup verification successful. Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success" }
-    return $true
+    return $verifySuccess
 }
 
 function Folder-Compression([string]$folderPath) {
-    Write-Header "Folder Compression"
+    try {
+        Write-Header "Folder Compression"
 
-    if (-not (Test-Path -Path $folderPath)) {
-        Write-Log "Target path '${cYellow}$folderPath${cReset}' does not exist." "Error"
-        return
-    }
+        if (-not (Test-Path -Path $folderPath)) {
+            throw "Target path '${cYellow}$folderPath${cReset}' does not exist."
+        }
 
-    $fileList = Get-ChildItem -Path $folderPath -Recurse -File -Force -ErrorAction SilentlyContinue
-    $maxFileSizeBytes = ($fileList | Measure-Object -Property Length -Maximum).Maximum
-    $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
+        $fileList = Get-ChildItem -Path $folderPath -Recurse -File -Force -ErrorAction SilentlyContinue
+        $maxFileSizeBytes = ($fileList | Measure-Object -Property Length -Maximum).Maximum
+        $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
 
-    if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
-        return
-    }
+        if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
+            throw ""
+        }
 
-    Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
-    Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
-    Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
-    Write-Log ""
+        Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
+        Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
+        Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
+        Write-Log ""
 
-    Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
-    $confirmation = Read-HostLog "To proceed, type [${cYellow}YES${cReset}] and press Enter"
+        Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
+        $confirmation = Read-HostLog "To proceed, type [${cYellow}YES${cReset}] and press Enter"
 
-    if ($confirmation -eq 'yes') {
+        if ($confirmation -ne 'yes') {
+            throw "Aborted by user. No changes have been made."
+        }
+
         Write-Log ""
         Write-Log "Scanning target directory..." "Action"
 
-
         $totalFiles = $fileList.Count
         if ($totalFiles -eq 0) {
-            Write-Log "Folder is empty or contains no readable files." "Warning"
-            return
+            throw "Folder is empty or contains no readable files."
         }
 
         $sizeBeforeBytes = ($fileList | Measure-Object -Property Length -Sum).Sum
@@ -827,8 +860,10 @@ function Folder-Compression([string]$folderPath) {
         Write-Log "------------------------------------------------" "Info"
 
         Play-BeepBeep
-    } else {
-        Write-Log "Folder compression ${cRed}cancelled${cReset} by user." "Warning"
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
     }
 }
 
@@ -887,111 +922,130 @@ function Select-BackupMode {
 }
 
 function Backup-Device($selection) {
-    Write-Header "Backup Device"
-    $backupMode = $selection.backupMode
-    $customPath = $selection.customPath
+    $success = $false
+    $backupPath = $null
 
-    # Reboot EDL
-    if (IsAdbMode) {
-        ADB-To-Edl
-    } elseif (IsFastbootMode) {
-        Fastboot-To-Edl
-    } elseif (-not (IsEdlMode)) {
-        Warning-EDL
-    }
+    try {
+        Write-Header "Backup Device"
+        $backupMode = $selection.backupMode
+        $customPath = $selection.customPath
 
-    if (-not (Wait-EdlMode 100)) {
-        return $false
-    }
-
-    if (-not (Verify-DiskSpace $backupMode $customPath)) {
-        return $false
-    }
-
-    if (-not (Wait-UserConfirm $backupMode)) {
-        return $false
-    }
-
-    # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
-    if ($backupMode -eq "luns") {
-        $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $LUNsBackupPath }
-        $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-        BackupLUNs $backupPath
-    } elseif ($backupMode -eq "userdata") {
-        $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $UserBackupPath }
-        $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-        BackupUserData $backupPath
-    } elseif ($backupMode -eq "partitions") {
-        $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $PartitionsBackupPath }
-        $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-        BackupPartitions $backupPath
-    }
-
-    # Verify folder existence
-    if (-not (Test-Path -Path $backupPath)) {
-        Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
-        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-        Wait-Continue
-
-        return $false
-    }
-
-    $backupFolder = Get-Item -Path $backupPath
-
-    if (Verify-Backup $backupMode $backupFolder.FullName) {
-        Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
-        Wait-Continue
-
-        Folder-Compression $backupFolder.FullName
-        Wait-Continue
-
-        return $true
-    } else {
-        Write-Log "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed." "Error"
-        if (Test-Path -Path $backupFolder.FullName) {
-            Write-Log "Deleting invalid backup folder..." "Action"
-            Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        # Reboot EDL
+        if (IsAdbMode) {
+            ADB-To-Edl
+        } elseif (IsFastbootMode) {
+            Fastboot-To-Edl
+        } elseif (-not (IsEdlMode)) {
+            Warning-EDL
         }
-        Wait-Continue
 
-        return $false
+        if (-not (Wait-EdlMode 100)) {
+            throw ""
+        }
+
+        if (-not (Verify-DiskSpace $backupMode $customPath)) {
+            throw ""
+        }
+
+        if (-not (Wait-UserConfirm $backupMode)) {
+            throw "Aborted by user. No changes have been made."
+        }
+
+        # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
+        if ($backupMode -eq "luns") {
+            $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $LUNsBackupPath }
+            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+            BackupLUNs $backupPath
+        } elseif ($backupMode -eq "userdata") {
+            $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $UserBackupPath }
+            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+            BackupUserData $backupPath
+        } elseif ($backupMode -eq "partitions") {
+            $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $PartitionsBackupPath }
+            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+            BackupPartitions $backupPath
+        }
+
+        # Verify folder existence
+        if (-not (Test-Path -Path $backupPath)) {
+            Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+            Wait-Continue
+            throw ""
+        }
+
+        $backupFolder = Get-Item -Path $backupPath
+
+        if (Verify-Backup $backupMode $backupFolder.FullName) {
+            Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
+            Wait-Continue
+
+            Folder-Compression $backupFolder.FullName
+            Wait-Continue
+
+            $success = $true
+            throw ""
+        } else {
+            Write-Log "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed." "Error"
+            if (Test-Path -Path $backupFolder.FullName) {
+                Write-Log "Deleting invalid backup folder..." "Action"
+                Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            Wait-Continue
+            throw ""
+        }
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
     }
+
+    return $success
 }
 
 function Restore-Backup($backupInfo) {
-    $flashPath = $backupInfo.Path
-    $backupMode = $backupInfo.Type
-    Write-Header "Restore Device"
+    $success = $false
 
-    if (-not (Verify-Backup -backupMode $backupMode -folderPath $flashPath)) {
-        return $false
+    try {
+        $flashPath = $backupInfo.Path
+        $backupMode = $backupInfo.Type
+        Write-Header "Restore Device"
+
+        if (-not (Verify-Backup -backupMode $backupMode -folderPath $flashPath)) {
+            throw ""
+        }
+
+        if (-not (Wait-UserConfirm $backupMode)) {
+            throw "Aborted by user. No changes have been made."
+        }
+
+        # Reboot EDL
+        if (IsAdbMode) {
+            ADB-To-Edl
+        } elseif (IsFastbootMode) {
+            Fastboot-To-Edl
+        } elseif (-not (IsEdlMode)) {
+            Warning-EDL
+        }
+
+        if (-not (Wait-EdlMode 100)) {
+            throw ""
+        }
+
+        # Start the automated helper
+        $success = FlashFirmware $flashPath
+
+        if (-not $success) {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+
+        Wait-Continue
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
     }
 
-    if (-not (Wait-UserConfirm $backupMode)) {
-        return $false
-    }
-
-    # Reboot EDL
-    if (IsAdbMode) {
-        ADB-To-Edl
-    } elseif (IsFastbootMode) {
-        Fastboot-To-Edl
-    } elseif (-not (IsEdlMode)) {
-        Warning-EDL
-    }
-
-    if (-not (Wait-EdlMode 100)) {
-        return $false
-    }
-
-    # Start the automated helper
-    $success = FlashFirmware $flashPath
-
-    if (-not $success) {
-        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-    }
-    Wait-Continue
-    
     return $success
 }
 
