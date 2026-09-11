@@ -118,7 +118,7 @@ function Check-Prerequisites {
             $verifyDrivers = pnputil /enum-drivers
             if ($verifyDrivers -match "qdl_winusb\.inf") {
                 Write-Log "Failed to completely remove '${cYellow}qdl_winusb.inf${cReset}'. Manual removal may be required." "Error"
-                Write-Log "Use DriverStoreExplorer (https://github.com/lostindark/driverstoreExplorer) to proceed." "Info"
+                Write-Log "Use DriverStoreExplorer (https://github.com/lostindark/driverstoreExplorer) to proceed." "Interactive"
                 $isReady = $false
             } else {
                 Write-Log "'${cYellow}qdl_winusb.inf${cReset}' has been removed." "Success"
@@ -538,7 +538,7 @@ function Perform-FastbootUnlock {
         if ($success) {
             Write-Log ""
             Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
-            Write-Log "Unplug the device and plug it back in." "Warning"
+            Write-Log "Unplug the device and plug it back in." "Interactive"
 
             if ($IsRetryBootloader -ne 2) {
                 $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
@@ -615,7 +615,7 @@ function Perform-FastbootLock {
         if ($success) {
             Write-Log ""
             Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Success"
-            Write-Log "Unplug the device and plug it back in." "Warning"
+            Write-Log "Unplug the device and plug it back in." "Interactive"
 
             if ($IsRetryBootloader -ne 2) {
                 $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
@@ -702,7 +702,7 @@ function Verify-FastbootState([string]$state) {
 
             if ($IsRetryBootloader -ne 2) {
                 Write-Log ""
-                Write-Log "Do you want to retry now?" "Info"
+                Write-Log "Do you want to retry now?" "Interactive"
 
                 $confirmation = Read-HostLog "Manual retry [${cYellow}YES${cReset}], keep it running [${cYellow}AUTO${cReset}]"
                 if ($confirmation -eq 'yes') {

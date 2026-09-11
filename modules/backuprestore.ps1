@@ -691,7 +691,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
 
         return $false
     } else {
-        Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Info"
+        Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Interactive"
         Write-Log ""
 
         return $true

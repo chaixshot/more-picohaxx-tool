@@ -15,6 +15,7 @@ $e = [char]27
 $cReset = "$e[0m"
 $cCyan = "$e[36m"
 $cYellow = "$e[33m"
+$cBrightAmber = "$e[38;5;208m"
 $cGreen = "$e[32m"
 $cMagenta = "$e[35m"
 $cRed = "$e[31m"
@@ -45,6 +46,17 @@ function Write-Log([string]$message, [string]$type, [string]$ForegroundColor) {
             }
             "Action" {
                 $cMagenta
+            }
+            "Interactive" {
+                if ($IsWindows -or $env:OS -like "*Windows*") {
+                    $powershell = [powershell]::Create().AddScript({
+                            [Console]::Beep(600, 150)
+                            [Console]::Beep(900, 200)
+                        })
+                    [void]$powershell.BeginInvoke()
+                }
+                $type = ">> $type <<"
+                $cBrightAmber
             }
             Default {
                 $cGray
@@ -752,7 +764,7 @@ function Get-FileOrFolderDialog([string]$title = "", [int]$mode = 0, [string]$ex
 
     switch ($mode) {
         0 {
-            Write-Log "Please select ${cYellow}'$extension'${cReset} file from explorer." "Info"
+            Write-Log "Please select ${cYellow}'$extension'${cReset} file from explorer." "Interactive"
             Wait-Continue $dialogTitle
 
             # File picker only
@@ -769,7 +781,7 @@ function Get-FileOrFolderDialog([string]$title = "", [int]$mode = 0, [string]$ex
             }
         }
         1 {
-            Write-Log "Please select ${cYellow}folder${cReset} from explorer." "Info"
+            Write-Log "Please select ${cYellow}folder${cReset} from explorer." "Interactive"
             Wait-Continue $dialogTitle
 
             # Folder picker only
@@ -786,7 +798,7 @@ function Get-FileOrFolderDialog([string]$title = "", [int]$mode = 0, [string]$ex
             }
         }
         2 {
-            Write-Log "Please select ${cYellow}'$extension'${cReset} file or ${cYellow}folder${cReset} from explorer." "Info"
+            Write-Log "Please select ${cYellow}'$extension'${cReset} file or ${cYellow}folder${cReset} from explorer." "Interactive"
             Wait-Continue $dialogTitle
             
             # Both (Modern Fluent Custom Dialog window)
@@ -938,7 +950,7 @@ function Get-InstalledDriverInfo([string]$infName) {
 function Warning-ADB {
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
-    Write-Log "Please connect your device and enable USB Debug." "Info"
+    Write-Log "Please connect your device and enable USB Debug." "Interactive"
     Write-Log ""
     Write-Log "1. Open PicoOS settings menu" "Info"
     Write-Log "2. Goto General > About" "Info"
@@ -950,25 +962,25 @@ function Warning-RECOVERY {
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}RECOVERY${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in ${cCyan}RECOVERY${cReset} mode." "Error"
-    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
+    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Interactive"
 }
 
 function Warning-FASTBOOT {
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in ${cCyan}FASTBOOT${cReset} mode." "Error"
-    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
+    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Interactive"
 }
 
 function Warning-EDL {
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Error"
-    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Info"
+    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Interactive"
 }
 
 function Warning-EDL-ManualReboot {
     Write-Header "EDL Manual Reboot"
-    Write-Log "Your device will not automatically reboot." "Info"
+    Write-Log "Your device will not automatically reboot." "Interactive"
     Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
     Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
     Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
@@ -1024,7 +1036,7 @@ function Fastboot-To-Fastboot {
 function Fastboot-To-Edl {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
+    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Interactive"
     Wait-Continue
 
     if (IsFastbootMode) {
@@ -1052,7 +1064,7 @@ function Edl-To-Recovery {
 
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Up${cReset} before continue" "Info"
+    Write-Log "Keep holding ${cYellow}Vol Up${cReset} before continue" "Interactive"
     Wait-Continue
     
     if (Execute-EdlCommand "reset" $true) { 
@@ -1063,7 +1075,10 @@ function Edl-To-Recovery {
 }
 
 function Edl-To-Fastboot {
-    # Not working
+    Write-Log ""
+    Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
+    Write-Log "Keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up before continue." "Interactive"
+    Wait-Continue
 }
 
 function Edl-To-Edl {
@@ -1071,7 +1086,7 @@ function Edl-To-Edl {
 
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
+    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Interactive"
     Wait-Continue
     
     if (Execute-EdlCommand "reset" $true) { 
