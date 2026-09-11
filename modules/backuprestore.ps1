@@ -592,7 +592,7 @@ function Get-LunsSizeGB {
 
     try {
         # In EDL mode, use edl-ng to find total sectors across all LUNs
-        $gpt = Execute-EdlCommand "printgpt" -silent $true
+        $gpt = Execute-EdlCommand "printgpt" -silent $true $true
         $totalSizeGB = 0
 
         foreach ($line in $gpt) {
@@ -624,7 +624,7 @@ function Get-UserdataSizeGB {
 
     try {
         # In EDL mode, use edl-ng to find userdata partition size
-        $gpt = Execute-EdlCommand "printgpt --lun 0" $true
+        $gpt = Execute-EdlCommand "printgpt --lun 0" $true $true
         $isUserdataBlock = $false
 
         foreach ($line in $gpt) {

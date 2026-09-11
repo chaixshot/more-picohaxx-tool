@@ -403,7 +403,7 @@ function Execute-UnlockCommand {
     return $success
 }
 
-function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
+function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
     $outputLines = [System.Collections.Generic.List[string]]::new()
     $lastWasProgress = $false
     $success = $false
@@ -461,7 +461,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false) {
         }
     }
 
-    if ($silent) {
+    if ($get) {
         return $outputLines
     } else {
         return $success
