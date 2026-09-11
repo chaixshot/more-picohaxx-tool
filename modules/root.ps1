@@ -355,6 +355,7 @@ function ImageFile-Picker($imageName) {
 
 function Pull-BootImage {
     $success = $false
+    $bootPath = $null
 
     try {
         Write-Header "Pull Boot Image"
@@ -401,22 +402,23 @@ function Pull-BootImage {
             }
 
             if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
-                Write-Log "Pulling boot image failed with code ${cCyan}${exitcode}${cReset}." "Error"
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-                Wait-Continue
-                throw ""
+                throw "Pulling boot image failed with code ${cCyan}${exitcode}${cReset}."
             }
         }
-
+        
         $bootPath = (Get-Item $dumpedBoot).FullName
-        Write-Log "Stock boot image pulled to ${cGreen}'${bootPath}'${cReset} successfully." "Success"
-        Wait-Continue
-
         $success = $true
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
+    } finally {
+        if ($success) {
+            Write-Log "Stock boot image pulled to ${cGreen}'${bootPath}'${cReset} successfully." "Success"
+        } else {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+        Wait-Continue
     }
 
     return $success
