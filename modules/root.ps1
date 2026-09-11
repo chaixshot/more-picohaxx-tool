@@ -310,6 +310,31 @@ function Verify-RootState([string]$state) {
     }
 }
 
+function Test-Superuser-Access {
+    Write-Header "Test Superuser Access"
+
+    # Reboot system
+    if (IsFastbootMode) {
+        Fastboot-To-System
+    } elseif (IsEdlMode) {
+        Edl-To-System
+    } elseif (-not (IsAdbMode)) {
+        Warning-ADB
+    }
+
+    if (-not (Wait-AdbMode 500)) {
+        return
+    }
+
+    $isRooted = IsDeviceRooted
+    Write-Log ""
+    if ($isRooted) {
+        Write-Log "Superuser access is granted." "Success"
+    } else {
+        Write-Log "Superuser access is denied or device is not rooted." "Error"
+    }
+}
+
 #########################################
 #########################################
 #########################################
@@ -649,6 +674,7 @@ function Show-RootMenu {
         Write-Log "[${cCyan}3${cReset}] Root With Magisk"
         Write-Log ""
         Write-Log "[${cCyan}f${cReset}] Flash Custom Image"
+        Write-Log "[${cCyan}t${cReset}] Test Superuser Access"
         Write-Log "[${cCyan}u${cReset}] Unroot"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
@@ -669,6 +695,9 @@ function Show-RootMenu {
             }
             "f" {
                 $null = Perform-FlashImage
+            }
+            "t" {
+                Test-Superuser-Access
             }
             "u" {
                 if (Perform-FlashImage "boot" "boot") {
