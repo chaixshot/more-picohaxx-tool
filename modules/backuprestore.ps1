@@ -271,11 +271,11 @@ function Prepare-Downgrade {
 }
 
 function Perform-RollbackOS([string]$firmwarePath) {
-    $success = $false
+    $success = $true
+    $lastError = $null
     $isTempExtraction = $false
     $extractedFolder = $null
     $pushedLocation = $false
-    $lastError = $null
 
     try {
         Write-Header "Rollback OS"
@@ -461,9 +461,8 @@ function Perform-RollbackOS([string]$firmwarePath) {
                 Write-Log "Skipping missing non-critical image file: $($item.Path)" "Warning"
             }
         }
-
-        $success = $true
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
@@ -486,14 +485,21 @@ function Perform-RollbackOS([string]$firmwarePath) {
 
         if ($success) {
             Write-Log "Device has rollbacked successfully." "Success"
+            Wait-Continue
+
+            $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
+            if ($choice -eq 'y') {
+                Edl-To-System
+            }
         } else {
-            Write-Log "Rollback process encountered errors." "Error"
+            if ($lastError.Message -notlike "*Abort*") {
+                Write-Log "Rollback process encountered errors." "Error"
+                Wait-Continue
+            }
+            
+            Warning-EDL-ManualReboot
         }
-
-        Wait-Continue
     }
-
-    return $success
 }
 
 function Prepare-Firmware {    
@@ -955,7 +961,8 @@ function Select-BackupMode {
 }
 
 function Backup-Device($selection) {
-    $success = $false
+    $success = $true
+    $lastError = $null
     $backupPath = $null
     $backupFolder = $null
 
@@ -963,6 +970,10 @@ function Backup-Device($selection) {
         Write-Header "Backup Device"
         $backupMode = $selection.backupMode
         $customPath = $selection.customPath
+
+        if (-not (Wait-UserConfirm $backupMode)) {
+            throw "Aborted by user. No changes have been made."
+        }
 
         # Reboot EDL
         if (IsAdbMode) {
@@ -979,10 +990,6 @@ function Backup-Device($selection) {
 
         if (-not (Verify-DiskSpace $backupMode $customPath)) {
             throw ""
-        }
-
-        if (-not (Wait-UserConfirm $backupMode)) {
-            throw "Aborted by user. No changes have been made."
         }
 
         # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
@@ -1006,35 +1013,46 @@ function Backup-Device($selection) {
         }
 
         $backupFolder = Get-Item -Path $backupPath
-        if (Verify-Backup $backupMode $backupFolder.FullName) {
-            $success = $true
-        } else {
+        if (-not(Verify-Backup $backupMode $backupFolder.FullName)) {
             throw "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed."
         }
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
+            $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
         if ($success) {
             Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
             Wait-Continue
+
             Folder-Compression $backupFolder.FullName
+            Wait-Continue
+
+            $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
+            if ($choice -eq 'y') {
+                Edl-To-System
+            }
         } else {
-            if (Test-Path -Path $backupFolder.FullName) {
+            if ($backupFolder -and (Test-Path -Path $backupFolder.FullName)) {
                 Write-Log "Deleting invalid backup folder..." "Action"
                 Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
             }
-            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-        }
-        Wait-Continue
-    }
+            
+            if ($lastError.Message -notlike "*Abort*") {
+                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+                Wait-Continue
+            }
 
-    return $success
+            Warning-EDL-ManualReboot
+        }
+    }
 }
 
 function Restore-Backup($backupInfo) {
-    $success = $false
+    $success = $true
+    $lastError = $null
 
     try {
         $flashPath = $backupInfo.Path
@@ -1065,31 +1083,41 @@ function Restore-Backup($backupInfo) {
         # Start the automated helper
         $success = FlashFirmware $flashPath
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
+            $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
         if ($success) {
-            Write-Log "Detected restore successfully" "Success"
+            Write-Log "Device restore successfully" "Success"
+            Wait-Continue
+            
+            $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
+            if ($choice -eq 'y') {
+                Edl-To-System
+            }
         } else {
-            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-        }
-        Wait-Continue
-    }
+            if ($lastError.Message -notlike "*Abort*") {
+                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+                Wait-Continue
+            }
 
-    return $success
+            Warning-EDL-ManualReboot
+        }
+    }
 }
 
 function Show-BackupRestoreMenu {
     $menuQuit = $false
     while (-not $menuQuit) {
-        Write-Header "Backup/Restore/Downgrade"
+        Write-Header "Backup / Restore / Downgrade"
         Write-Log "[${cCyan}1${cReset}] Backup Device"
         Write-Log "[${cCyan}2${cReset}] Restore Device"
-        Write-Log "[${cCyan}3${cReset}] Compress Backup"
         Write-Log "[${cCyan}4${cReset}] Downgrade Device ${cDarkGray}(Legacy)${cReset}"
         Write-Log "[${cCyan}5${cReset}] Rollback OS"
         Write-Log ""
+        Write-Log "[${cCyan}c${cReset}] Compress Backup"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
 
@@ -1099,28 +1127,14 @@ function Show-BackupRestoreMenu {
                 $targetBackup = Select-BackupMode
                 if ($null -ne $targetBackup) {
                     Select-Firehose
-                    if ([bool](Backup-Device $targetBackup)) {
-                        Edl-To-System
-                    } else {
-                        Warning-EDL-ManualReboot
-                    }
+                    Backup-Device $targetBackup
                 }
             }
             "2" {
                 $backupInfo = Select-BackupFolder
                 if ($null -ne $backupInfo) {
                     Select-Firehose
-                    if ([bool](Restore-Backup $backupInfo)) {
-                        Edl-To-System
-                    } else {
-                        Warning-EDL-ManualReboot
-                    }
-                }
-            }
-            "3" {
-                $backupInfo = Select-BackupFolder
-                if ($null -ne $backupInfo) {
-                    Folder-Compression $backupInfo.Path
+                    Restore-Backup $backupInfo
                 }
             }
             "4" {
@@ -1129,10 +1143,12 @@ function Show-BackupRestoreMenu {
             "5" {
                 Select-Firehose
                 $downloadedPath = Prepare-Firmware
-                if ([bool](Perform-RollbackOS $downloadedPath)) {
-                    Edl-To-System
-                } else {
-                    Warning-EDL-ManualReboot
+                Perform-RollbackOS $downloadedPath
+            }
+            "c" {
+                $backupInfo = Select-BackupFolder
+                if ($null -ne $backupInfo) {
+                    Folder-Compression $backupInfo.Path
                 }
             }
             "r" {

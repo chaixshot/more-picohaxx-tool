@@ -58,22 +58,18 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 
 ## Unlock Bootloader
 
-1. **Perform Backup**: Perform **User Personal Data** backup before proceeding, as unlocking will wipe headset user data.
-1. **Get Chip ID**: Acquire headset `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`).
-1. **Generate Token**: Use `more-picohaxx.py` to generate `fastboot oem picoXXXXXXXX unlock` unlock command.
-1. **Flash engineering ABL**: Flash the old `abl` and `devinfo` via EDL.
-    * **Firehose Selection**: Choose the correct firehose based on headset hardware:
-        * **Pico 4 / Pico 4 Enterprise / Pico Neo 3**: Select **DDR 4** (Standard firehose).
-        * **Pico 4 Pro**: Select **DDR 5** (Lite firehose).
-1. **Fastboot Unlock**: Issue the generated command from **Generate Token**, followed by:
+1. **Backup**: Perform **User Personal Data** backup before proceeding, as unlocking will wipe headset user data.
+1. **Get Unlock Code**: Acquire headset `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`) to generate `fastboot oem picoXXXXXXXX unlock` command.
+1. **Flash Engineering ABL**: Flash the old `abl` and `devinfo` to enable bootloader token.
+1. **Unlock Bootloader**: Issue the generated command from **Get Unlock Code**, followed by:
     * `fastboot flashing unlock_critical`
     * `fastboot flashing unlock`
     * `fastboot oem setenforce 0`
-1. **Reboot Bootloader**: Confirm unlock state is persistence after reboot.
+1. **Verify Bootloader**: Reboot bootloader to confirm unlock state is persistence.
    * If it isn't stay unlocked, **repeat the steps**. This is expected behavior; don't be afraid to try again.
-1. **Factory Reset**: Perform factory reset via recovery to wipe user data if necessary.
-1. **Root with Magisk**: Flash Magisk patched `boot.img` via unlocked fastboot to get superuser access.
 1. **Flash Backup ABL**: Flash original firmware `abl` image to restore boot capability.
+1. **Factory Reset**: Perform factory reset via recovery to wipe user data if required.
+1. **Root with Magisk**: Flash Magisk patched `boot.img` to get superuser access.
 1. **Restore Userdata**: Restore backed-up user data
 
 ## Root with Magisk

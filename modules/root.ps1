@@ -16,8 +16,8 @@ $MagiskTMP = Join-Path $WorkingDir "tools\magisk\tmp"
 $BootBackupPath = Join-Path $BackupPath "boot"
 
 function Perform-MagiskBoot([string]$bootImgPath) {
+    $success = $true
     $outputImgPath = $null
-    $success = $false
 
     try {
         # Verification Check
@@ -41,82 +41,79 @@ function Perform-MagiskBoot([string]$bootImgPath) {
         }
 
         Push-Location $MagiskTMP
+
+        # Extract Required Assets from APK directly into $MagiskTMP
+        Write-Log ""
+        Write-Log "Extracting binaries from Magisk APK..." "Action"
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($Magisk)
         try {
-            # Extract Required Assets from APK directly into $MagiskTMP
-            Write-Log ""
-            Write-Log "Extracting binaries from Magisk APK..." "Action"
-            Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-            $zip = [System.IO.Compression.ZipFile]::OpenRead($Magisk)
-            try {
-                $apkEntries = @{
-                    "lib/arm64-v8a/libmagiskinit.so" = "magiskinit"
-                    "lib/arm64-v8a/libmagisk.so"     = "magisk"
-                    "lib/arm64-v8a/libinit-ld.so"    = "init-ld"
-                    "assets/stub.apk"                = "stub.apk"
+            $apkEntries = @{
+                "lib/arm64-v8a/libmagiskinit.so" = "magiskinit"
+                "lib/arm64-v8a/libmagisk.so"     = "magisk"
+                "lib/arm64-v8a/libinit-ld.so"    = "init-ld"
+                "assets/stub.apk"                = "stub.apk"
+            }
+            foreach ($entryKey in $apkEntries.Keys) {
+                $entry = $zip.Entries | Where-Object { $_.FullName -eq $entryKey }
+                if ($entry) {
+                    $targetName = $apkEntries[$entryKey]
+                    $destination = Join-Path $MagiskTMP $targetName
+                    Write-Log "Extracting ${cCyan}${targetName}${cReset}..." "Action"
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
                 }
-                foreach ($entryKey in $apkEntries.Keys) {
-                    $entry = $zip.Entries | Where-Object { $_.FullName -eq $entryKey }
-                    if ($entry) {
-                        $targetName = $apkEntries[$entryKey]
-                        $destination = Join-Path $MagiskTMP $targetName
-                        Write-Log "Extracting ${cCyan}${targetName}${cReset}..." "Action"
-                        [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
-                    }
-                }
-            } finally {
-                $zip.Dispose()
             }
+        } finally {
+            $zip.Dispose()
+        }
 
-            # Compress payloads into XZ format (Standard modern Magisk payload)
-            Write-Log "Compressing Magisk payloads with XZ..." "Action"
-            & $MagiskBoot compress=xz magisk magisk.xz 2>&1 | Write-Host
-            if (Test-Path "stub.apk") {
-                & $MagiskBoot compress=xz stub.apk stub.xz 2>&1 | Write-Host
+        # Compress payloads into XZ format (Standard modern Magisk payload)
+        Write-Log "Compressing Magisk payloads with XZ..." "Action"
+        & $MagiskBoot compress=xz magisk magisk.xz 2>&1 | Write-Host
+        if (Test-Path "stub.apk") {
+            & $MagiskBoot compress=xz stub.apk stub.xz 2>&1 | Write-Host
+        }
+        if (Test-Path "init-ld") {
+            & $MagiskBoot compress=xz init-ld init-ld.xz 2>&1 | Write-Host
+        }
+
+        # Unpack boot.img
+        Write-Log ""
+        Write-Log "Unpacking $bootImgPath using magiskboot..." "Action"
+        & $MagiskBoot unpack $bootImgPath 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "magiskboot unpack failed with exit code ${LASTEXITCODE}."
+        }
+        if (-not (Test-Path "ramdisk.cpio")) {
+            throw "Failed to unpack boot image or ramdisk.cpio not found."
+        }
+
+        # Backup original ramdisk for magiskinit chainload backup
+        Copy-Item -Path "ramdisk.cpio" -Destination "ramdisk.cpio.orig" -Force
+
+        # Determine pre-init storage device
+        $preinit = $null
+        $adbDevices = & $ADB devices
+        if ($adbDevices -match "\t(device|recovery)") {
+            & $ADB push (Join-Path $MagiskTMP "magisk") /data/local/tmp/magisk 2>&1 | Out-Null
+            $detectedPreinit = (& $ADB shell "chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device").Trim()
+            if ($detectedPreinit) {
+                $preinit = $detectedPreinit
+                Write-Log "Detected pre-init storage partition: ${cGreen}$preinit${cReset}" "Info"
             }
-            if (Test-Path "init-ld") {
-                & $MagiskBoot compress=xz init-ld init-ld.xz 2>&1 | Write-Host
-            }
+            & $ADB shell "rm -f /data/local/tmp/magisk" 2>&1 | Out-Null
+        }
 
-            # Unpack boot.img
-            Write-Log ""
-            Write-Log "Unpacking $bootImgPath using magiskboot..." "Action"
-            & $MagiskBoot unpack $bootImgPath 2>&1 | Write-Host
-            if ($LASTEXITCODE -ne 0) {
-                throw "magiskboot unpack failed with exit code ${LASTEXITCODE}."
-            }
-            if (-not (Test-Path "ramdisk.cpio")) {
-                throw "Failed to unpack boot image or ramdisk.cpio not found."
-            }
+        if (-not $preinit) {
+            $preinit = "cache"
+        }
 
-            # Backup original ramdisk for magiskinit chainload backup
-            Copy-Item -Path "ramdisk.cpio" -Destination "ramdisk.cpio.orig" -Force
+        # Magisk SHA1 Checksum
+        $sha1 = (& $MagiskBoot sha1 $bootImgPath).Trim()
 
-            # Determine pre-init storage device
-            $preinit = $null
-            try {
-                $adbDevices = & $ADB devices
-                if ($adbDevices -match "\t(device|recovery)") {
-                    & $ADB push (Join-Path $MagiskTMP "magisk") /data/local/tmp/magisk 2>&1 | Out-Null
-                    $detectedPreinit = (& $ADB shell "chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device").Trim()
-                    if ($detectedPreinit) {
-                        $preinit = $detectedPreinit
-                        Write-Log "Detected pre-init storage partition: ${cGreen}$preinit${cReset}" "Info"
-                    }
-                    & $ADB shell "rm -f /data/local/tmp/magisk" 2>&1 | Out-Null
-                }
-            } catch {
-            }
-
-            if (-not $preinit) {
-                $preinit = "cache"
-            }
-
-            # Magisk SHA1 Checksum
-            $sha1 = (& $MagiskBoot sha1 $bootImgPath).Trim()
-
-            # Create Magisk config file
-            $cfg = @"
+        # Create Magisk config file
+        $cfg = @"
 KEEPVERITY=false
 KEEPFORCEENCRYPT=false
 RECOVERYMODE=false
@@ -124,144 +121,139 @@ VENDORBOOT=false
 PREINITDEVICE=$preinit
 SHA1=$sha1
 "@
-            [System.IO.File]::WriteAllText((Join-Path $MagiskTMP "config"), $cfg.Replace("`r`n", "`n"))
+        [System.IO.File]::WriteAllText((Join-Path $MagiskTMP "config"), $cfg.Replace("`r`n", "`n"))
 
-            # Configure environment flags for magiskboot patch
-            $env:KEEPVERITY = "false"
-            $env:KEEPFORCEENCRYPT = "false"
-            $env:PATCHVBMETAFLAG = "false"
+        # Configure environment flags for magiskboot patch
+        $env:KEEPVERITY = "false"
+        $env:KEEPFORCEENCRYPT = "false"
+        $env:PATCHVBMETAFLAG = "false"
 
-            # Patch Ramdisk (Modern Magisk CPIO Injection)
-            Write-Log ""
-            Write-Log "Injecting modern Magisk payload into ramdisk.cpio..." "Action"
+        # Patch Ramdisk (Modern Magisk CPIO Injection)
+        Write-Log ""
+        Write-Log "Injecting modern Magisk payload into ramdisk.cpio..." "Action"
 
-            $cpioCommands = @(
-                "add 0750 init magiskinit",
-                "mkdir 0750 overlay.d",
-                "mkdir 0750 overlay.d/sbin",
-                "add 0644 overlay.d/sbin/magisk.xz magisk.xz"
-            )
-            if (Test-Path "stub.xz") {
-                $cpioCommands += "add 0644 overlay.d/sbin/stub.xz stub.xz"
-            }
-            if (Test-Path "init-ld.xz") {
-                $cpioCommands += "add 0644 overlay.d/sbin/init-ld.xz init-ld.xz"
-            }
+        $cpioCommands = @(
+            "add 0750 init magiskinit",
+            "mkdir 0750 overlay.d",
+            "mkdir 0750 overlay.d/sbin",
+            "add 0644 overlay.d/sbin/magisk.xz magisk.xz"
+        )
+        if (Test-Path "stub.xz") {
+            $cpioCommands += "add 0644 overlay.d/sbin/stub.xz stub.xz"
+        }
+        if (Test-Path "init-ld.xz") {
+            $cpioCommands += "add 0644 overlay.d/sbin/init-ld.xz init-ld.xz"
+        }
 
-            $cpioCommands += "patch"
-            $cpioCommands += "backup ramdisk.cpio.orig"
-            $cpioCommands += "mkdir 000 .backup"
-            $cpioCommands += "add 000 .backup/.magisk config"
+        $cpioCommands += "patch"
+        $cpioCommands += "backup ramdisk.cpio.orig"
+        $cpioCommands += "mkdir 000 .backup"
+        $cpioCommands += "add 000 .backup/.magisk config"
 
-            & $MagiskBoot cpio ramdisk.cpio $cpioCommands 2>&1 | Write-Host
-            if ($LASTEXITCODE -ne 0) {
-                throw "magiskboot cpio patch failed with exit code ${LASTEXITCODE}."
-            }
+        & $MagiskBoot cpio ramdisk.cpio $cpioCommands 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "magiskboot cpio patch failed with exit code ${LASTEXITCODE}."
+        }
 
-            # Patch DTB / fstab if present (removes AVB verification flags on Qualcomm)
-            foreach ($dt in @("dtb", "kernel_dtb", "extra")) {
-                if (Test-Path $dt) {
-                    Write-Log ""
-                    Write-Log "Patching $dt fstab..." "Action"
-                    & $MagiskBoot dtb $dt patch 2>&1 | Write-Host
-                }
-            }
-
-            # Keep original raw kernel to prevent bootloop or compression mismatches
-            if (Test-Path "kernel") {
-                Remove-Item "kernel" -Force
-            }
-
-            # Repack Image directly to destination path
-            Write-Log ""
-            Write-Log "Repacking image into $outputImgPath..." "Action"
-            & $MagiskBoot repack $bootImgPath $outputImgPath 2>&1 | Write-Host
-            if ($LASTEXITCODE -ne 0) {
-                throw "magiskboot repack failed with exit code ${LASTEXITCODE}."
-            }
-
-            if (-not (Test-Path $outputImgPath)) {
-                throw "Repack failed. Output image was not created."
-            }
-
-            $success = $true
-        } finally {
-            # Safely restore original working directory
-            Pop-Location
-
-            # Cleanup Temporary Artifacts inside $MagiskTMP
-            Write-Log ""
-            if (Test-Path -Path $MagiskTMP) {
-                Write-Log "Deleting '${cCyan}$( $MagiskTMP )${cReset}' folder..." "Action"
-                Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
+        # Patch DTB / fstab if present (removes AVB verification flags on Qualcomm)
+        foreach ($dt in @("dtb", "kernel_dtb", "extra")) {
+            if (Test-Path $dt) {
+                Write-Log ""
+                Write-Log "Patching $dt fstab..." "Action"
+                & $MagiskBoot dtb $dt patch 2>&1 | Write-Host
             }
         }
+
+        # Keep original raw kernel to prevent bootloop or compression mismatches
+        if (Test-Path "kernel") {
+            Remove-Item "kernel" -Force
+        }
+
+        # Repack Image directly to destination path
+        Write-Log ""
+        Write-Log "Repacking image into $outputImgPath..." "Action"
+        & $MagiskBoot repack $bootImgPath $outputImgPath 2>&1 | Write-Host
+        if ($LASTEXITCODE -ne 0) {
+            throw "magiskboot repack failed with exit code ${LASTEXITCODE}."
+        }
+
+        if (-not (Test-Path $outputImgPath)) {
+            throw "Repack failed. Output image was not created."
+        }
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
+        # Safely restore original working directory if dynamic location push occurred
+        if ((Get-Location).Path -eq $MagiskTMP) {
+            Pop-Location
+        }
+
+        # Cleanup Temporary Artifacts inside $MagiskTMP
+        Write-Log ""
+        if (Test-Path -Path $MagiskTMP) {
+            Write-Log "Deleting '${cCyan}$( $MagiskTMP )${cReset}' folder..." "Action"
+            Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
+        }
+
         if ($success) {
             Write-Log "Boot image patched to '${cCyan}$( $outputImgPath )${cReset}' successfully." "Success"
         }
     }
+
+    return $success
 }
 
 function IsDeviceRooted {
-    $isRooted = $false
+    # Primary Check: check Magisk directly using su -c magisk -v / magisk -v
+    Write-Log "Checking Superuser access using '${cCyan}adb shell su -c magisk -v${cReset}'..." "Action"
+    $magiskVerRaw = & $ADB shell "magisk -v" 2>&1
+    $magiskVer = ($magiskVerRaw -join "`n").Trim()
 
-    try {
-        # Primary Check: check root uid via su -c id
-        Write-Log "Checking Superuser access using ${cCyan}adb shell su -c id${cReset}..." "Action"
-        $suOutputRaw = & $ADB shell "su -c id" 2>&1
-        $suOutput = ($suOutputRaw -join "`n").Trim()
-        Write-Log $suOutput
-
-        if ($suOutput -match "uid=0(\(root\))?") {
-            # Check and display Magisk version if available
-            $magiskVer = (& $ADB shell "su -c magisk -v" 2>&1) -join ""
-            if ($magiskVer -match "(:MAGISK|\d+\.\d+)") {
-                Write-Log "Magisk version detected: ${cGreen}$magiskVer${cReset}" "Info"
-            }
-            $isRooted = $true
-            throw ""
-        }
-
-        # Fallback Check: su 0 id
-        Write-Log "Checking fallback with ${cCyan}adb shell su 0 id${cReset}..." "Action"
-        $altSuRaw = & $ADB shell "su 0 id" 2>&1
-        $altSu = ($altSuRaw -join "`n").Trim()
-        Write-Log $altSu
-
-        if ($altSu -match "uid=0(\(root\))?") {
-            $isRooted = $true
-            throw ""
-        }
-
-        # Fallback Check: adb root (if adbd runs as root)
-        $idRaw = & $ADB shell "id" 2>&1
-        $idOutput = ($idRaw -join "`n").Trim()
-        if ($idOutput -match "uid=0(\(root\))?") {
-            $isRooted = $true
-            throw ""
-        }
-
-        if ($suOutput -match "Permission denied") {
-            throw "Superuser prompt may have been denied or timed out on screen."
-        }
-    } catch {
-        if ($_.Exception.Message) {
-            Write-Log "$($_.Exception.Message)" "Error"
-        }
+    if ($magiskVer -match "(:MAGISK|\d+\.\d+|\b\d{5}\b)") {
+        Write-Log "Magisk version: ${cGreen}$magiskVer${cReset}" "Info"
+        return $true
     }
 
-    return $isRooted
+    # Secondary Primary Check: check root uid via su -c id
+    Write-Log ""
+    Write-Log "Checking Superuser access using '${cCyan}adb shell su -c id${cReset}'..." "Action"
+    $suOutputRaw = & $ADB shell "su -c id" 2>&1
+    $suOutput = ($suOutputRaw -join "`n").Trim()
+    Write-Log $suOutput "Info"
+    if ($suOutput -match "uid=0(\(root\))?") {
+        return $true
+    }
+
+    # Fallback Check: su 0 id
+    Write-Log ""
+    Write-Log "Checking fallback with ${cCyan}adb shell su 0 id${cReset}..." "Action"
+    $altSuRaw = & $ADB shell "su 0 id" 2>&1
+    $altSu = ($altSuRaw -join "`n").Trim()
+    Write-Log $altSu "Info"
+    if ($altSu -match "uid=0(\(root\))?") {
+        return $true
+    }
+
+    # Fallback Check: adb root (if adbd runs as root)
+    Write-Log ""
+    Write-Log "Checking fallback with ${cCyan}adb shell id${cReset}..." "Action"
+    $idRaw = & $ADB shell "id" 2>&1
+    $idOutput = ($idRaw -join "`n").Trim()
+    if ($idOutput -match "uid=0(\(root\))?") {
+        return $true
+    }
+
+    return $false
 }
 
-function Verify-RootState([string]$state = "root") {
-    $isSuccess = $false
+function Verify-RootState([string]$state) {
+    $success = $true
     $isCheckRoot = (-not $state) -or ($state -match "^root")
     $actionName = if ($isCheckRoot) { "Verify Root Access" } else { "Verify Unroot State" }
+    $statusText = "UNKNOW"
 
     try {
         Write-Header $actionName
@@ -282,41 +274,39 @@ function Verify-RootState([string]$state = "root") {
         $isRooted = IsDeviceRooted
 
         if ($null -eq $isRooted) {
-            Write-Log "Unable to automatically detect superuser state via ADB." "Warning"
             Write-Log "Please check your device screen for any Superuser authorization prompt." "Warning"
-            Wait-Continue
-            throw ""
+            throw "Unable to automatically detect superuser state."
         }
 
         # Determine if actual device state matches desired state
         $desiredState = if ($isCheckRoot) { $true } else { $false }
-        $isSuccess = ($isRooted -eq $desiredState)
+        $success = ($isRooted -eq $desiredState)
         $statusText = if ($isRooted) { "ROOTED" } else { "NOT ROOTED" }
-
-        if (-not $isSuccess) {
-            Write-Log ""
-            Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
-            if ($isCheckRoot) {
-                Write-Log "Ensure Magisk APK is installed and the patched boot image was successfully flashed." "Info"
-                Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Info"
-            } else {
-                Write-Log "Root access or su binaries are still detected on the device." "Info"
-                Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Info"
-            }
-            throw ""
-        }
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
-        if ($isSuccess) {
+        if ($success) {
             Write-Log ""
             Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
+        } else {
+            Write-Log ""
+            Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
+            if ($isCheckRoot) {
+                Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Info"
+                Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Interactive"
+            } else {
+                Write-Log "Root access or su binaries are still detected on the device." "Info"
+                Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Interactive"
+            }
         }
 
-        Wait-Continue
-        SystemUpdate-Management "1"
+        if ($isCheckRoot) {
+            Wait-Continue
+            SystemUpdate-Management "1"
+        }
     }
 }
 
@@ -357,7 +347,8 @@ function ImageFile-Picker($imageName) {
 }
 
 function Pull-BootImage {
-    $success = $false
+    $success = $true
+    $lastError = $null
     $bootPath = $null
 
     try {
@@ -410,24 +401,37 @@ function Pull-BootImage {
         }
         
         $bootPath = (Get-Item $dumpedBoot).FullName
-        $success = $true
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
+            $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
         if ($success) {
             Write-Log "Stock boot image pulled to ${cGreen}'${bootPath}'${cReset} successfully." "Success"
+            Write-Log ""
+            Write-Log "The next step is perform ${cCyan}Prepare Magisk${cReset}." "Info"
+            Write-Log "Device will boot to system normally." "Info"
+            
+            if (IsEdlMode) {
+                Wait-Continue
+                Edl-To-System
+            }
         } else {
-            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-        }
-        Wait-Continue
-    }
+            if ($lastError.Message -notlike "*Abort*") {
+                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+                Wait-Continue
+            }
 
-    return $success
+            Warning-EDL-ManualReboot
+        }
+    }
 }
 
 function Prepare-Magisk {
+    $success = $true
+
     try {
         Write-Header "Preparing Magisk"
 
@@ -463,16 +467,22 @@ function Prepare-Magisk {
 
         Write-Log "${cCyan}Magisk${cReset} installed successfully." "Success"
 
-        Perform-MagiskBoot $bootImgPath
+        $success = Perform-MagiskBoot $bootImgPath
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
+        }
+    } finally {
+        if ($success) {
+            Write-Log ""
+            Write-Log "The next step is perform ${cCyan}Root With Magisk${cReset}." "Info"
         }
     }
 }
 
 function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
-    $success = $false
+    $success = $true
 
     try {
         Write-Header "Fastboot Flash Image"
@@ -504,24 +514,23 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to flash ${cCyan}$partition${cReset} image."
         }
-
-        $success = $true
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
         if ($success) {
             Write-Log "Flash successful." "Success"
+            Wait-Continue
         }
-        Wait-Continue
     }
 
     return $success
 }
 
 function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
-    $success = $false
+    $success = $true
 
     try {
         Write-Header "EDL Flash Image"
@@ -558,17 +567,16 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
         if (-not (Execute-EdlCommand "write-part $partition $($imagePath.FullName)")) {
             throw "Failed to flash ${cCyan}$partition${cReset} image."
         }
-
-        $success = $true
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     } finally {
         if ($success) {
             Write-Log "Flash successful." "Success"
+            Wait-Continue
         }
-        Wait-Continue
     }
 
     return $success
@@ -577,7 +585,7 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
 function Perform-FlashImage([string]$partition = "", [string]$imageName = "") {
     Write-Header "Select Flash Method"
     
-    $isSuccess = $false
+    $success = $true
 
     try {
         # Define all partitions present in the GPT printout
@@ -598,34 +606,34 @@ function Perform-FlashImage([string]$partition = "", [string]$imageName = "") {
             throw "Partition '${cCyan}$partition${cReset}' does not exist on this device!"
         }
 
-        Write-Log "Target Partition '${cCyan}$partition${cReset}' verified." "Success"
+        Write-Log "Target Partition: '${cCyan}$partition${cReset}'"
         Write-Log "[${cCyan}1${cReset}] EDL ${cDarkGray}(Require bootloader unlocked)${cReset}"
-        Write-Log "[${cCyan}2${cReset}] Fastboot ${cDarkGray}(Require engineering ABL and bootloader unlocked)${cReset}"
+        Write-Log "[${cCyan}2${cReset}] Fastboot ${cDarkGray}(Require bootloader unlocked and engineering ABL)${cReset}"
         
         $selection = Read-HostLog "Select an option"
         switch ($selection) {
             "1" { 
                 Select-Firehose
                 Write-Log "Using EDL." "Info"
-                $isSuccess = FlashBoot-ViaEDL $partition $imageName
+                $success = FlashBoot-ViaEDL $partition $imageName
             }
             "2" { 
                 Write-Log "Using Fastboot." "Info"
-                $isSuccess = FlashBoot-ViaFastboot $partition $imageName
+                $success = FlashBoot-ViaFastboot $partition $imageName
             }
             Default {
                 throw "Invalid input: [${cYellow}$selection${cReset}]"
             }
         }
     } catch {
-        $isSuccess = $false
+        $success = $false
 
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     }
 
-    return $isSuccess
+    return $success
 }
 
 #########################################
@@ -635,7 +643,7 @@ function Perform-FlashImage([string]$partition = "", [string]$imageName = "") {
 function Show-RootMenu {
     $rootQuit = $false
     while (-not $rootQuit) {
-        Write-Header "Root/Flash Image"
+        Write-Header "Root / Flash Image"
         Write-Log "[${cCyan}1${cReset}] Prepare Boot Image"
         Write-Log "[${cCyan}2${cReset}] Prepare Magisk"
         Write-Log "[${cCyan}3${cReset}] Root With Magisk"
@@ -649,14 +657,7 @@ function Show-RootMenu {
         switch ($selection) {
             "1" {
                 Select-Firehose
-
-                if ([bool](Pull-BootImage)) {
-                    if (IsEdlMode) {
-                        Edl-To-System
-                    }
-                } else {
-                    Warning-EDL-ManualReboot
-                }
+                Pull-BootImage
             }
             "2" {
                 Prepare-Magisk

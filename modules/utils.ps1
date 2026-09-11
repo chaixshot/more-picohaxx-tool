@@ -372,7 +372,7 @@ function Invoke-PicoHaxxScript {
         }
 
         $unlockCommand = "fastboot oem pico$encoded_serial unlock"
-        Write-Log "Generated Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
+        Write-Log "Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
         Write-Log ""
     } catch {
         if ($_.Exception.Message) {
@@ -384,7 +384,7 @@ function Invoke-PicoHaxxScript {
 }
 
 function Execute-UnlockCommand {
-    $success = $false
+    $success = $true
 
     try {
         $unlockCmd = Invoke-PicoHaxxScript
@@ -400,9 +400,8 @@ function Execute-UnlockCommand {
             Write-Log "Failed to execute unlock command." "Error"
             throw "Please make sure ${cYellow}Flash engineering ABL${cReset} is successful and don't ${cYellow}Flash backup ABL${cReset} yet."
         }
-
-        $success = $true
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -418,7 +417,7 @@ function Execute-UnlockCommand {
 function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
     $outputLines = [System.Collections.Generic.List[string]]::new()
     $lastWasProgress = $false
-    $success = $false
+    $success = $true
 
     try {
         if ($SelectedFirehose -eq 0) {
@@ -460,9 +459,8 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
         if ($LASTEXITCODE -ne 0) {
             throw "edl-ng failed with ExitCode: $LASTEXITCODE"
         }
-
-        $success = $true
     } catch {
+        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -496,9 +494,7 @@ function Perform-Reboot {
         }
 
         Write-Log "[${cCyan}1${cReset}] Boot to SYSTEM"
-        if (-not (IsEdlMode)) {
-            Write-Log "[${cCyan}2${cReset}] Boot to FASTBOOT"
-        }
+        Write-Log "[${cCyan}2${cReset}] Boot to FASTBOOT"
         Write-Log "[${cCyan}3${cReset}] Boot to RECOVERY"
         Write-Log "[${cCyan}4${cReset}] Boot to EDL"
 
@@ -516,6 +512,7 @@ function Perform-Reboot {
             elseif ($selection -eq "4") { ADB-To-Edl; throw "" }
         } elseif (IsEdlMode) {
             if ($selection -eq "1") { Edl-To-System; throw "" }
+            elseif ($selection -eq "2") { Edl-To-Fastboot; throw "" }
             elseif ($selection -eq "3") { Edl-To-Recovery; throw "" }
             elseif ($selection -eq "4") { Edl-To-Edl; throw "" }
         }
@@ -979,12 +976,14 @@ function Warning-EDL {
 }
 
 function Warning-EDL-ManualReboot {
-    Write-Header "EDL Manual Reboot"
-    Write-Log "Your device will not automatically reboot." "Interactive"
-    Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
-    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
-    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
-    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Info"
+    if (IsEdlMode) {
+        Write-Header "EDL Manual Reboot"
+        Write-Log "Your device will not automatically reboot." "Interactive"
+        Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
+        Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
+        Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
+        Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Info"
+    }
 }
 
 # ---------------------------------------------
