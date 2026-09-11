@@ -293,13 +293,13 @@ function Flash-EngineeringABL {
             throw "Backing up ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
-        # Backup DEVINFO
+        # Backup Devinfo
         Write-Log ""
         Write-Log "Backing up original Devinfo to '${cCyan}${backupDevInfo}${cReset}'..." "Action"
         $null = Execute-EdlCommand "read-part devinfo $backupDevInfo"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
-            throw "Backing up DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
+            throw "Backing up Devinfo failed with code ${cCyan}${exitcode}${cReset}."
         }
 
         # Flash custom ABL
@@ -311,13 +311,13 @@ function Flash-EngineeringABL {
             throw "Flashing engineering ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
-        # Flash custom DEVINFO
+        # Flash custom Devinfo
         Write-Log ""
-        Write-Log "Flashing engineering DEVINFO..." "Action"
+        Write-Log "Flashing engineering Devinfo..." "Action"
         $null = Execute-EdlCommand "write-part devinfo $DevInfoPath"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
-            throw "Flashing engineering DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
+            throw "Flashing engineering Devinfo failed with code ${cCyan}${exitcode}${cReset}."
         }
     } catch {
         $success = $false
@@ -408,7 +408,7 @@ function Flash-BackupABL {
         if (-not (Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) {
             throw "Backup ABL file '${cYellow}$backupAbl${cReset}' does not exist or is empty."
         } elseif (-not (Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
-            throw "Backup DevInfo file '${cYellow}$backupDevInfo${cReset}' does not exist or is empty."
+            throw "Backup Devinfo file '${cYellow}$backupDevInfo${cReset}' does not exist or is empty."
         }
         
         # User confirm
@@ -439,13 +439,13 @@ function Flash-BackupABL {
             throw "Flashing backup ABL failed with code ${cCyan}${exitcode}${cReset}."
         }
 
-        # Flash backup DEVINFO
+        # Flash backup Devinfo
         Write-Log ""
         Write-Log "Backing up backup Devinfo from '${cCyan}${backupDevInfo}${cReset}'..." "Action"
         $null = Execute-EdlCommand "write-part devinfo `"$backupDevInfo`""
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
-            throw "Flashing backup DEVINFO failed with code ${cCyan}${exitcode}${cReset}."
+            throw "Flashing backup Devinfo failed with code ${cCyan}${exitcode}${cReset}."
         }
     } catch {
         $success = $false
