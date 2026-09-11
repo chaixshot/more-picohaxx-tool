@@ -33,7 +33,7 @@ function Perform-MagiskBoot([string]$bootImgPath) {
 
         # Ensure temporary directory exists
         if (-not (Test-Path $MagiskTMP)) {
-            New-Item -ItemType Directory -Path $MagiskTMP -Force | Out-Null
+            New-Item -Path $MagiskTMP -ItemType Directory -Force | Out-Null
         }
 
         if (Test-Path $outputImgPath) {

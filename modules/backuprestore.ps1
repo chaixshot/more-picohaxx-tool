@@ -34,7 +34,7 @@ function Extract-CompressedFile($filePath) {
     $destPath = Join-Path $parentDir $fileNameNoExt
 
     if (-not (Test-Path -Path $destPath)) {
-        New-Item -ItemType Directory -Path $destPath -Force | Out-Null
+        New-Item -Path $destPath -ItemType Directory -Force | Out-Null
     }
 
     Write-Log "Extracting '${cYellow}$(Split-Path -Leaf $filePath)${cReset}' to '${cCyan}$destPath${cReset}'..." "Action"

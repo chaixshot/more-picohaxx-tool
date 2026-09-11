@@ -432,7 +432,7 @@ function LookUpNames($obPInfo) {
 function ValidateCQF {
     # Create/Clean TMP folder
     if (-not (Test-Path $edlTMP)) {
-        New-Item -ItemType Directory -Path $edlTMP  | Out-Null
+        New-Item -Path $edlTMP -ItemType Directory -Force | Out-Null
     } else {
         Remove-Item -Path "$edlTMP\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -450,7 +450,7 @@ function CreateBackupFolder([string]$backupPath) {
     $script:gsBackupDir = $backupPath
 
     if (-not (Test-Path $gsBackupDir)) {
-        New-Item -ItemType Directory -Path $gsBackupDir | Out-Null
+        New-Item -Path $gsBackupDir -ItemType Directory -Force | Out-Null
     }
 }
 

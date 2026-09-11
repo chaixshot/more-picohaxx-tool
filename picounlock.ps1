@@ -219,6 +219,11 @@ function Generate-UnlockCode {
         $rawSerial = & $ADB shell "cat /sys/devices/soc0/serial_number" 2>$null
         $serialNumber = ($rawSerial -join '').Trim()
         if ($serialNumber -match "^\d+$") {
+            # Create backup directory if it doesn't exist
+            if (-not (Test-Path $BackupPath)) {
+                New-Item -Path $BackupPath -ItemType Directory -Force | Out-Null
+            }
+
             $serialNumber | Set-Content -Path $DeviceSerial -Encoding Ascii
             Write-Log "Device serial number saved to ${cCyan}'$DeviceSerial'${cReset}." "Info"
             Write-Log "Serial number: ${cGreen}$serialNumber${cReset}" "Success"
@@ -258,7 +263,7 @@ function Flash-EngineeringABL {
 
         # Create backup directory if it doesn't exist
         if (-not (Test-Path $AblBackupPath)) {
-            New-Item -Path $AblBackupPath -ItemType Directory | Out-Null
+            New-Item -Path $AblBackupPath -ItemType Directory -Force | Out-Null
         }
 
         # Reboot EDL
@@ -276,7 +281,7 @@ function Flash-EngineeringABL {
         
         # Create a timestamped backup folder
         $currentBackupPath = Join-Path $AblBackupPath $TimeStamp
-        New-Item -Path $currentBackupPath -ItemType Directory | Out-Null
+        New-Item -Path $currentBackupPath -ItemType Directory -Force | Out-Null
         $backupAbl = Join-Path $currentBackupPath "abl.bin"
         $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
         
@@ -925,7 +930,7 @@ function SystemUpdate-Management([string]$selection = "") {
 # --------------------------------
 
 if (-not (Test-Path $LogsPath)) {
-    New-Item -ItemType Directory -Path $LogsPath  | Out-Null
+    New-Item -Path $LogsPath -ItemType Directory -Force | Out-Null
 }
 $LogFile = "$LogsPath\${TimeStamp}_console.log"
 Start-Transcript -Path $LogFile -Append
