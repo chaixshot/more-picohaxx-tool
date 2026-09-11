@@ -170,7 +170,7 @@ function Check-Prerequisites {
         Write-Log "This is required for flashing the ${cYellow}bootloader${cReset}." "Info"
         $actionVerb = if ($needsUpdate) { "update" } else { "install" }
 
-        $choice = Read-HostLog "Press [${cYellow}Y${cReset}] to $actionVerb the drivers now, or [${cYellow}N${cReset}] to skip (Requires Administrator privileges)"
+        $choice = Read-HostLog "Would you like to $actionVerb drivers? [${cYellow}Y${cReset}/n]"
         if ($choice -eq 'y') {
             if (-not (Test-Path $DriverInstall)) {
                 Write-Log "Driver installation script not found at '${cYellow}$DriverInstall${cReset}'." "Error"
@@ -187,7 +187,7 @@ function Check-Prerequisites {
                 if ($null -eq $checkQcser -or $checkQcser.Version -ne $qcser_version -or $checkQcser.Provider -ne $qcser_provider -or $checkQcser.Date -ne $qcser_date -or
                     $null -eq $checkWinusb -or $checkWinusb.Version -ne $android_winusb_version -or $checkWinusb.Provider -ne $android_provider -or $checkWinusb.Date -ne $android_date) {
                     Write-Log "Driver mismatch still detected after installation." "Error"
-                    Write-Log "Please run '${cYellow}$DriverInstall${cReset}' manually as ${cCyan}Administrator${cReset} and then re-run this script." "Error"
+                    Write-Log "Please run '${cYellow}$DriverInstall${cReset}' manually and then re-run this script." "Error"
                     $isReady = $false
                 } else {
                     Write-Log "Drivers successfully installed/updated." "Success"
@@ -213,7 +213,7 @@ function Check-Prerequisites {
 }
 
 function Generate-UnlockCode {
-    Write-Header "Generate Unlock Code"
+    Write-Header "Generate-Get Unlock Code"
 
     if (IsAdbMode) {
         $rawSerial = & $ADB shell "cat /sys/devices/soc0/serial_number" 2>$null
@@ -243,9 +243,9 @@ function Generate-UnlockCode {
 # ----------------------------
 
 function Flash-EngineeringABL {
-    Write-Header "Flashing engineering ABL"
+    Write-Header "Flash Engineering ABL"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
-    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $success = $false
 
@@ -279,9 +279,9 @@ function Flash-EngineeringABL {
         $backupAbl = Join-Path $currentBackupPath "abl.bin"
         $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
         
-        Write-Log "Backing up original partitions and flashing engineering files in a single operation..." "Action"
-        
         # Backup ABL
+        Write-Log ""
+        Write-Log "Backing up original ABL to '${cCyan}${backupAbl}${cReset}'..." "Action"
         $null = Execute-EdlCommand "read-part abl $backupAbl"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0 -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
@@ -289,6 +289,8 @@ function Flash-EngineeringABL {
         }
 
         # Backup DEVINFO
+        Write-Log ""
+        Write-Log "Backing up original Devinfo to '${cCyan}${backupDevInfo}${cReset}'..." "Action"
         $null = Execute-EdlCommand "read-part devinfo $backupDevInfo"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0 -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
@@ -296,6 +298,8 @@ function Flash-EngineeringABL {
         }
 
         # Flash custom ABL
+        Write-Log ""
+        Write-Log "Flashing engineering ABL..." "Action"
         $null = Execute-EdlCommand "write-part abl $AblPath"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
@@ -303,6 +307,8 @@ function Flash-EngineeringABL {
         }
 
         # Flash custom DEVINFO
+        Write-Log ""
+        Write-Log "Flashing engineering DEVINFO..." "Action"
         $null = Execute-EdlCommand "write-part devinfo $DevInfoPath"
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
@@ -318,10 +324,10 @@ function Flash-EngineeringABL {
     } finally {
         if ($success) {
             Write-Log "Original ABL backed up to ${cGreen}'$currentBackupPath'${cReset}." "Success"
-            Write-Log "Engineering ABL and Devinfo flashed successfully." "Success"
+            Write-Log "Engineering ${cCyan}ABL${cReset} and ${cCyan}Devinfo${cReset} flashed successfully." "Success"
             Write-Log ""
             Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
-            Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
+            Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
         }
         Wait-Continue
     }
@@ -332,17 +338,12 @@ function Flash-EngineeringABL {
 function Flash-BackupABL {
     $success = $false
     $header = {
-        Write-Header "Select Pico Firmware"
-        Write-Log "Change device OS to any version." "Info"
-        Write-Log "Use provided ${cCyan}firmware.zip${cReset} file downloaded from this menu in the next step." "Info"
-        Write-Log "Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops." "Warning"
-        Write-Log "Always perform a ${cCyan}User Personal Data${cReset} backup before proceeding." "Warning"
-        Write-Header "Restoring Backup ABL"
+        Write-Header "Flash Backup ABL"
         Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
         Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode." "Info"
         Write-Log "Perform ${cYellow}Root${cReset} before doing this step." "Warning"
         Write-Log "Fastboot will no longer work for device modification." "Warning"
-        Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+        Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
     }
 
     function Get-LatestAblBackup {
@@ -438,6 +439,8 @@ function Flash-BackupABL {
         }
 
         # Flash backup ABL
+        Write-Log ""
+        Write-Log "Backing up backup ABL from '${cCyan}${backupAbl}${cReset}'..." "Action"
         $null = Execute-EdlCommand "write-part abl `"$backupAbl`""
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
@@ -445,6 +448,8 @@ function Flash-BackupABL {
         }
 
         # Flash backup DEVINFO
+        Write-Log ""
+        Write-Log "Backing up backup Devinfo from '${cCyan}${backupDevInfo}${cReset}'..." "Action"
         $null = Execute-EdlCommand "write-part devinfo `"$backupDevInfo`""
         $exitcode = $LASTEXITCODE
         if ($exitcode -ne 0) { 
@@ -533,7 +538,7 @@ function Perform-FastbootUnlock {
         if ($success) {
             Write-Log ""
             Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
-            Write-Log "Unplug the device and plug it back in before continuing." "Warning"
+            Write-Log "Unplug the device and plug it back in." "Warning"
 
             if ($IsRetryBootloader -ne 2) {
                 $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
@@ -610,7 +615,7 @@ function Perform-FastbootLock {
         if ($success) {
             Write-Log ""
             Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Success"
-            Write-Log "Unplug the device and plug it back in before continuing." "Warning"
+            Write-Log "Unplug the device and plug it back in." "Warning"
 
             if ($IsRetryBootloader -ne 2) {
                 $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
@@ -772,7 +777,7 @@ function Perform-FactoryReset {
     Write-Header "Factory Reset"
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to wipe user data partition." "Warning"
     Write-Log "Factory reset may be required to prevent non-bootable states or bootloops from data mismatch." "Warning"
-    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
     $success = $false
 

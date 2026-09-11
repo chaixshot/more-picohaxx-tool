@@ -72,7 +72,7 @@ function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$
             Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
         }
 
-        $selection = Read-HostLog "Choice [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
+        $selection = Read-HostLog "Select [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
         if ([string]::IsNullOrWhiteSpace($selection)) { 
             return $null 
         }
@@ -292,7 +292,7 @@ function Perform-RollbackOS([string]$firmwarePath) {
             $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z"
         }
 
-        if (-not(Test-Path -Path $firmwarePath) -or -not([System.IO.Path]::GetExtension($firmwarePath) -in @('.zip', '.rar', '.7z'))) {
+        if (-not (Test-Path -Path $firmwarePath) -or -not ([System.IO.Path]::GetExtension($firmwarePath) -in @('.zip', '.rar', '.7z'))) {
             throw "No firmware file provided."
         }
 
@@ -708,7 +708,7 @@ function Wait-UserConfirm([string]$backupMode) {
     Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to access the partition." "Warning"
     Write-Log "This process takes about ${cGreen}${waitMinutes} minutes${cReset}, depends on PC power and USB speed." "Warning"
     Write-Log "High speed ${cGreen}USB 3.2${cReset} is recommended." "Warning"
-    Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+    Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
     Write-Log ""
     Write-Log "Do not disconnect the device and interrupt the process." "Warning"
     Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"

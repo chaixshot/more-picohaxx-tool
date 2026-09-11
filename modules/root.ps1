@@ -359,7 +359,7 @@ function Pull-BootImage {
     try {
         Write-Header "Pull Boot Image"
         Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to pull the boot image." "Warning"
-        Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+        Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
         $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
         if ($confirmation -ne 'yes') {
@@ -387,7 +387,7 @@ function Pull-BootImage {
                 throw ""
             }
 
-            Write-Log "Pulling stock 'boot' image via EDL..." "Action"
+            Write-Log "Pulling stock '${cCyan}boot${cReset}' image..." "Action"
 
             # Pull boot image
             $null = Execute-EdlCommand "read-part boot $dumpedBoot"
@@ -522,7 +522,7 @@ function FlashBoot-ViaEDL([string]$imageName) {
         Write-Header "EDL Flash Image"
         Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash boot image." "Warning"
         Write-Log "${cRed}Bootloop${cReset} might occur if the bootloader is still in a ${cRed}locked${cReset} state." "Warning"
-        Write-Log "Device charging is disabled in EDL mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+        Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
         $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
         if ($confirmation -ne 'yes') {

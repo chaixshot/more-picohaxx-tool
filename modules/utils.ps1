@@ -100,7 +100,7 @@ function Write-Header([string]$title) {
     $Border = "#" * $BorderLength
 
     Write-Log "${cDarkGray}$Border${cReset} "
-    Write-Log "${cCyan}# $title #${cReset} "
+    Write-Log "${cDarkGray}#${cReset}${cCyan} $title ${cReset}${cDarkGray}#${cReset} "
     Write-Log "${cDarkGray}$Border${cReset} "
     Write-Log ""
 }
@@ -872,40 +872,41 @@ function Warning-ADB {
     Write-Log "4. Goto '${cCyan}Developer${cReset}' tab and enable the USB Debug option" "Info"
 }
 
+function Warning-RECOVERY {
+    Write-Log ""
+    Write-Log "Device not detected in ${cCyan}RECOVERY${cReset} mode." "Error"
+    Write-Log "Please ensure device connected and in ${cCyan}RECOVERY${cReset} mode." "Error"
+    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
+}
+
 function Warning-FASTBOOT {
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
-    Write-Log "Please ensure device connected and in FASTBOOT mode." "Error"
-    Write-Log "Manually boot to FASTBOOT by keep hold ${cYellow}Vol Down + Power${cReset}."
+    Write-Log "Please ensure device connected and in ${cCyan}FASTBOOT${cReset} mode." "Error"
+    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
 }
 
 function Warning-EDL {
     Write-Log ""
-    Write-Log "Device not detected in EDL mode." "Error"
-    Write-Log "Manually boot to EDL by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"
+    Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Error"
+    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Info"
 }
 
 function Warning-EDL-ManualReboot {
     Write-Header "EDL Manual Reboot"
     Write-Log "Your device will not automatically reboot." "Info"
-    Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep hold ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
-    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep hold ${cYellow}Vol Up + Vol Down + Power${cReset}." "Info"
+    Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
+    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
+    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
+    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Info"
 }
 
-#########################################
-#########################################
-#########################################
+# ---------------------------------------------
 
 function ADB-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     & $ADB reboot
-}
-
-function ADB-To-Fastboot {
-    Write-Log ""
-    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    & $ADB reboot bootloader
 }
 
 function ADB-To-Recovery {
@@ -914,11 +915,19 @@ function ADB-To-Recovery {
     & $ADB reboot recovery
 }
 
+function ADB-To-Fastboot {
+    Write-Log ""
+    Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
+    & $ADB reboot bootloader
+}
+
 function ADB-To-Edl {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
     & $ADB reboot edl
 }
+
+# ---------------------------------------------
 
 function Fastboot-To-System {
     Write-Log ""
@@ -926,16 +935,16 @@ function Fastboot-To-System {
     & $FASTBOOT reboot
 }
 
-function Fastboot-To-Fastboot {
-    Write-Log ""
-    Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    & $FASTBOOT reboot bootloader
-}
-
 function Fastboot-To-Recovery {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
     & $FASTBOOT reboot recovery
+}
+
+function Fastboot-To-Fastboot {
+    Write-Log ""
+    Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
+    & $FASTBOOT reboot bootloader
 }
 
 function Fastboot-To-Edl {
@@ -949,13 +958,14 @@ function Fastboot-To-Edl {
     }
 }
 
+# ---------------------------------------------
+
 function Edl-To-System {
     Select-Firehose
 
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     
-    # Run silently using Out-Null
     if (Execute-EdlCommand "reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
@@ -964,17 +974,22 @@ function Edl-To-System {
 }
 
 function Edl-To-Recovery {
+    Select-Firehose
+
     Write-Log ""
-    Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
+    Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
     Write-Log "Keep holding ${cYellow}Vol Up${cReset} before continue" "Info"
     Wait-Continue
     
-    # Run silently using Out-Null
     if (Execute-EdlCommand "reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
     }
+}
+
+function Edl-To-Fastboot {
+    # Not working
 }
 
 function Edl-To-Edl {
@@ -985,10 +1000,13 @@ function Edl-To-Edl {
     Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Info"
     Wait-Continue
     
-    # Run silently using Out-Null
     if (Execute-EdlCommand "reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
     }
 }
+
+#########################################
+#########################################
+#########################################
