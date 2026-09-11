@@ -1064,16 +1064,17 @@ function Restore-Backup($backupInfo) {
 
         # Start the automated helper
         $success = FlashFirmware $flashPath
-
-        if (-not $success) {
-            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-        }
-
-        Wait-Continue
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
+    } finally {
+        if ($success) {
+            Write-Log "Detected restore successfully" "Success"
+        } else {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+        Wait-Continue
     }
 
     return $success
