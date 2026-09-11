@@ -219,7 +219,7 @@ function IsDeviceRooted {
 
     # Secondary Primary Check: check root uid via su -c id
     Write-Log ""
-    Write-Log "Checking Superuser access using '${cCyan}adb shell su -c id${cReset}'..." "Action"
+    Write-Log "Checking Superuser access using '${cCyan}adb shell -c id${cReset}'..." "Action"
     $suOutputRaw = & $ADB shell "su -c id" 2>&1
     $suOutput = ($suOutputRaw -join "`n").Trim()
     Write-Log $suOutput "Info"
