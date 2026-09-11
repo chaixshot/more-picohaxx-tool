@@ -321,7 +321,7 @@ function Verify-RootState([string]$state = "root") {
 #########################################
 #########################################
 
-function BootImage-Picker($imageName) {
+function ImageFile-Picker($imageName) {
     $bootImgPath = $null
 
     try {
@@ -427,7 +427,7 @@ function Prepare-Magisk {
         Write-Header "Preparing Magisk"
 
         # Find image
-        $bootImgPath = BootImage-Picker "boot"
+        $bootImgPath = ImageFile-Picker "boot"
 
         if (-not $bootImgPath) {
             throw ""
@@ -466,16 +466,16 @@ function Prepare-Magisk {
     }
 }
 
-function FlashBoot-ViaFastboot([string]$imageName) {
+function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
     $success = $false
 
     try {
         Write-Header "Fastboot Flash Image"
 
         # Find image
-        $bootImgPath = BootImage-Picker $imageName
+        $imagePath = ImageFile-Picker $imageName
 
-        if (-not $bootImgPath) {
+        if (-not $imagePath) {
             throw ""
         }
 
@@ -493,11 +493,11 @@ function FlashBoot-ViaFastboot([string]$imageName) {
             throw ""
         }
 
-        Write-Log "Flashing boot image with '${cCyan}$( $bootImgPath.FullName )${cReset}'..." "Action"
-        & $FASTBOOT flash boot $bootImgPath.FullName
+        Write-Log "Flashing ${cCyan}$partition${cReset} image with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
+        & $FASTBOOT flash $partition $imagePath.FullName
 
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to flash boot image."
+            throw "Failed to flash ${cCyan}$partition${cReset} image."
         }
 
         $success = $true
@@ -515,12 +515,12 @@ function FlashBoot-ViaFastboot([string]$imageName) {
     return $success
 }
 
-function FlashBoot-ViaEDL([string]$imageName) {
+function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
     $success = $false
 
     try {
         Write-Header "EDL Flash Image"
-        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash boot image." "Warning"
+        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash ${cCyan}$partition${cReset} partition." "Warning"
         Write-Log "${cRed}Bootloop${cReset} might occur if the bootloader is still in a ${cRed}locked${cReset} state." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
@@ -530,9 +530,9 @@ function FlashBoot-ViaEDL([string]$imageName) {
         }
 
         # Find image
-        $bootImgPath = BootImage-Picker $imageName
+        $imagePath = ImageFile-Picker $imageName
 
-        if (-not $bootImgPath) {
+        if (-not $imagePath) {
             throw ""
         }
 
@@ -549,8 +549,9 @@ function FlashBoot-ViaEDL([string]$imageName) {
             throw ""
         }
 
-        if (-not (Execute-EdlCommand "write-part boot $($bootImgPath.FullName)")) {
-            throw "Failed to flash boot image."
+        Write-Log "Flashing ${cCyan}$partition${cReset} image with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
+        if (-not (Execute-EdlCommand "write-part $partition $($imagePath.FullName)")) {
+            throw "Failed to flash ${cCyan}$partition${cReset} image."
         }
 
         $success = $true
@@ -568,30 +569,67 @@ function FlashBoot-ViaEDL([string]$imageName) {
     return $success
 }
 
-function Perform-FlashBoot([string]$imageName) {
-    $selection = ""
-
+function Perform-FlashImage([string]$partition = "", [string]$imageName = "") {
     Write-Header "Select Flash Method"
-    Write-Log "[${cCyan}1${cReset}] ${cGreen}Fastboot${cReset} ${cDarkGray}(Require bootloader unlocked)${cReset}"
-    Write-Log "[${cCyan}2${cReset}] EDL ${cDarkGray}(Require bootloader unlocked, skip engineering ABL)${cReset}"
+    
+    $isSuccess = $false
 
-    $selection = Read-HostLog "Select method to flash boot image"
-    switch ($selection) {
-        "1" { 
-            Write-Log "Using Fastboot." "Info"
-            return FlashBoot-ViaFastboot $imageName
+    try {
+        # Define all partitions present in the GPT printout
+        $validPartitions = @(
+            # LUN 0
+            "ssd", "persist", "cache", "misc", "keystore", "frp", "super", "recovery", "vbmeta_system", "vbmeta_systembak", "metadata", "vm-system", "vm-systembak", "rawdump", "picocfg", "userdata",
+            
+            # LUN 1 & 2
+            "xbl", "xbl_config", "xblbak", "xbl_configbak",
+            
+            # LUN 3
+            "ALIGN_TO_128K_1", "cdt", "ddr", "mdmddr",
+            
+            # LUN 4
+            "aop", "tz", "hyp", "modem", "bluetooth", "mdtpsecapp", "mdtp", "abl", "dsp", "keymaster", "boot", "cmnlib", "cmnlib64", "devcfg", "qupfw", "vbmeta", "dtbo", "uefisecapp", "multiimgoem", "multiimgqti", "vm-linux", "featenabler", "imagefv", "aopbak", "tzbak", "hypbak", "modembak", "bluetoothbak", "mdtpsecappbak", "mdtpbak", "ablbak", "dspbak", "keymasterbak", "bootbak", "cmnlibbak", "cmnlib64bak", "devcfgbak", "qupfwbak", "vbmetabak", "dtbobak", "uefisecappbak", "multiimgoembak", "multiimgqtibak", "vm-linuxbak", "featenablerbak", "imagefvbak", "devinfo", "dip", "apdp", "msadp", "spunvm", "limits", "limits-cdsp", "logfs", "logdump", "storsec", "uefivarstore", "secdata", "vm-keystore", "vm-data",
+            
+            # LUN 5
+            "ALIGN_TO_128K_2", "modemst1", "modemst2", "fsg", "fsc", "mdm1m9kefs3", "mdm1m9kefs1", "mdm1m9kefs2", "mdm1m9kefsc"
+        )
+
+        if ([string]::IsNullOrWhiteSpace($partition)) {
+            $partition = Read-HostLog "What partition do you want to flash?"
         }
-        "2" { 
-            Select-Firehose
-            Write-Log "Using EDL." "Info"
-            return FlashBoot-ViaEDL $imageName
+
+        # Validate Partition Existence
+        if ($validPartitions -notcontains $partition) {
+            throw "Partition '${cCyan}$partition${cReset}' does not exist on this device!"
         }
-        Default {
-            Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-            return $false
+
+        Write-Log "Target Partition '${cCyan}$partition${cReset}' verified." "Success"
+        Write-Log "[${cCyan}1${cReset}] EDL ${cDarkGray}(Require bootloader unlocked)${cReset}"
+        Write-Log "[${cCyan}2${cReset}] Fastboot ${cDarkGray}(Require engineering ABL and bootloader unlocked)${cReset}"
+        
+        $selection = Read-HostLog "Select an option"
+        switch ($selection) {
+            "1" { 
+                Select-Firehose
+                Write-Log "Using EDL." "Info"
+                $isSuccess = FlashBoot-ViaEDL $partition $imageName
+            }
+            "2" { 
+                Write-Log "Using Fastboot." "Info"
+                $isSuccess = FlashBoot-ViaFastboot $partition $imageName
+            }
+            Default {
+                throw "Invalid input: [${cYellow}$selection${cReset}]"
+            }
+        }
+    } catch {
+        $isSuccess = $false
+
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
         }
     }
 
+    return $isSuccess
 }
 
 #########################################
@@ -628,15 +666,15 @@ function Show-RootMenu {
                 Prepare-Magisk
             }
             "3" {
-                if (Perform-FlashBoot "magisk_patched") {
+                if (Perform-FlashImage "boot" "magisk_patched") {
                     Verify-RootState "root"
                 }
             }
             "f" {
-                if (Perform-FlashBoot "") {}
+                $null = Perform-FlashImage
             }
             "u" {
-                if (Perform-FlashBoot "boot") {
+                if (Perform-FlashImage "boot" "boot") {
                     Verify-RootState "unroot"
                 }
             }
