@@ -957,6 +957,7 @@ function Select-BackupMode {
 function Backup-Device($selection) {
     $success = $false
     $backupPath = $null
+    $backupFolder = $null
 
     try {
         Write-Header "Backup Device"
@@ -1001,36 +1002,32 @@ function Backup-Device($selection) {
 
         # Verify folder existence
         if (-not (Test-Path -Path $backupPath)) {
-            Write-Log "Could not find the backup folder in '${cCyan}$backupPath${cReset}'." "Warning"
-            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            Wait-Continue
-            throw ""
+            throw "Could not find the backup folder in '${cCyan}$backupPath${cReset}'."
         }
 
         $backupFolder = Get-Item -Path $backupPath
-
         if (Verify-Backup $backupMode $backupFolder.FullName) {
-            Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
-            Wait-Continue
-
-            Folder-Compression $backupFolder.FullName
-            Wait-Continue
-
             $success = $true
-            throw ""
         } else {
-            Write-Log "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed." "Error"
-            if (Test-Path -Path $backupFolder.FullName) {
-                Write-Log "Deleting invalid backup folder..." "Action"
-                Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            Wait-Continue
-            throw ""
+            throw "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed."
         }
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
+    } finally {
+        if ($success) {
+            Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
+            Wait-Continue
+            Folder-Compression $backupFolder.FullName
+        } else {
+            if (Test-Path -Path $backupFolder.FullName) {
+                Write-Log "Deleting invalid backup folder..." "Action"
+                Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+        Wait-Continue
     }
 
     return $success
