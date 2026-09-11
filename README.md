@@ -79,8 +79,8 @@ The tool includes an automated workflow to root headset directly from Windows:
 1. **Pull Boot Image**: Pull firmware `boot.img` directly from headset via EDL mode.
 1. **Install Magisk**: Installs `Magisk4Pico.apk` directly to headset.
 1. **Native Windows Patching**: Automatically patches `boot.img` on Windows using the integrated **MagiskBoot** tool without needing manual patching on the headset.
-1. **Flash Patched Image**: Flashes `magisk_patched.img` via `fastboot`.
-1. **Verify Root**: Automatically checks and confirms superuser access via `adb`.
+1. **Flash Patched Image**: Flashes `magisk_patched.img` via EDL mode.
+1. **Verify Root**: Checks and confirms superuser access via `adb` command.
 
 ### Root Tweak
 
@@ -117,11 +117,10 @@ If `fastboot oem device-info` shows the headset as locked after the first attemp
 
 ### Slow Boot or EDL Boot
 
-Using the **Engineering ABL** can cause issues like slower boot or unexpectedly entering EDL mode. To fix this:
+Using the **Engineering ABL** can cause issues like slower boot or unexpectedly entering EDL mode.<br>To fix this:
 
-1. **Unlock and Root** the headset successfully first.
 1. Use the **"Flash backup ABL"** option in the script menu. This restores firmware `abl` partition.
-1. Because the unlock state is stored in the **RPMB**, headset will remain unlocked even with the firmware ABL.
+2. Because the unlock state is stored in the **RPMB**, headset will remain unlocked even with the firmware ABL.
 
 > [!NOTE]
 > This will return SELinux to Enforcing. Use a Magisk module [selinux_permissive](https://github.com/evdenis/selinux_permissive) to maintain permissive mode if the setup requires it.
@@ -157,10 +156,7 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 
 ### Undo
 
-This tool includes Unroot and lock Bootloader
-
-> [!NOTE]
-> Unrooting does not lock the Bootloader. To lock the Bootloader, use the **Lock Bootloader** option in the menu.
+This tool includes **Unroot** and **Lock Bootloader** options.
 
 > [!CAUTION]
 > Locking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
@@ -168,15 +164,16 @@ This tool includes Unroot and lock Bootloader
 
 ## Key Components
 
-* `picounlock.bat`: A convenient wrapper to run the script with Administrator privileges.
-* `picounlock.ps1`: The main automation script (PowerShell).
-* `modules/`: Contains modularized logic for `picounlock.ps1`.
 * `more-picohaxx.py`: The core logic for deriving the unlock code from the headset serial number.
+* `picounlock.bat`: A convenient wrapper to run the script with Administrator privileges.
+* `picounlock.ps1`: The main automation `PowerShell` script.
+* `modules/`: Contains modularized logic for `picounlock.ps1`.
 * `tools/`: Android platform tools, and `edl-ng`.
 * `tools/driver`: Qualcomm usb driver.
 * `tools/engineering`: Engineering ABL & Devinfo.
 * `tools/firehoses`: EDL firehose flashing protocol .
 * `tools/magisk`: Rooting the headset after unlocking.
+* `tools/rollback`: Tools to make flashable partitions from **firmware.zip**.
 * `logs`: Everything that is written on the console.
 * `backup`: Default headset backup which is `abl`, `partitions`, and `boot.img`.
 
