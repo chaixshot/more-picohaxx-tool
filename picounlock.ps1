@@ -1013,7 +1013,7 @@ try {
     Write-Log $errMsg "Error"
 } finally {
     Write-Header "Exited"
-    Write-Log "Version: 1.3.0" "Info"
+    Write-Log "Version: 1.3.1" "Info"
     Write-Log ""
 
     try {
