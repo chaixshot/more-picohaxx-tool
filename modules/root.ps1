@@ -314,6 +314,9 @@ function Verify-RootState([string]$state = "root") {
             Write-Log ""
             Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
         }
+
+        Wait-Continue
+        SystemUpdate-Management "1"
     }
 }
 
