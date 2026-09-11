@@ -636,6 +636,80 @@ function Play-BeepBeep {
     }
 }
 
+function Select-InteractiveMenu([string]$header = "", [string[]]$options, [int]$defaultIndex = 0, [int]$maxVisible = 10) {
+    if ($options.Count -eq 0) { return -1 }
+
+    $selectedIndex = $defaultIndex
+    $pageSize = [Math]::Min($maxVisible, $options.Count)
+    
+    try { [Console]::CursorVisible = $false } catch {}
+
+    # Initial Render Helper Function
+    function Render-Menu {
+
+        param([int]$selected, [int]$pSize)
+
+        # Determine visible window start index
+        $startIndex = [Math]::Max(0, [Math]::Min($selected - [Math]::Floor($pSize / 2), $options.Count - $pSize))
+        $endIndex = $startIndex + $pSize - 1
+
+        for ($i = $startIndex; $i -le $endIndex; $i++) {
+            $num = $i + 1
+            $prefix = if ($i -eq $selected) { " > " } else { "   " }
+            $line = "${prefix}[${num}] $($options[$i])"
+
+            if ($i -eq $selected) {
+                Write-Host $line.PadRight([Console]::WindowWidth - 1) -ForegroundColor Cyan
+            } else {
+                Write-Host $line.PadRight([Console]::WindowWidth - 1)
+            }
+        }
+        
+        # Display page navigation indicator
+        $pageInfo = "--- Page $([Math]::Ceiling(($selected + 1) / $pSize)) of $([Math]::Ceiling($options.Count / $pSize)) [${cYellow}Up/Down${cReset}] or [${cYellow}Left/Right${cReset}] to Navigate) ---"
+        Write-Host $pageInfo.PadRight([Console]::WindowWidth - 1) -ForegroundColor DarkGray
+    }
+
+    # First Pass Render
+    Write-Log $header "Info"
+    Render-Menu -selected $selectedIndex -pSize $pageSize
+
+    while ($true) {
+        $key = [Console]::ReadKey($true)
+        
+        if ($key.Key -eq "UpArrow") {
+            $selectedIndex = ($selectedIndex - 1 + $options.Count) % $options.Count
+        } elseif ($key.Key -eq "DownArrow") {
+            $selectedIndex = ($selectedIndex + 1) % $options.Count
+        } elseif ($key.Key -eq "LeftArrow") {
+            $selectedIndex = [Math]::Max(0, $selectedIndex - $pageSize)
+        } elseif ($key.Key -eq "RightArrow") {
+            $selectedIndex = [Math]::Min($options.Count - 1, $selectedIndex + $pageSize)
+        } elseif ($key.Key -eq "Enter") {
+            break
+        } elseif ($key.Key -eq "Escape") {
+            $selectedIndex = -1
+            break
+        }
+
+        # Safe In-Place Redraw Calculation
+        $linesToMoveUp = $pageSize + 1
+        $targetTop = [Console]::CursorTop - $linesToMoveUp
+
+        if ($targetTop -ge 0) {
+            [Console]::SetCursorPosition(0, $targetTop)
+        } else {
+            [Console]::SetCursorPosition(0, 0)
+        }
+
+        Render-Menu -selected $selectedIndex -pSize $pageSize
+    }
+
+    try { [Console]::CursorVisible = $true } catch {}
+
+    return $selectedIndex
+}
+
 function Get-FileOrFolderDialog([string]$title = "", [int]$mode = 0, [string]$extension = "") {
     Add-Type -AssemblyName System.Windows.Forms
     Add-Type -AssemblyName System.Drawing

@@ -576,25 +576,16 @@ function Perform-FlashImage([string]$partition = "", [string]$imageName = "") {
 
     try {
         # Define all partitions present in the GPT printout
-        $validPartitions = @(
-            # LUN 0
-            "ssd", "persist", "cache", "misc", "keystore", "frp", "super", "recovery", "vbmeta_system", "vbmeta_systembak", "metadata", "vm-system", "vm-systembak", "rawdump", "picocfg", "userdata",
-            
-            # LUN 1 & 2
-            "xbl", "xbl_config", "xblbak", "xbl_configbak",
-            
-            # LUN 3
-            "ALIGN_TO_128K_1", "cdt", "ddr", "mdmddr",
-            
-            # LUN 4
-            "aop", "tz", "hyp", "modem", "bluetooth", "mdtpsecapp", "mdtp", "abl", "dsp", "keymaster", "boot", "cmnlib", "cmnlib64", "devcfg", "qupfw", "vbmeta", "dtbo", "uefisecapp", "multiimgoem", "multiimgqti", "vm-linux", "featenabler", "imagefv", "aopbak", "tzbak", "hypbak", "modembak", "bluetoothbak", "mdtpsecappbak", "mdtpbak", "ablbak", "dspbak", "keymasterbak", "bootbak", "cmnlibbak", "cmnlib64bak", "devcfgbak", "qupfwbak", "vbmetabak", "dtbobak", "uefisecappbak", "multiimgoembak", "multiimgqtibak", "vm-linuxbak", "featenablerbak", "imagefvbak", "devinfo", "dip", "apdp", "msadp", "spunvm", "limits", "limits-cdsp", "logfs", "logdump", "storsec", "uefivarstore", "secdata", "vm-keystore", "vm-data",
-            
-            # LUN 5
-            "ALIGN_TO_128K_2", "modemst1", "modemst2", "fsg", "fsc", "mdm1m9kefs3", "mdm1m9kefs1", "mdm1m9kefs2", "mdm1m9kefsc"
-        )
+        $validPartitions = @("abl", "ablbak", "aop", "aopbak", "apdp", "bluetooth", "bluetoothbak", "boot", "bootbak", "cache", "cdt", "cmnlib", "cmnlib64", "cmnlib64bak", "cmnlibbak", "ddr", "devcfg", "devcfgbak", "devinfo", "dip", "dsp", "dspbak", "dtbo", "dtbobak", "featenabler", "featenablerbak", "frp", "fsc", "fsg", "hyp", "hypbak", "imagefv", "imagefvbak", "keymaster", "keymasterbak", "keystore", "limits", "limits-cdsp", "logdump", "logfs", "mdm1m9kefs1", "mdm1m9kefs2", "mdm1m9kefs3", "mdm1m9kefsc", "mdmddr", "mdtp", "mdtpbak", "mdtpsecapp", "mdtpsecappbak", "metadata", "misc", "modem", "modembak", "modemst1", "modemst2", "msadp", "multiimgoem", "multiimgoembak", "multiimgqti", "multiimgqtibak", "persist", "picocfg", "qupfw", "qupfwbak", "rawdump", "recovery", "secdata", "spunvm", "ssd", "storsec", "super", "tz", "tzbak", "uefisecapp", "uefisecappbak", "uefivarstore", "userdata", "vbmeta", "vbmeta_system", "vbmeta_systembak", "vbmetabak", "vm-data", "vm-keystore", "vm-linux", "vm-linuxbak", "vm-system", "vm-systembak", "xbl", "xbl_config", "xbl_configbak", "xblbak")
 
+        # Select partition
         if ([string]::IsNullOrWhiteSpace($partition)) {
-            $partition = Read-HostLog "What partition do you want to flash?"
+            $selectedIndex = Select-InteractiveMenu -header "Select partition to flash." -options $validPartitions
+            if ($selectedIndex -ge 0) {
+                $partition = $validPartitions[$selectedIndex]
+            }
+
+            Write-Header "Select Flash Method"
         }
 
         # Validate Partition Existence
