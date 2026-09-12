@@ -278,7 +278,7 @@ function Flash-EngineeringABL {
             Warning-EDL
         }
         
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
         
@@ -430,7 +430,7 @@ function Flash-BackupABL {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw "Device failed to enter EDL mode."
         }
 
@@ -504,7 +504,7 @@ function Perform-FastbootUnlock {
             Warning-FASTBOOT
         }
 
-        if (-not (Wait-FastbootMode 100)) {
+        if (-not (Wait-FastbootMode)) {
             throw ""
         }
 
@@ -548,8 +548,8 @@ function Perform-FastbootUnlock {
             Write-Log "Unplug the device and plug it back in." "Interactive"
 
             if ($IsRetryBootloader -ne 2) {
-                $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
-                $null = Wait-FastbootMode 100
+                $null = Wait-FastbootMode -WaitForDisconnect
+                $null = Wait-FastbootMode
             }
 
             if (Verify-FastbootState "unlock") {
@@ -583,7 +583,7 @@ function Perform-FastbootLock {
             Warning-FASTBOOT
         }
 
-        if (-not (Wait-FastbootMode 100)) {
+        if (-not (Wait-FastbootMode)) {
             throw ""
         }
 
@@ -627,8 +627,8 @@ function Perform-FastbootLock {
             Write-Log "Unplug the device and plug it back in." "Interactive"
 
             if ($IsRetryBootloader -ne 2) {
-                $null = Wait-FastbootMode -Timeout 100 -WaitForDisconnect
-                $null = Wait-FastbootMode 100
+                $null = Wait-FastbootMode -WaitForDisconnect
+                $null = Wait-FastbootMode
             }
 
             if (Verify-FastbootState "lock") {
@@ -690,7 +690,7 @@ function Verify-FastbootState([string]$state) {
         }
         Start-Sleep -Seconds 1
 
-        if (-not (Wait-FastbootMode 100)) {
+        if (-not (Wait-FastbootMode)) {
             throw ""
         }
 
@@ -817,7 +817,7 @@ function Perform-FactoryReset {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
 
@@ -861,7 +861,7 @@ function SystemUpdate-Management([string]$selection = "") {
         Warning-ADB
     }
 
-    if (-not (Wait-AdbMode 500)) {
+    if (-not (Wait-AdbMode)) {
         throw "ADB device connection timed out."
     }
     try {

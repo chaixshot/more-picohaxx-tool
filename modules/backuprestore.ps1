@@ -421,7 +421,7 @@ function Perform-RollbackOS([string]$firmwarePath) {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
 
@@ -984,7 +984,7 @@ function Backup-Device($selection) {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
 
@@ -1076,7 +1076,7 @@ function Restore-Backup($backupInfo) {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
 

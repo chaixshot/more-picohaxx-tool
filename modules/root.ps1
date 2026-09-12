@@ -267,7 +267,7 @@ function Verify-RootState([string]$state) {
             Warning-ADB
         }
 
-        if (-not (Wait-AdbMode 500)) {
+        if (-not (Wait-AdbMode)) {
             throw ""
         }
 
@@ -322,7 +322,7 @@ function Test-Superuser-Access {
         Warning-ADB
     }
 
-    if (-not (Wait-AdbMode 500)) {
+    if (-not (Wait-AdbMode)) {
         return
     }
 
@@ -406,7 +406,7 @@ function Pull-BootImage {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
 
@@ -478,7 +478,7 @@ function Prepare-Magisk {
             Warning-ADB
         }
 
-        if (-not (Wait-AdbMode 500)) {
+        if (-not (Wait-AdbMode)) {
             throw ""
         }
 
@@ -527,7 +527,7 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
             Warning-FASTBOOT
         }
 
-        if (-not (Wait-FastbootMode 100)) {
+        if (-not (Wait-FastbootMode)) {
             throw ""
         }
 
@@ -586,7 +586,7 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
             Warning-EDL
         }
 
-        if (-not (Wait-EdlMode 100)) {
+        if (-not (Wait-EdlMode)) {
             throw ""
         }
 

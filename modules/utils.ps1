@@ -154,7 +154,7 @@ function Wait-Continue([string]$action = "continue...") {
     Read-Host | Out-Null
 }
 
-function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
+function Wait-FastbootMode([int]$timeout = 120, [switch]$waitForDisconnect) {
     Write-Log ""
     
     # Set labels based on mode
@@ -203,7 +203,7 @@ function Wait-FastbootMode([int]$timeout = 100, [switch]$waitForDisconnect) {
     return $success
 }
 
-function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
+function Wait-EdlMode([int]$timeout = 120, [switch]$waitForDisconnect) {
     Write-Log ""
     
     # Set labels based on mode
@@ -253,7 +253,7 @@ function Wait-EdlMode([int]$timeout = 100, [switch]$waitForDisconnect) {
     return $success
 }
 
-function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
+function Wait-AdbMode([int]$timeout = 360, [switch]$waitForDisconnect) {
     Write-Log ""
     
     if ($waitForDisconnect) {
@@ -1162,7 +1162,7 @@ function Edl-To-Edl {
         Write-Log "Reboot command sent successfully." "Success"
 
         if (IsPicoNeo3) {
-            if (Wait-FastbootMode 100) {
+            if (Wait-FastbootMode) {
                 Write-Log "Release the holding buttons." "Interactive"
                 Start-Sleep -Seconds 5
                 Neo-Fastboot-To-Edl
