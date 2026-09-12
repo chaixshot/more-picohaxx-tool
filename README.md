@@ -10,14 +10,14 @@ This repository contains a comprehensive set of tools and scripts for unlock Boo
 > [!CAUTION]
 > Unlocking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
 > It is highly recommended to backup **User Personal Data** before starting.
->
 >**Risk**: Flashing firmware carries inherent risks. While this method is tested, proceed at own risk.
+> <img height="200" alt="unlocked" src="./src/factoryreset.jpg" />
 
 ## Status
 
-* **Pico 4**: Confirmed working.
-* **Pico 4 Pro**: Confirmed working.
-* **Pico Neo 3**: Confirmed working.
+* **Pico 4**: Confirmed working (v5.13.8 and below).
+* **Pico 4 Pro**: Confirmed working (v5.13.8 and below).
+* **Pico Neo 3**: Confirmed working (v5.11.2 and below).
 
 ## Prerequisites
 
@@ -69,7 +69,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 1. **Verify Bootloader**: Reboot bootloader to confirm unlock state is persistence.
    * If it isn't stay unlocked, **repeat the steps**. This is expected behavior; don't be afraid to try again.
 1. **Flash Backup ABL**: Flash original firmware `abl` image to restore boot capability.
-1. **Factory Reset**: Perform factory reset via recovery to wipe user data if required.
+1. **Factory Reset**: Perform factory reset via recovery to wipe user data.
 1. **Root with Magisk**: Flash Magisk patched `boot.img` to get superuser access.
 1. **Restore Userdata**: Restore backed-up user data
 
