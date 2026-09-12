@@ -75,11 +75,14 @@ function Read-HostLog([string]$prompt) {
 
     [Console]::Write($cReset)
 
-    # Force transcript stream capture without displaying text to the screen
-    & {
-        $InformationPreference = 'Continue'
-        Write-Information "`n> ${prompt}: ${inputResult}"
-    } 6>$null
+    # Write directly to transcript pipeline if active, bypassing screen display
+    $transcriptWriter = $ExecutionContext.SessionState.PSVariable.GetValue('TranscriptWriter', $null)
+    if ($transcriptWriter -and $transcriptWriter.InnerWriter) {
+        $transcriptWriter.InnerWriter.WriteLine("> ${prompt}: ${inputResult}")
+    } else {
+        # Fallback for standard Write-Host transcript logging
+        Write-Host "`n> ${prompt}: ${inputResult}" -InformationAction Ignore
+    }
 
     return $inputResult.ToString().ToLower().Trim()
 }
