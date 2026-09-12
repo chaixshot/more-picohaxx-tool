@@ -478,6 +478,7 @@ function Prepare-Firmware {
         "Pico 4" = [ordered]@{
             "Global"  = [ordered]@{
                 "OEM"     = [ordered]@{
+                    "5.13.8" = "https://lf-stone-iot-my.dlpicovr.com/obj/stone-iot-my/5.13.8-202609021949-RELEASE-user-phoenix-b10102-5cc013c385.zip"
                     "5.13.7" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.7-202510301735-RELEASE-user-phoenix-b9665-42be801fae.zip"
                     "5.13.3" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.3-202507030112-RELEASE-user-phoenix-b9480-6746cfb44c.zip"
                     "5.13.2" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.2-202506120445-RELEASE-user-phoenix-b9453-cad6c763e2.zip"
@@ -492,6 +493,7 @@ function Prepare-Firmware {
                     "5.3.2"  = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/ota-out/pico_oversea_rls_phoenix-mol-pui-5.3.0-20221229-SEKOSA.falconcv3plusoversea-user/202301072132/5.3.2-202301071817-RELEASE-user-phoenix-b2705-0d2c0cb6ec.zip"
                 }
                 "NON-OEM" = [ordered]@{
+                    "5.13.8" = "https://lf-stone-iot-my.dlpicovr.com/obj/stone-iot-my/5.13.8-202609031155-RELEASE-user-phoenix-b10113-8e443f50c3.zip"
                     "5.13.7" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.7-202510301739-RELEASE-user-phoenix-b9666-26140cfa0d.zip"
                     "5.13.3" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.3-202507030047-RELEASE-user-phoenix-b9479-aa79997682.zip"
                     "5.13.2" = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.13.2-202506120448-RELEASE-user-phoenix-b9454-14de1976f3.zip"
