@@ -5,6 +5,7 @@
 This repository contains a comprehensive set of tools and scripts for unlock Bootloader, rooting and full backup the **Pico 4**, **Pico 4 Pro**, and **Pico Neo 3** VR headsets.
 
 ### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/releases/latest) and run `picounlock.bat` to begin
+>To update the new version, please move `./backup` and `./logs` from the previous tool folder.
 
 > [!CAUTION]
 > Unlocking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
@@ -141,14 +142,29 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 
 ### Manual Boot
 
-* System: Hold <kbd>Power</kbd> until Pico logo shows up.
-* [Recovery mode](https://wikipedia.org/wiki/Android_recovery_mode) (Dead robot): Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd> until dead robot shows up.
-* [Fastboot mode](https://wikipedia.org/wiki/Fastboot) (Left eye menu): Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> until menu shows up.
-* [EDL mode](https://wikipedia.org/wiki/Qualcomm_EDL_mode) (Black screen): Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
+* [Recovery mode](https://wikipedia.org/wiki/Android_recovery_mode) - Dead robot
+* [Fastboot mode](https://wikipedia.org/wiki/Fastboot) - Left eye menu
+* [EDL mode](https://wikipedia.org/wiki/Qualcomm_EDL_mode) - Black screen
+
+#### Pico 4
+
+* **System**: Hold <kbd>Power</kbd> until Pico logo shows up.
+* **Recovery**: Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd> until dead robot shows up.
+* **Fastboot**: Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> until menu shows up.
+* **EDL**: Hold <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd> + <kbd>Power</kbd>.
+
+#### Pico Neo 3
+
+* **System**: Same as Pico 4.
+* **Recovery**: Hold <kbd>Vol Up</kbd> + <kbd>Power</kbd> + <kbd>Home</kbd> until dead robot shows up.
+* **Fastboot**: Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> + <kbd>Home</kbd> until menu shows up.
+* **EDL**: Boot to **Fastboot** and using the tool reboot menu to enter **EDL**.
+
+> Home button is the button that has Pico logo
 
 ### Recovery Mode
 
-1. Robot shows up with "No command." message as recovery mode.
+1. Robot shows up with `"No command."` message as recovery mode.
 1. In recovery mode, hold <kbd>Power</kbd> first then press <kbd>Vol Up</kbd> to access the menu.
 1. Use <kbd>Vol Up</kbd> and <kbd>Vol Down</kbd> to navigate, and press <kbd>Power</kbd> to select.
 

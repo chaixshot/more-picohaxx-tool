@@ -10,6 +10,7 @@
 
 # --- Utility Functions ---
 $SelectedFirehose = 0
+$IsPicoNeo3 = $false
 
 $e = [char]27
 $cReset = "$e[0m"
@@ -322,10 +323,11 @@ function Wait-AdbMode([int]$timeout = 100, [switch]$waitForDisconnect) {
 
 function Select-Firehose {
     while ($SelectedFirehose -eq 0) {
-        Write-Header "Select Firehose"
-        Write-Log "[${cCyan}1${cReset}] Pico 4 ${cYellow}/${cReset} Pico 4 Enterprise ${cYellow}/${cReset} Pico Neo 3 ${cDarkGray}(DDR 4)${cReset}"
-        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro ${cDarkGray}(DDR 5)${cReset}"
-
+        Write-Header "Select Device"
+        Write-Log "[${cCyan}1${cReset}] Pico 4 ${cYellow}/${cReset} Pico 4 Enterprise"
+        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro"
+        Write-Log "[${cCyan}3${cReset}] Pico Neo 3"
+        
         $selection = Read-HostLog "Select your device model to use the correct firehose"
         switch ($selection) {
             "1" { 
@@ -336,6 +338,12 @@ function Select-Firehose {
                 $script:SelectedFirehose = 2
                 Write-Log "Using DDR 5 Firehose." "Info"
             }
+            "3" { 
+                $script:SelectedFirehose = 1
+                $script:IsPicoNeo3 = $true
+                Write-Log "Using DDR 4 Firehose." "Info"
+            }
+
             Default {
                 Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
                 Wait-Continue
@@ -421,7 +429,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
 
     try {
         if ($SelectedFirehose -eq 0) {
-            throw "No firesose selected"
+            Select-Firehose
         }
 
         $firehose = switch ($SelectedFirehose) {
@@ -493,27 +501,27 @@ function Perform-Reboot {
             throw "Please connect your device and ensure it is powered on."
         }
 
-        Write-Log "[${cCyan}1${cReset}] Boot to SYSTEM"
-        Write-Log "[${cCyan}2${cReset}] Boot to FASTBOOT"
-        Write-Log "[${cCyan}3${cReset}] Boot to RECOVERY"
+        Write-Log "[${cCyan}1${cReset}] Boot to System"
+        Write-Log "[${cCyan}2${cReset}] Boot to Recovery"
+        Write-Log "[${cCyan}3${cReset}] Boot to Fastboot"
         Write-Log "[${cCyan}4${cReset}] Boot to EDL"
 
         $selection = Read-HostLog "Select an option"
 
         if (IsFastbootMode) {
             if ($selection -eq "1") { Fastboot-To-System; throw "" }
-            elseif ($selection -eq "2") { Fastboot-To-Fastboot; throw "" }
-            elseif ($selection -eq "3") { Fastboot-To-Recovery; throw "" }
+            elseif ($selection -eq "2") { Fastboot-To-Recovery; throw "" }
+            elseif ($selection -eq "3") { Fastboot-To-Fastboot; throw "" }
             elseif ($selection -eq "4") { Fastboot-To-Edl; throw "" }
         } elseif (IsAdbMode) {
             if ($selection -eq "1") { ADB-To-System; throw "" }
-            elseif ($selection -eq "2") { ADB-To-Fastboot; throw "" }
-            elseif ($selection -eq "3") { ADB-To-Recovery; throw "" }
+            elseif ($selection -eq "2") { ADB-To-Recovery; throw "" }
+            elseif ($selection -eq "3") { ADB-To-Fastboot; throw "" }
             elseif ($selection -eq "4") { ADB-To-Edl; throw "" }
         } elseif (IsEdlMode) {
             if ($selection -eq "1") { Edl-To-System; throw "" }
-            elseif ($selection -eq "2") { Edl-To-Fastboot; throw "" }
-            elseif ($selection -eq "3") { Edl-To-Recovery; throw "" }
+            elseif ($selection -eq "2") { Edl-To-Recovery; throw "" }
+            elseif ($selection -eq "3") { Edl-To-Fastboot; throw "" }
             elseif ($selection -eq "4") { Edl-To-Edl; throw "" }
         }
 
@@ -940,6 +948,11 @@ function Get-InstalledDriverInfo([string]$infName) {
     return $null
 }
 
+function IsPicoNeo3 {
+    Select-Firehose
+    return $IsPicoNeo3
+}
+
 #########################################
 #########################################
 #########################################
@@ -956,33 +969,62 @@ function Warning-ADB {
 }
 
 function Warning-RECOVERY {
+    $button = switch (IsPicoNeo3) {
+        $true { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
+        Default { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset}" }
+    }
+
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}RECOVERY${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in ${cCyan}RECOVERY${cReset} mode." "Error"
-    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Interactive"
+    Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding $button until dead robot shows up." "Interactive"
 }
 
 function Warning-FASTBOOT {
+    $button = switch (IsPicoNeo3) {
+        $true { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
+        Default { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset}" }
+    }
+
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
     Write-Log "Please ensure device connected and in ${cCyan}FASTBOOT${cReset} mode." "Error"
-    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Interactive"
+    Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding $button until menu shows up." "Interactive"
 }
 
 function Warning-EDL {
     Write-Log ""
     Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Error"
-    Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Interactive"
+    if (IsPicoNeo3) {
+        Write-Log "1. Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset} until menu shows up." "Interactive"
+        Write-Log "2. Use the tool Reboot menu to enter ${cCyan}EDL${cReset}." "Interactive"
+    } else {
+        Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} until screen off and USB detected." "Interactive"
+    }
 }
 
 function Warning-EDL-ManualReboot {
     if (IsEdlMode) {
+        $btnRecovery = switch (IsPicoNeo3) {
+            $true { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
+            Default { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset}" }
+        }
+        $btnFastboot = switch (IsPicoNeo3) {
+            $true { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
+            Default { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset}" }
+        }
+    
         Write-Header "EDL Manual Reboot"
         Write-Log "Your device will not automatically reboot." "Interactive"
         Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
-        Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding ${cYellow}Vol Up + Power${cReset} until dead robot shows up." "Info"
-        Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up." "Info"
-        Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up + Vol Down + Power${cReset} until screen off and USB detected." "Info"
+        Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding $btnRecovery until dead robot shows up." "Info"
+        Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding $btnFastboot until menu shows up." "Info"
+        if (IsPicoNeo3) {
+            Write-Log "1. Manually boot to ${cCyan}FASTBOOT${cReset}." "Info"
+            Write-Log "2. Use the tool Reboot menu to enter ${cCyan}EDL${cReset}." "Info"
+        } else {
+            Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} until screen off and USB detected." "Info"
+        }
     }
 }
 
@@ -1033,13 +1075,26 @@ function Fastboot-To-Fastboot {
 }
 
 function Fastboot-To-Edl {
+    if (IsPicoNeo3) {
+        Neo-Fastboot-To-Edl
+    } else {
+        Write-Log ""
+        Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
+        Write-Log "Keep holding ${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset} before continue, and don't let go." "Interactive"
+        Wait-Continue
+
+        if (IsFastbootMode) {
+            & $FASTBOOT reboot
+        }
+    }
+}
+
+function Neo-Fastboot-To-Edl {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Interactive"
-    Wait-Continue
 
     if (IsFastbootMode) {
-        & $FASTBOOT reboot
+        & $FASTBOOTNEO reboot-edl
     }
 }
 
@@ -1061,9 +1116,14 @@ function Edl-To-System {
 function Edl-To-Recovery {
     Select-Firehose
 
+    $button = switch (IsPicoNeo3) {
+        $true { "${cYellow}Vol Up${cReset} + ${cYellow}Home${cReset}" }
+        Default { "${cYellow}Vol Up${cReset}" }
+    }
+
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Up${cReset} before continue" "Interactive"
+    Write-Log "Keep holding $button before continue, and don't let go" "Interactive"
     Wait-Continue
     
     if (Execute-EdlCommand "reset" $true) { 
@@ -1074,22 +1134,40 @@ function Edl-To-Recovery {
 }
 
 function Edl-To-Fastboot {
+    $button = switch (IsPicoNeo3) {
+        $true { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
+        Default { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset}" }
+    }
+
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Down + Power${cReset} until menu shows up before continue." "Interactive"
+    Write-Log "Keep holding $button until menu shows up before continue, and don't let go." "Interactive"
     Wait-Continue
 }
 
 function Edl-To-Edl {
     Select-Firehose
 
+    $button = switch (IsPicoNeo3) {
+        $true { "${cYellow}Vol Down${cReset} + ${cYellow}Home${cReset}" } # Neo Fastboot
+        Default { "${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset}" } # EDL
+    }
+
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Write-Log "Keep holding ${cYellow}Vol Up + Vol Down${cReset} before continue" "Interactive"
+    Write-Log "Keep holding $button before continue, and don't let go." "Interactive"
     Wait-Continue
     
     if (Execute-EdlCommand "reset" $true) { 
         Write-Log "Reboot command sent successfully." "Success"
+
+        if (IsPicoNeo3) {
+            if (Wait-FastbootMode 100) {
+                Write-Log "Release the holding buttons." "Interactive"
+                Start-Sleep -Seconds 5
+                Neo-Fastboot-To-Edl
+            }
+        }
     } else {
         Warning-EDL-ManualReboot
     }

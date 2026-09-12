@@ -43,8 +43,10 @@ $DeviceSerial = Join-Path $BackupPath "serial_number.txt"
 $EDLNG = Join-Path $WorkingDir "tools\edl-ng.exe"
 $ADB = Join-Path $WorkingDir "tools\adb.exe"
 $FASTBOOT = Join-Path $WorkingDir "tools\fastboot.exe"
+$FASTBOOTNEO = Join-Path $WorkingDir "tools\neo\fastboot.exe"
 
 $TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+$VersionStr = "Pico Unlock 1.3.2"
 
 $IsRetryBootloader = 0
 
@@ -59,6 +61,7 @@ $IsRetryBootloader = 0
 
 function Check-Prerequisites {
     Write-Header "Running Prerequisite Checks"
+    Write-Log $VersionStr  "Info"
 
     $isReady = $true
 
@@ -632,6 +635,11 @@ function Perform-FastbootLock {
 }
 
 function Show-FastbootFinalInstruction([bool]$needReset) {
+    $button = switch (IsPicoNeo3) {
+        $true { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
+        Default { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset}" }
+    }
+
     Write-Header "Bootloader Finalizing"
     Write-Log "Check your device screen to confirm the current bootloader state." "Info"
     Write-Log "After rebooting, in the headset you will be asked to perform a ${cCyan}Factory Reset${cReset}." "Info"
@@ -640,15 +648,19 @@ function Show-FastbootFinalInstruction([bool]$needReset) {
     Write-Log ""
     Write-Log "If the device does not boot to system normally, a ${cCyan}Factory Reset${cReset} might be required." "Warning"
     Write-Log "Option 1: Use provided ${cCyan}Factory Reset${cReset} menu." "Info"
-    Write-Log "Option 2: Manually reset by holding ${cYellow}Vol Up + Power${cReset} until the robot shows up with ${cCyan}No command${cReset} as recovery mode." "Info"
+    Write-Log "Option 2: Manually reset by holding $button until the robot shows up with ${cCyan}No command${cReset} as recovery mode." "Info"
     Write-Log "   - In recovery mode, hold ${cYellow}Power${cReset} first then press ${cYellow}Vol Up${cReset} to access the menu." "Info"
-    Write-Log "   - Use ${cYellow}Vol Up and Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Info"
+    Write-Log "   - Use ${cYellow}Vol Up${cReset} and ${cYellow}Vol Down${cReset} to navigate, and press ${cYellow}Power${cReset} to select ${cCyan}Wipe data/factory reset${cReset}." "Info"
     Write-Log ""
     Write-Log "The next step is perform ${cCyan}Flash Backup ABL${cReset}." "Info"
 
     $choice = Read-HostLog "Would you like to skip and reboot to system? [y/${cYellow}N${cReset}]"
     if ($choice -eq 'y') {
         Fastboot-To-System
+    } else {
+        if (IsPicoNeo3) {
+            Neo-Fastboot-To-Edl
+        }
     }
 }
 
@@ -946,7 +958,7 @@ try {
 
     $quit = $false
     while (-not $quit) {
-        Write-Header "Pico Unlock"
+        Write-Header $VersionStr
 
         Write-Log "[${cCyan}1${cReset}] Generate-Get Unlock Code"
         Write-Log "[${cCyan}2${cReset}] Flash Engineering ABL"
@@ -1019,7 +1031,7 @@ try {
     Write-Log $errMsg "Error"
 } finally {
     Write-Header "Exited"
-    Write-Log "Version: 1.3.2" "Info"
+    Write-Log $VersionStr  "Info"
     Write-Log ""
 
     try {
