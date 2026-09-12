@@ -526,7 +526,7 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
         }
 
         Write-Log "Flashing ${cCyan}$partition${cReset} image with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
-        & $FASTBOOT flash $partition $imagePath.FullName
+        Execute-FastbootCommand "flash $partition $($imagePath.FullName)"
 
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to flash ${cCyan}$partition${cReset} image."

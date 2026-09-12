@@ -144,7 +144,7 @@ function IsAdbMode {
 }
 
 function IsFastbootMode {
-    $fbDevices = & $FASTBOOT devices
+    $fbDevices = Execute-FastbootCommand "devices" -get $true
     return $fbDevices -match "fastboot$"
 }
 
@@ -356,7 +356,7 @@ function Select-Firehose {
 }
 
 function Invoke-PicoHaxxScript {
-    $unlockCommand = $null
+    $unlockKey = $null
 
     try {
         if (-not (Test-Path $DeviceSerial)) {
@@ -382,8 +382,8 @@ function Invoke-PicoHaxxScript {
             $encoded_serial = -join $encoded_chars
         }
 
-        $unlockCommand = "fastboot oem pico$encoded_serial unlock"
-        Write-Log "Unlock Command: ${cCyan}$unlockCommand${cReset}" "Success"
+        $unlockKey = "pico$encoded_serial"
+        Write-Log "Unlock Command: ${cCyan}fastboot oem $unlockKey unlock${cReset}" "Success"
         Write-Log ""
     } catch {
         if ($_.Exception.Message) {
@@ -391,21 +391,20 @@ function Invoke-PicoHaxxScript {
         }
     }
 
-    return $unlockCommand
+    return $unlockKey
 }
 
 function Execute-UnlockCommand {
     $success = $true
 
     try {
-        $unlockCmd = Invoke-PicoHaxxScript
-        if (-not $unlockCmd) {
+        $unlockKey = Invoke-PicoHaxxScript
+        if (-not $unlockKey) {
             throw "Unlock command generation failed. Please run 'Generate UnlockCode' first."
         }
 
-        Write-Log "Executing commands: ${cCyan}$unlockCmd${cReset}" "Action"
-        $cmdToRun = "& " + ($unlockCmd -replace 'fastboot', "`"$FASTBOOT`"")
-        Invoke-Expression $cmdToRun
+        Write-Log "Executing commands: ${cCyan}fastboot oem $unlockKey unlock${cReset}" "Action"
+        Execute-FastbootCommand "oem $unlockKey unlock"
 
         if ($LASTEXITCODE -ne 0) {
             Write-Log "Failed to execute unlock command." "Error"
@@ -486,6 +485,18 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
         return $outputLines
     } else {
         return $success
+    }
+}
+
+function Execute-FastbootCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
+    $arguments = $sCMDLine.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
+
+    if ($silent) {
+        & $FASTBOOT @arguments 2>&1 | Out-Null
+    } elseif ($get) {
+        return & $FASTBOOT @arguments 2>&1
+    } else {
+        & $FASTBOOT @arguments 2>&1 | Write-Host
     }
 }
 
@@ -1062,19 +1073,19 @@ function ADB-To-Edl {
 function Fastboot-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
-    & $FASTBOOT reboot
+    Execute-FastbootCommand "reboot" -silent $true
 }
 
 function Fastboot-To-Recovery {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
-    & $FASTBOOT reboot recovery
+    Execute-FastbootCommand "reboot recovery" -silent $true
 }
 
 function Fastboot-To-Fastboot {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    & $FASTBOOT reboot bootloader
+    Execute-FastbootCommand "reboot bootloader" -silent $true
 }
 
 function Fastboot-To-Edl {
@@ -1087,7 +1098,7 @@ function Fastboot-To-Edl {
         Wait-Continue
 
         if (IsFastbootMode) {
-            & $FASTBOOT reboot
+            Execute-FastbootCommand "reboot" -silent $true
         }
     }
 }
@@ -1097,7 +1108,7 @@ function Neo-Fastboot-To-Edl {
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
 
     if (IsFastbootMode) {
-        & $FASTBOOTNEO reboot-edl
+        & $FASTBOOTNEO reboot-edl 2>&1 | Write-Host
     }
 }
 

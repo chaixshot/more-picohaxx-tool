@@ -228,8 +228,8 @@ function Generate-UnlockCode {
             }
 
             $serialNumber | Set-Content -Path $DeviceSerial -Encoding Ascii
-            Write-Log "Device serial number saved to ${cCyan}'$DeviceSerial'${cReset}." "Info"
-            Write-Log "Serial number: ${cGreen}$serialNumber${cReset}" "Success"
+            Write-Log "Saved: ${cCyan}$DeviceSerial${cReset}" "Success"
+            Write-Log "Serial number: ${cCyan}$serialNumber${cReset}" "Success"
             $null = Invoke-PicoHaxxScript
             return
         } else {
@@ -513,13 +513,13 @@ function Perform-FastbootUnlock {
 
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot flashing unlock_critical${cReset}" "Action"
-        & $FASTBOOT flashing unlock_critical
+        Execute-FastbootCommand "flashing unlock_critical"
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot flashing unlock${cReset}" "Action"
-        & $FASTBOOT flashing unlock
+        Execute-FastbootCommand "flashing unlock"
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 0${cReset}" "Action"
-        & $FASTBOOT oem setenforce 0
+        Execute-FastbootCommand "oem setenforce 0"
 
         if (-not (IsFastbootUnlocked)) {
             throw "Device does not report as fully unlocked. You may need to repeat the process."
@@ -592,13 +592,13 @@ function Perform-FastbootLock {
 
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot oem setenforce 1${cReset}" "Action"
-        & $FASTBOOT oem setenforce 1
+        Execute-FastbootCommand "oem setenforce 1"
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot flashing lock${cReset}" "Action"
-        & $FASTBOOT flashing lock
+        Execute-FastbootCommand "flashing lock"
         Write-Log ""
         Write-Log "Executing commands: ${cCyan}fastboot flashing lock_critical${cReset}" "Action"
-        & $FASTBOOT flashing lock_critical
+        Execute-FastbootCommand "flashing lock_critical"
 
         if (IsFastbootUnlocked) {
             throw "Device does not report as fully locked. You may need to repeat the process."
@@ -748,7 +748,7 @@ function IsFastbootUnlocked {
     try {
         # Primary Check: fastboot oem device-info
         Write-Log "Checking bootloader status using ${cCyan}fastboot oem device-info${cReset}..." "Action"
-        $deviceInfoRaw = & $FASTBOOT oem device-info 2>&1
+        $deviceInfoRaw = Execute-FastbootCommand "oem device-info" -get $true
         $deviceInfo = $deviceInfoRaw -join "`n"
         Write-Log $deviceInfo
 
@@ -763,7 +763,7 @@ function IsFastbootUnlocked {
         # Fallback Check: fastboot getvar unlocked
         Write-Log "OEM command unrecognized/unparseable." "Warning"
         Write-Log "Checking with ${cCyan}fastboot getvar unlocked${cReset}..." "Action"
-        $unlockedVarRaw = & $FASTBOOT getvar unlocked 2>&1
+        $unlockedVarRaw = Execute-FastbootCommand "getvar unlocked" -get $true
         $unlockedVar = $unlockedVarRaw -join "`n"
         Write-Log $unlockedVar
 
