@@ -413,20 +413,10 @@ function Pull-BootImage {
         Write-Log "Pulling stock '${cCyan}boot${cReset}' image..." "Action"
 
         # Pull boot image
-        $null = Execute-EdlCommand "read-part boot $dumpedBoot"
-        $exitcode = $LASTEXITCODE
-
-        # Fallback to boot_a if image naming uses slot suffix
-        if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
+        if (-not (Execute-EdlCommand "read-part boot $dumpedBoot") -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
             Write-Log "'boot' image not found or failed, trying 'boot_a'..." "Action"
-            $null = Execute-EdlCommand "read-part boot_a ${dumpedBoot}"
-            $exitcode = $LASTEXITCODE
+            throw "Pulling boot image failed with code ${cCyan}${LASTEXITCODE}${cReset}."
         }
-
-        if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
-            throw "Pulling boot image failed with code ${cCyan}${exitcode}${cReset}."
-        }
-        
         $bootPath = (Get-Item $dumpedBoot).FullName
     } catch {
         $success = $false
