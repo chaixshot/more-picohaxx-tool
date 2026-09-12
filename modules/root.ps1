@@ -89,6 +89,19 @@ function Perform-MagiskBoot([string]$bootImgPath) {
             throw "Failed to unpack boot image or ramdisk.cpio not found."
         }
 
+        # Decompress ramdisk.cpio if it is LZ4/GZ/XZ compressed (some Pico 4 firmware variants leave the ramdisk compressed after unpack, causing 'bad cpio header' on cpio patch).
+        Write-Log ""
+        Write-Log "Checking ramdisk.cpio compression..." "Action"
+        & $MagiskBoot decompress ramdisk.cpio ramdisk.cpio.raw 2>&1 | Write-Host
+        if ($LASTEXITCODE -eq 0 -and (Test-Path "ramdisk.cpio.raw")) {
+            Write-Log "Ramdisk was compressed, using decompressed version for patching." "Info"
+            Move-Item -Path "ramdisk.cpio.raw" -Destination "ramdisk.cpio" -Force
+        } else {
+            # Not compressed (or already raw CPIO) - remove leftover temp file if any
+            Write-Log "Ramdisk already decompressed." "Info"
+            Remove-Item -Path "ramdisk.cpio.raw" -Force -ErrorAction SilentlyContinue
+        }
+
         # Backup original ramdisk for magiskinit chainload backup
         Copy-Item -Path "ramdisk.cpio" -Destination "ramdisk.cpio.orig" -Force
 
