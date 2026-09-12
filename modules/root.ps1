@@ -375,6 +375,7 @@ function Pull-BootImage {
     $success = $true
     $lastError = $null
     $bootPath = $null
+    $dumpedBoot = Join-Path $BootBackupPath "boot.img"
 
     try {
         Write-Header "Pull Boot Image"
@@ -386,43 +387,44 @@ function Pull-BootImage {
             throw "Aborted by user. No changes have been made."
         }
 
-        $dumpedBoot = Join-Path $BootBackupPath "boot.img"
-
         # Ensure backup directory exists
         if (-not (Test-Path $BootBackupPath)) {
             New-Item -Path $BootBackupPath -ItemType Directory -Force | Out-Null
         }
 
-        if (-not (Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
-            # Reboot EDL
-            if (IsAdbMode) {
-                ADB-To-Edl
-            } elseif (IsFastbootMode) {
-                Fastboot-To-Edl
-            } elseif (-not (IsEdlMode)) {
-                Warning-EDL
-            }
+        # Delete existing boot.img
+        if ((Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -ne 0) {
+            Remove-Item -Path $dumpedBoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
 
-            if (-not (Wait-EdlMode 100)) {
-                throw ""
-            }
+        # Reboot EDL
+        if (IsAdbMode) {
+            ADB-To-Edl
+        } elseif (IsFastbootMode) {
+            Fastboot-To-Edl
+        } elseif (-not (IsEdlMode)) {
+            Warning-EDL
+        }
 
-            Write-Log "Pulling stock '${cCyan}boot${cReset}' image..." "Action"
+        if (-not (Wait-EdlMode 100)) {
+            throw ""
+        }
 
-            # Pull boot image
-            $null = Execute-EdlCommand "read-part boot $dumpedBoot"
+        Write-Log "Pulling stock '${cCyan}boot${cReset}' image..." "Action"
+
+        # Pull boot image
+        $null = Execute-EdlCommand "read-part boot $dumpedBoot"
+        $exitcode = $LASTEXITCODE
+
+        # Fallback to boot_a if image naming uses slot suffix
+        if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
+            Write-Log "'boot' image not found or failed, trying 'boot_a'..." "Action"
+            $null = Execute-EdlCommand "read-part boot_a ${dumpedBoot}"
             $exitcode = $LASTEXITCODE
+        }
 
-            # Fallback to boot_a if image naming uses slot suffix
-            if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
-                Write-Log "'boot' image not found or failed, trying 'boot_a'..." "Action"
-                $null = Execute-EdlCommand "read-part boot_a ${dumpedBoot}"
-                $exitcode = $LASTEXITCODE
-            }
-
-            if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
-                throw "Pulling boot image failed with code ${cCyan}${exitcode}${cReset}."
-            }
+        if ($exitcode -ne 0 -or !(Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -eq 0) {
+            throw "Pulling boot image failed with code ${cCyan}${exitcode}${cReset}."
         }
         
         $bootPath = (Get-Item $dumpedBoot).FullName
