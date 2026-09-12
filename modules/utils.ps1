@@ -667,15 +667,11 @@ function Play-BeepBeep {
             Stream = $msStream
             Writer = $writer
         }
-
-        return $true
     } catch {
         # Clean up stream objects if synthesis failed midway
         if ($writer) { $writer.Dispose() }
         if ($msStream) { $msStream.Dispose() }
         if ($player) { $player.Dispose() }
-        
-        return $false
     }
 }
 

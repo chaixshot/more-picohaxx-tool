@@ -50,16 +50,16 @@ function Extract-CompressedFile($filePath) {
             Get-ChildItem -Path $subFolder | Move-Item -Destination $destPath -Force
             Remove-Item -Path $subFolder -Recurse -Force
         }
+
+        return @{ Success = $true; Path = $destPath }
     } else {
         Write-Log "Extraction failed for ${cYellow}$filePath${cReset}." "Error"
+        return @{ Success = $false; Path = $destPath }
     }
-    
-    return $destPath
 }
 
 function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$HeaderCallback) {
     $currentMenu = $MenuData
-    $destinationPath = ""
     $selectPath = ""
 
     while ($currentMenu -is [System.Collections.IDictionary]) {
@@ -95,41 +95,10 @@ function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$
 
         $openUrl = Read-HostLog "Would you like to open this URL in your browser? [${cYellow}Y${cReset}/n]"
         if ($openUrl -eq 'y') {
-            $outFile = Get-FileOrFolderDialog "Select save location" 1
-        
-            if (-not $outFile) {
-                Write-Log "No save location selected." "Error"
-                return $null 
-            }
-
-            $fileName = [System.IO.Path]::GetFileName($uri.AbsolutePath)
-
-            if ([string]::IsNullOrWhiteSpace($fileName)) { 
-                $fileName = "firmware.zip" 
-            }
-
-            $destinationPath = Join-Path -Path $outFile -ChildPath $fileName
-            try {
-                Write-Log "Downloading firmware to '${cCyan}$destinationPath${cReset}'..." "Action"
-                Invoke-WebRequest -Uri $uri -OutFile $destinationPath
-
-                # Verify download success via disk check
-                if ((Test-Path -Path $destinationPath -PathType Leaf) -and ((Get-Item $destinationPath).Length -gt 0)) {
-                    Write-Log "Downloaded '${cCyan}$fileName${cReset}' successfully." "Success"
-                } else {
-                    throw "Downloaded file is missing or empty."
-                }
-            } catch {
-                if ($_.Exception.Message) {
-                    Write-Log "$($_.Exception.Message)" "Error"
-                }
-            } finally {
-                Wait-Continue
-            }
+            Write-Log "Opening URL in default browser..." "Action"
+            Start-Process $uri.AbsoluteUri
         }
     }
-
-    return $destinationPath
 }
 
 function Select-BackupFolder {
@@ -180,7 +149,11 @@ function Select-BackupFolder {
 
         # Check if user pasted a compressed file
         if ($selection -match '\.(rar|zip|7z)$' -and (Test-Path -Path $selection -PathType Leaf)) {
-            $selection = Extract-CompressedFile $selection
+            $result = Extract-CompressedFile $selection
+            $selection = $result.Path
+            if (-not $result.Success) {
+                throw ""
+            }
         }
 
         # Check if user pasted a path
@@ -267,10 +240,10 @@ function Prepare-Downgrade {
         Write-Log "     - Select '${cCyan}.\helper\Flasher\Flash${cReset}' folder in ${cCyan}Restore Device${cReset} menu." "Info"
     }
 
-    $null = Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
+    Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
-function Perform-RollbackOS([string]$firmwarePath) {
+function Perform-RollbackOS {
     $success = $true
     $lastError = $null
     $isTempExtraction = $false
@@ -283,14 +256,10 @@ function Perform-RollbackOS([string]$firmwarePath) {
         if (-not (Wait-UserConfirm "rollback")) {
             throw "Aborted by user. No changes have been made."
         }
-
+        
         Write-Log ""
-        if ((Test-Path -Path $firmwarePath -PathType Leaf)) {
-            Write-Log "Using downloaded '${cGreen}$firmwarePath${cReset}' from previous step." "Success"
-        } else {
-            Write-Log "Select firmware downloaded file." "Warning"
-            $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z"
-        }
+        Write-Log "Select firmware downloaded file." "Warning"
+        $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z"
 
         if (-not (Test-Path -Path $firmwarePath) -or -not ([System.IO.Path]::GetExtension($firmwarePath) -in @('.zip', '.rar', '.7z'))) {
             throw "No firmware file provided."
@@ -308,11 +277,13 @@ function Perform-RollbackOS([string]$firmwarePath) {
 
         # Handle archive extraction
         if ($firmwarePath -match '\.(rar|zip|7z)$' -and (Test-Path -Path $firmwarePath -PathType Leaf)) {
-            $extractedFolder = Extract-CompressedFile $firmwarePath
             $isTempExtraction = $true
-        }
-
-        if (-not (Test-Path -Path $extractedFolder -PathType Container)) {
+            $result = Extract-CompressedFile $firmwarePath
+            $extractedFolder = $result.Path
+            if (-not $result.Success) {
+                throw ""
+            }
+        } elseif (-not (Test-Path -Path $extractedFolder -PathType Container)) {
             throw "Target firmware directory '${cCyan}$extractedFolder${cReset}' does not exist."
         }
 
@@ -590,7 +561,7 @@ function Prepare-Firmware {
         Write-Log "Always perform a ${cCyan}User Personal Data${cReset} backup before proceed." "Warning"
     }
 
-    return Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
+    Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
 function Get-LunsSizeGB {
@@ -1142,8 +1113,8 @@ function Show-BackupRestoreMenu {
             }
             "5" {
                 Select-Firehose
-                $downloadedPath = Prepare-Firmware
-                Perform-RollbackOS $downloadedPath
+                Prepare-Firmware
+                Perform-RollbackOS
             }
             "c" {
                 $backupInfo = Select-BackupFolder
