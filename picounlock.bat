@@ -24,15 +24,6 @@ if not exist "%TARGET_SCRIPT%" (
     exit /b 1
 )
 
-:: Detect PowerShell Executable (Prefer pwsh.exe over powershell.exe)
-set "PS_EXE=powershell.exe"
-where pwsh.exe >nul 2>&1
-if %errorlevel% equ 0 (
-    set "PS_EXE=pwsh.exe"
-    echo [INFO] Using PowerShell 7+ (pwsh.exe)
-) else (
-    echo [INFO] Using Windows PowerShell (powershell.exe)
-)
 
 :: Check for Windows Terminal (wt.exe)
 set "WT_EXE="
@@ -44,6 +35,7 @@ if %errorlevel% equ 0 (
 )
 
 :: Launch Script
+set "PS_EXE=powershell.exe"
 if defined WT_EXE (
     echo [LAUNCH] Starting in Windows Terminal...
     "%WT_EXE%" -d "%SCRIPT_DIR%" cmd.exe /c "!PS_EXE! -ExecutionPolicy Bypass -File "%TARGET_SCRIPT%" || pause"
