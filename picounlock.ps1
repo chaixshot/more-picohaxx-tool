@@ -484,6 +484,7 @@ function Perform-FastbootUnlock {
     Write-Header "Unlock Bootloader"
 
     $success = $true
+    $requireReset = $false
 
     try {
         if ($IsRetryBootloader -eq 0) {
@@ -510,9 +511,10 @@ function Perform-FastbootUnlock {
         # Check current state
         if ($IsRetryBootloader -ne 2) {
             if (-not (IsFastbootUnlocked)) {
+                $requireReset = $true
                 Write-Log ""
                 Write-Log "Bootloader status: ${cGreen}LOCKED${cReset}" "Warning"
-                Write-Log "Your device will factory reset after the process." "Warning"
+                Write-Log "Your device will asked to perform factory reset after reboot." "Warning"
                 Wait-Continue
             }
         }
@@ -551,7 +553,7 @@ function Perform-FastbootUnlock {
             }
 
             if (Verify-FastbootState "unlock") {
-                Show-FastbootFinalInstruction 
+                Show-FastbootFinalInstruction $requireReset
             }
         }
     }
@@ -561,6 +563,7 @@ function Perform-FastbootLock {
     Write-Header "Lock Bootloader"
     
     $success = $true
+    $requireReset = $false
 
     try {
         if ($IsRetryBootloader -eq 0) {
@@ -587,9 +590,10 @@ function Perform-FastbootLock {
         # Check current state
         if ($IsRetryBootloader -ne 2) {
             if (IsFastbootUnlocked) {
+                $requireReset = $true
                 Write-Log ""
                 Write-Log "Bootloader status: ${cGreen}UNLOCKED${cReset}" "Warning"
-                Write-Log "Your device will factory reset after the process." "Warning"
+                Write-Log "Your device will asked to perform factory reset after reboot.." "Warning"
                 Wait-Continue
             }
         }
@@ -628,13 +632,13 @@ function Perform-FastbootLock {
             }
 
             if (Verify-FastbootState "lock") {
-                Show-FastbootFinalInstruction 
+                Show-FastbootFinalInstruction $requireReset
             }
         }
     }
 }
 
-function Show-FastbootFinalInstruction([bool]$needReset) {
+function Show-FastbootFinalInstruction([bool]$requireReset) {
     $button = switch (IsPicoNeo3) {
         $true { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset}" }
         Default { "${cYellow}Vol Up${cReset} + ${cYellow}Power${cReset}" }
@@ -642,9 +646,12 @@ function Show-FastbootFinalInstruction([bool]$needReset) {
 
     Write-Header "Bootloader Finalizing"
     Write-Log "Check your device screen to confirm the current bootloader state." "Info"
-    Write-Log "After rebooting, in the headset you will be asked to perform a ${cCyan}Factory Reset${cReset}." "Info"
-    Write-Log "In the headset menu, Press ${cYellow}Vol Down${cReset} then ${cYellow}Power${cReset} to select ${cCyan}Factory data reset${cReset}." "Info"
-    Write-Log "After the factory reset, your device will boot normally." "Info"
+    if ($requireReset) {
+        Write-Log ""
+        Write-Log "After rebooting, in the headset you will be asked to perform a ${cCyan}Factory Reset${cReset}." "Info"
+        Write-Log "In the headset menu, Press ${cYellow}Vol Down${cReset} then ${cYellow}Power${cReset} to select ${cCyan}Factory data reset${cReset}." "Info"
+        Write-Log "After the factory reset, your device will boot normally." "Info"
+    }
     Write-Log ""
     Write-Log "If the device does not boot to system normally, a ${cCyan}Factory Reset${cReset} might be required." "Warning"
     Write-Log "Option 1: Use provided ${cCyan}Factory Reset${cReset} menu." "Info"
