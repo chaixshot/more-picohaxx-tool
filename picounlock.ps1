@@ -46,7 +46,7 @@ $FASTBOOT = Join-Path $WorkingDir "tools\fastboot.exe"
 $FASTBOOTNEO = Join-Path $WorkingDir "tools\neo\fastboot.exe"
 
 $TimeStamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$VersionStr = "Pico Unlock 1.3.2"
+$VersionStr = "Pico Unlock 1.3.3"
 
 $IsRetryBootloader = 0
 
