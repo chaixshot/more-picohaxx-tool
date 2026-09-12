@@ -139,7 +139,7 @@ function IsEdlMode {
 }
 
 function IsAdbMode {
-    $adbOutput = & $ADB devices
+    $adbOutput = Execute-ADBCommand "devices" -get $true
     return $adbOutput | Select-String -Pattern "`tdevice$" -Quiet
 }
 
@@ -276,7 +276,7 @@ function Wait-AdbMode([int]$timeout = 360, [switch]$waitForDisconnect) {
                 [System.Console]::Write("`r  Validating stable ADB connection...                        ")
                 
                 # Check 1: Wait until Android OS reports boot complete
-                $rawBoot = & $ADB shell getprop sys.boot_completed 2>$null
+                $rawBoot = Execute-ADBCommand "shell getprop sys.boot_completed" -get $true
                 $bootCompleted = (($rawBoot -join '').Trim()) -eq "1"
                 
                 # Check 2: Ensure connection stays active for 2 consecutive seconds
@@ -485,6 +485,18 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
         return $outputLines
     } else {
         return $success
+    }
+}
+
+function Execute-ADBCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
+    $arguments = $sCMDLine.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
+
+    if ($silent) {
+        & $ADB @arguments 2>&1 | Out-Null
+    } elseif ($get) {
+        return & $ADB @arguments 2>&1
+    } else {
+        & $ADB @arguments 2>&1 | Write-Host
     }
 }
 
@@ -1047,25 +1059,25 @@ function Warning-EDL-ManualReboot {
 function ADB-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
-    & $ADB reboot
+    Execute-ADBCommand "reboot" -silent $true
 }
 
 function ADB-To-Recovery {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
-    & $ADB reboot recovery
+    Execute-ADBCommand "reboot recovery" -silent $true
 }
 
 function ADB-To-Fastboot {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    & $ADB reboot bootloader
+    Execute-ADBCommand "reboot bootloader" -silent $true
 }
 
 function ADB-To-Edl {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    & $ADB reboot edl
+    Execute-ADBCommand "reboot edl" -silent $true
 }
 
 # ---------------------------------------------

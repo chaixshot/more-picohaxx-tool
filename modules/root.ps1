@@ -94,15 +94,15 @@ function Perform-MagiskBoot([string]$bootImgPath) {
 
         # Determine pre-init storage device
         $preinit = $null
-        $adbDevices = & $ADB devices
+        $adbDevices = Execute-ADBCommand "devices" -get $true
         if ($adbDevices -match "\t(device|recovery)") {
-            & $ADB push (Join-Path $MagiskTMP "magisk") /data/local/tmp/magisk 2>&1 | Out-Null
-            $detectedPreinit = (& $ADB shell "chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device").Trim()
+            Execute-ADBCommand "push $(Join-Path $MagiskTMP 'magisk') /data/local/tmp/magisk" -silent $true
+            $detectedPreinit = (Execute-ADBCommand "shell chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device" -get $true).Trim()
             if ($detectedPreinit) {
                 $preinit = $detectedPreinit
                 Write-Log "Detected pre-init storage partition: ${cGreen}$preinit${cReset}" "Info"
             }
-            & $ADB shell "rm -f /data/local/tmp/magisk" 2>&1 | Out-Null
+            Execute-ADBCommand "shell rm -f /data/local/tmp/magisk" -silent $true
         }
 
         if (-not $preinit) {
@@ -209,7 +209,7 @@ SHA1=$sha1
 function IsDeviceRooted {
     # Primary Check: check Magisk directly using su -c magisk -v / magisk -v
     Write-Log "Checking Superuser access using '${cCyan}adb shell su -c magisk -v${cReset}'..." "Action"
-    $magiskVerRaw = & $ADB shell "magisk -v" 2>&1
+    $magiskVerRaw = Execute-ADBCommand "shell magisk -v" -get $true
     $magiskVer = ($magiskVerRaw -join "`n").Trim()
 
     if ($magiskVer -match "(:MAGISK|\d+\.\d+|\b\d{5}\b)") {
@@ -220,7 +220,7 @@ function IsDeviceRooted {
     # Secondary Primary Check: check root uid via su -c id
     Write-Log ""
     Write-Log "Checking Superuser access using '${cCyan}adb shell -c id${cReset}'..." "Action"
-    $suOutputRaw = & $ADB shell "su -c id" 2>&1
+    $suOutputRaw = Execute-ADBCommand "shell su -c id" -get $true
     $suOutput = ($suOutputRaw -join "`n").Trim()
     Write-Log $suOutput "Info"
     if ($suOutput -match "uid=0(\(root\))?") {
@@ -230,7 +230,7 @@ function IsDeviceRooted {
     # Fallback Check: su 0 id
     Write-Log ""
     Write-Log "Checking fallback with ${cCyan}adb shell su 0 id${cReset}..." "Action"
-    $altSuRaw = & $ADB shell "su 0 id" 2>&1
+    $altSuRaw = Execute-ADBCommand "shell su 0 id" -get $true
     $altSu = ($altSuRaw -join "`n").Trim()
     Write-Log $altSu "Info"
     if ($altSu -match "uid=0(\(root\))?") {
@@ -240,7 +240,7 @@ function IsDeviceRooted {
     # Fallback Check: adb root (if adbd runs as root)
     Write-Log ""
     Write-Log "Checking fallback with ${cCyan}adb shell id${cReset}..." "Action"
-    $idRaw = & $ADB shell "id" 2>&1
+    $idRaw = Execute-ADBCommand "shell id" -get $true
     $idOutput = ($idRaw -join "`n").Trim()
     if ($idOutput -match "uid=0(\(root\))?") {
         return $true
@@ -477,7 +477,7 @@ function Prepare-Magisk {
             throw "Magisk APK not found at ${cYellow}${Magisk}${cReset}"
         }
 
-        & $ADB install $Magisk
+        Execute-ADBCommand "install $Magisk"
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to install ${cYellow}Magisk${cReset}."
         }

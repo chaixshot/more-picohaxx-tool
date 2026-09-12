@@ -205,7 +205,8 @@ function Check-Prerequisites {
         }
     }
 
-    & $ADB start-server
+    Write-Log "Starting ADB server..." "Action"
+    Execute-ADBCommand "start-server"
 
     if (-not $isReady) {
         Write-Log "Some prerequisites are missing. Functions may not work correctly." "Warning"
@@ -219,7 +220,7 @@ function Generate-UnlockCode {
     Write-Header "Generate-Get Unlock Code"
 
     if (IsAdbMode) {
-        $rawSerial = & $ADB shell "cat /sys/devices/soc0/serial_number" 2>$null
+        $rawSerial = Execute-ADBCommand "shell cat /sys/devices/soc0/serial_number" -get $true
         $serialNumber = ($rawSerial -join '').Trim()
         if ($serialNumber -match "^\d+$") {
             # Create backup directory if it doesn't exist
@@ -864,61 +865,61 @@ function SystemUpdate-Management([string]$selection = "") {
             "1" { 
                 Write-Log "Disabling system update..." "Action"
 
-                & $ADB shell setprop persist.accept.systemupdates.ota 0
-                & $ADB shell setprop persist.accept.systemupdates.app 0
-                & $ADB shell setprop persist.accept.systemupdates 0
-                & $ADB shell setprop pvr.update.app 0
+                Execute-ADBCommand "shell setprop persist.accept.systemupdates.ota 0"
+                Execute-ADBCommand "shell setprop persist.accept.systemupdates.app 0"
+                Execute-ADBCommand "shell setprop persist.accept.systemupdates 0"
+                Execute-ADBCommand "shell setprop pvr.update.app 0"
 
-                & $ADB shell settings put global pvr_update 0
-                & $ADB shell settings put global pvr_update_silent 0
-                & $ADB shell settings put global pvr_update_auto_upgrade 0
-                & $ADB shell settings put global pvr_update_auto_update 0
+                Execute-ADBCommand "shell settings put global pvr_update 0"
+                Execute-ADBCommand "shell settings put global pvr_update_silent 0"
+                Execute-ADBCommand "shell settings put global pvr_update_auto_upgrade 0"
+                Execute-ADBCommand "shell settings put global pvr_update_auto_update 0"
 
-                $out = & $ADB shell pm disable-user --user 0 com.pvr.version 2>&1
+                $out = Execute-ADBCommand "shell pm disable-user --user 0 com.pvr.version" -get $true
                 if ($out -and ($out -match "Error" -or $out -match "Exception")) { throw "pm disable-user failed: $out" }
 
-                $out = & $ADB shell pm uninstall --user 0 com.picovr.updatesystem 2>&1
+                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.picovr.updatesystem" -get $true
                 if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall updatesystem failed: $out" }
 
-                $out = & $ADB shell pm uninstall --user 0 com.picovr.firmwareupdate 2>&1
+                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.picovr.firmwareupdate" -get $true
                 if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall firmwareupdate failed: $out" }
 
-                $out = & $ADB shell pm uninstall --user 0 com.android.dynsystem 2>&1
+                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.android.dynsystem" -get $true
                 if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall dynsystem failed: $out" }
 
-                & $ADB shell update_engine_client --suspend
-                & $ADB shell update_engine_client --cancel
-                & $ADB shell update_engine_client --reset_status
-                & $ADB shell update_engine_client --switch_slot=false
+                Execute-ADBCommand "shell update_engine_client --suspend"
+                Execute-ADBCommand "shell update_engine_client --cancel"
+                Execute-ADBCommand "shell update_engine_client --reset_status"
+                Execute-ADBCommand "shell update_engine_client --switch_slot=false"
 
                 Write-Log "System update disabled. " "Success"
             }
             "2" { 
                 Write-Log "Enabling system update..." "Action"
 
-                & $ADB shell setprop persist.accept.systemupdates.ota 1
-                & $ADB shell setprop persist.accept.systemupdates.app 1
-                & $ADB shell setprop persist.accept.systemupdates 1
-                & $ADB shell setprop pvr.update.app 1
+                Execute-ADBCommand "shell setprop persist.accept.systemupdates.ota 1"
+                Execute-ADBCommand "shell setprop persist.accept.systemupdates.app 1"
+                Execute-ADBCommand "shell setprop persist.accept.systemupdates 1"
+                Execute-ADBCommand "shell setprop pvr.update.app 1"
 
-                & $ADB shell settings put global pvr_update 1
-                & $ADB shell settings put global pvr_update_silent 1
-                & $ADB shell settings put global pvr_update_auto_upgrade 1
-                & $ADB shell settings put global pvr_update_auto_update 1
+                Execute-ADBCommand "shell settings put global pvr_update 1"
+                Execute-ADBCommand "shell settings put global pvr_update_silent 1"
+                Execute-ADBCommand "shell settings put global pvr_update_auto_upgrade 1"
+                Execute-ADBCommand "shell settings put global pvr_update_auto_update 1"
 
-                $out = & $ADB shell pm enable com.pvr.version 2>&1
+                $out = Execute-ADBCommand "shell pm enable com.pvr.version" -get $true
                 if ($out -and ($out -match "Error" -or $out -match "Exception")) { throw "pm enable failed: $out" }
 
-                $out = & $ADB shell cmd package install-existing com.picovr.updatesystem 2>&1
+                $out = Execute-ADBCommand "shell cmd package install-existing com.picovr.updatesystem" -get $true
                 if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing updatesystem failed: $out" }
 
-                $out = & $ADB shell cmd package install-existing com.picovr.firmwareupdate 2>&1
+                $out = Execute-ADBCommand "shell cmd package install-existing com.picovr.firmwareupdate" -get $true
                 if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing firmwareupdate failed: $out" }
 
-                $out = & $ADB shell cmd package install-existing com.android.dynsystem 2>&1
+                $out = Execute-ADBCommand "shell cmd package install-existing com.android.dynsystem" -get $true
                 if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing dynsystem failed: $out" }
 
-                & $ADB shell update_engine_client --reset_status
+                Execute-ADBCommand "shell update_engine_client --reset_status"
 
                 Write-Log "System update enabled. " "Success"
             }
@@ -1031,7 +1032,7 @@ try {
 
     try {
         Stop-Transcript
-        & $ADB kill-server
+        Execute-ADBCommand "kill-server"
     } catch {
 
     }
