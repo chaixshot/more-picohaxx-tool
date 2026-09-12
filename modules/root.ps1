@@ -525,11 +525,11 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
             throw ""
         }
 
-        Write-Log "Flashing ${cCyan}$partition${cReset} image with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
+        Write-Log "Flashing ${cCyan}$partition${cReset} partiton with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
         Execute-FastbootCommand "flash $partition $($imagePath.FullName)"
 
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to flash ${cCyan}$partition${cReset} image."
+            throw "Failed to flash ${cCyan}$partition${cReset} partiton."
         }
     } catch {
         $success = $false
@@ -538,7 +538,7 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imageName) {
         }
     } finally {
         if ($success) {
-            Write-Log "Flash successful." "Success"
+            Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
             Wait-Continue
         }
     }
@@ -580,9 +580,9 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
             throw ""
         }
 
-        Write-Log "Flashing ${cCyan}$partition${cReset} image with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
+        Write-Log "Flashing ${cCyan}$partition${cReset} partiton with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
         if (-not (Execute-EdlCommand "write-part $partition $($imagePath.FullName)")) {
-            throw "Failed to flash ${cCyan}$partition${cReset} image."
+            throw "Failed to flash ${cCyan}$partition${cReset} partiton."
         }
     } catch {
         $success = $false
@@ -591,7 +591,7 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imageName) {
         }
     } finally {
         if ($success) {
-            Write-Log "Flash successful." "Success"
+            Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
             Wait-Continue
         }
     }
