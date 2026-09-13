@@ -966,84 +966,89 @@ try {
 
     $quit = $false
     while (-not $quit) {
-        Write-Header $VersionStr
+        try {
+            Write-Header $VersionStr
 
-        Write-Log "[${cCyan}1${cReset}] Generate-Get Unlock Code"
-        Write-Log "[${cCyan}2${cReset}] Flash Engineering ABL"
-        Write-Log "[${cCyan}3${cReset}] Unlock Bootloader"
-        Write-Log "[${cCyan}4${cReset}] Flash Backup ABL"
-        Write-Log "[${cCyan}5${cReset}] Root / Flash Image"
-        Write-Log ""
-        Write-Log "[${cCyan}b${cReset}] Backup / Restore / Downgrade"
-        Write-Log "[${cCyan}t${cReset}] Test Bootloader"
-        Write-Log "[${cCyan}l${cReset}] Lock Bootloader"
-        Write-Log "[${cCyan}r${cReset}] Reboot"
-        Write-Log "[${cCyan}update${cReset}] System Update Management"
-        Write-Log "[${cCyan}reset${cReset}] Factory Reset"
-        Write-Log "[${cCyan}0${cReset}] Exit"
-        Write-Log ""
-        Write-Log "Site: ${cYellow}https://github.com/chaixshot/more-picohaxx-tool${cReset}"
+            Write-Log "[${cCyan}1${cReset}] Generate-Get Unlock Code"
+            Write-Log "[${cCyan}2${cReset}] Flash Engineering ABL"
+            Write-Log "[${cCyan}3${cReset}] Unlock Bootloader"
+            Write-Log "[${cCyan}4${cReset}] Flash Backup ABL"
+            Write-Log "[${cCyan}5${cReset}] Root / Flash Image"
+            Write-Log ""
+            Write-Log "[${cCyan}b${cReset}] Backup / Restore / Downgrade"
+            Write-Log "[${cCyan}t${cReset}] Test Bootloader"
+            Write-Log "[${cCyan}l${cReset}] Lock Bootloader"
+            Write-Log "[${cCyan}r${cReset}] Reboot"
+            Write-Log "[${cCyan}update${cReset}] System Update Management"
+            Write-Log "[${cCyan}reset${cReset}] Factory Reset"
+            Write-Log "[${cCyan}0${cReset}] Exit"
+            Write-Log ""
+            Write-Log "Site: ${cYellow}https://github.com/chaixshot/more-picohaxx-tool${cReset}"
 
-        $selection = Read-HostLog "Select an option"
-        switch ($selection) {
-            "1" {
-                Generate-UnlockCode
-            }
-            "2" {
-                Select-Firehose
-                Flash-EngineeringABL
-            }
-            "3" {
-                Perform-FastbootUnlock
-            }
-            "4" {
-                Select-Firehose
-                Flash-BackupABL
-            }
-            "5" {
-                Show-RootMenu
-            }
-            "b" {
-                Show-BackupRestoreMenu
-            }
-            "t" {
-                Test-Bootloader
-            }
-            "l" {
-                Perform-FastbootLock
-            }
-            "r" {
-                Perform-Reboot
-            }
-            "update" {
-                SystemUpdate-Management
-            }
-            "reset" {
-                Select-Firehose
-                if (Perform-FactoryReset) {
-                    Edl-To-System
-                } else {
-                    Warning-EDL-ManualReboot
+            $selection = Read-HostLog "Select an option"
+            switch ($selection) {
+                "1" {
+                    Generate-UnlockCode
+                }
+                "2" {
+                    Select-Firehose
+                    Flash-EngineeringABL
+                }
+                "3" {
+                    Perform-FastbootUnlock
+                }
+                "4" {
+                    Select-Firehose
+                    Flash-BackupABL
+                }
+                "5" {
+                    Show-RootMenu
+                }
+                "b" {
+                    Show-BackupRestoreMenu
+                }
+                "t" {
+                    Test-Bootloader
+                }
+                "l" {
+                    Perform-FastbootLock
+                }
+                "r" {
+                    Perform-Reboot
+                }
+                "update" {
+                    SystemUpdate-Management
+                }
+                "reset" {
+                    Select-Firehose
+                    if (Perform-FactoryReset) {
+                        Edl-To-System
+                    } else {
+                        Warning-EDL-ManualReboot
+                    }
+                }
+                "0" {
+                    $quit = $true
+                }
+                default {
+                    Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
                 }
             }
-            "0" {
-                $quit = $true
-            }
-            default {
-                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-            }
+        } catch {
+            $errInfo = $_.InvocationInfo
+            Write-Log ""
+            Write-Log "File: ${cCyan}$($errInfo.ScriptName)${cReset}" "Error"
+            Write-Log "Line: ${cCyan}$($errInfo.ScriptLineNumber)${cReset}" "Error"
+            Write-Log $_ "Error"
         }
+
         if (-not $quit) {
             Wait-Continue "return '${cCyan}Pico Unlock${cReset}'..."
         }
     }
-} catch {
-    $errInfo = $_.InvocationInfo
-    $errMsg = "'$($errInfo.ScriptName)' at line $($errInfo.ScriptLineNumber): $_"
-    Write-Log $errMsg "Error"
 } finally {
     Write-Header "Exited"
-    Write-Log $VersionStr  "Info"
+    Write-Log $VersionStr "Info"
     Write-Log ""
 
     try {
@@ -1052,6 +1057,6 @@ try {
     } catch {
 
     }
-    
+
     Clean-LogFormat -LogFile $LogFile
 }
