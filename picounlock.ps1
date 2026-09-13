@@ -647,6 +647,18 @@ function Show-FastbootFinalInstruction([bool]$requireReset) {
     }
 }
 
+function Test-Bootloader {
+    Write-Header "Test Bootloader"
+
+    if (IsFastbootUnlocked) {
+        Write-Log ""
+        Write-Log "Device bootloader: ${cGreen}Unlocked${cReset}" "Info"
+    } else {
+        Write-Log ""
+        Write-Log "Device bootloader: ${cRed}Locked${cReset}" "Info"
+    }
+}
+
 function Verify-FastbootState([string]$state) {
     # Normalize state check
     $isCheckUnlock = $state -match "^unlock"
@@ -732,6 +744,20 @@ function IsFastbootUnlocked {
     $result = $null
 
     try {
+        if (-not (IsFastbootMode)) {
+            if (IsAdbMode) {
+                ADB-To-Fastboot
+            } elseif (IsEdlMode) { 
+                Edl-To-Fastboot
+            } elseif (-not (IsFastbootMode)) {
+                Warning-FASTBOOT
+            }
+        
+            if (-not (Wait-FastbootMode)) {
+                throw ""
+            }
+        }
+    
         # Primary Check: fastboot oem device-info
         Write-Log "Checking bootloader status using ${cCyan}fastboot oem device-info${cReset}..." "Action"
         $deviceInfoRaw = Execute-FastbootCommand "oem device-info" -get $true
@@ -949,6 +975,7 @@ try {
         Write-Log "[${cCyan}5${cReset}] Root / Flash Image"
         Write-Log ""
         Write-Log "[${cCyan}b${cReset}] Backup / Restore / Downgrade"
+        Write-Log "[${cCyan}t${cReset}] Test Bootloader"
         Write-Log "[${cCyan}l${cReset}] Lock Bootloader"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}update${cReset}] System Update Management"
@@ -978,6 +1005,9 @@ try {
             }
             "b" {
                 Show-BackupRestoreMenu
+            }
+            "t" {
+                Test-Bootloader
             }
             "l" {
                 Perform-FastbootLock
