@@ -456,7 +456,6 @@ function Perform-RollbackOS {
 
         if ($success) {
             Write-Log "Device has rollbacked successfully." "Success"
-            Wait-Continue
 
             $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
             if ($choice -eq 'y') {
@@ -465,9 +464,7 @@ function Perform-RollbackOS {
         } else {
             if ($lastError.Message -notlike "*Abort*") {
                 Write-Log "Rollback process encountered errors." "Error"
-                Wait-Continue
             }
-            
             Warning-EDL-ManualReboot
         }
     }
@@ -666,7 +663,6 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
     if ($freeSpaceGB -lt $diskSize) {
         Write-Log "Free space on drive ${cCyan}${driveLetter}${cReset} is less than the required size (${cCyan}$diskSize GB${cReset})." "Error"
         Write-Log "Please ensure you have enough space on drive ${cCyan}${driveLetter}${cReset} before proceeding." "Error"
-        Wait-Continue
 
         return $false
     } else {
@@ -797,6 +793,7 @@ function Folder-Compression([string]$folderPath) {
         if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
             throw ""
         }
+        Wait-Continue
 
         Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
         Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
@@ -964,6 +961,7 @@ function Backup-Device($selection) {
         if (-not (Verify-DiskSpace $backupMode $customPath)) {
             throw ""
         }
+        Wait-Continue
 
         # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
         if ($backupMode -eq "luns") {
@@ -1015,9 +1013,7 @@ function Backup-Device($selection) {
             
             if ($lastError.Message -notlike "*Abort*") {
                 Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-                Wait-Continue
             }
-
             Warning-EDL-ManualReboot
         }
     }
@@ -1064,7 +1060,6 @@ function Restore-Backup($backupInfo) {
     } finally {
         if ($success) {
             Write-Log "Device restore successfully" "Success"
-            Wait-Continue
             
             $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
             if ($choice -eq 'y') {
@@ -1073,9 +1068,7 @@ function Restore-Backup($backupInfo) {
         } else {
             if ($lastError.Message -notlike "*Abort*") {
                 Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-                Wait-Continue
             }
-
             Warning-EDL-ManualReboot
         }
     }
@@ -1135,7 +1128,7 @@ function Show-BackupRestoreMenu {
             }
         }
         if (-not $menuQuit) {
-            Wait-Continue "return to the Backup/Restore menu..."
+            Wait-Continue "return '${cCyan}Backup / Restore / Downgrade${cReset}'..."
         }
     }
 }

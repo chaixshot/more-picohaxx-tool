@@ -384,7 +384,6 @@ function Invoke-PicoHaxxScript {
 
         $unlockKey = "pico$encoded_serial"
         Write-Log "Unlock Command: ${cCyan}fastboot oem $unlockKey unlock${cReset}" "Success"
-        Write-Log ""
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
@@ -1036,7 +1035,7 @@ function Warning-EDL-ManualReboot {
             Default { "${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset}" }
         }
     
-        Write-Header "EDL Manual Reboot"
+        Write-Log ""
         Write-Log "Your device will not automatically reboot." "Interactive"
         Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
         Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding $btnRecovery until dead robot shows up." "Info"

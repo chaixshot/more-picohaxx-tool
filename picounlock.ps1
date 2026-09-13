@@ -126,8 +126,6 @@ function Check-Prerequisites {
             } else {
                 Write-Log "'${cYellow}qdl_winusb.inf${cReset}' has been removed." "Success"
             }
-
-            Wait-Continue
         } else {
             $isReady = $false
         }
@@ -208,11 +206,6 @@ function Check-Prerequisites {
     Write-Log "Starting ADB server..." "Action"
     Execute-ADBCommand "start-server"
 
-    if (-not $isReady) {
-        Write-Log "Some prerequisites are missing. Functions may not work correctly." "Warning"
-        Wait-Continue
-    }
-
     return $isReady
 }
 
@@ -232,19 +225,15 @@ function Generate-UnlockCode {
             Write-Log "Saved: ${cCyan}$DeviceSerial${cReset}" "Success"
             Write-Log "Serial number: ${cCyan}$serialNumber${cReset}" "Success"
             $null = Invoke-PicoHaxxScript
-            return
         } else {
             Write-Log "Failed to get a valid serial number from the device. Is it connected and authorized?" "Warning"
         }
-    }
-
-    if (Test-Path $DeviceSerial) {
+    } elseif (Test-Path $DeviceSerial) {
         Write-Log "Using existing serial number from ${cCyan}'$DeviceSerial'${cReset}." "Info"
         $null = Invoke-PicoHaxxScript
-        return
+    } else {
+        Warning-ADB
     }
-
-    Warning-ADB
 }
 
 # ----------------------------
@@ -337,10 +326,8 @@ function Flash-EngineeringABL {
             }
         } else {
             if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot device into EDL and try again." "Warning"
-                Wait-Continue
+                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
             }
-
             Warning-EDL-ManualReboot
         }
     }
@@ -402,9 +389,9 @@ function Flash-BackupABL {
         $backupAbl = Join-Path $backupFolder "abl.bin"
         $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
         if (-not (Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) {
-            throw "Backup ABL file '${cYellow}$backupAbl${cReset}' does not exist or is empty."
+            throw "Aborted. Backup ABL file '${cYellow}$backupAbl${cReset}' does not exist or is empty."
         } elseif (-not (Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
-            throw "Backup Devinfo file '${cYellow}$backupDevInfo${cReset}' does not exist or is empty."
+            throw "Aborted .Backup Devinfo file '${cYellow}$backupDevInfo${cReset}' does not exist or is empty."
         }
         
         # User confirm
@@ -456,10 +443,8 @@ function Flash-BackupABL {
             Edl-To-System
         } else {
             if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot device into EDL and try again." "Warning"
-                Wait-Continue
+                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
             }
-
             Warning-EDL-ManualReboot
         }
     }
@@ -542,6 +527,7 @@ function Perform-FastbootUnlock {
             }
 
             if (Verify-FastbootState "unlock") {
+                Wait-Continue
                 Show-FastbootFinalInstruction $requireReset
             }
         }
@@ -621,6 +607,7 @@ function Perform-FastbootLock {
             }
 
             if (Verify-FastbootState "lock") {
+                Wait-Continue
                 Show-FastbootFinalInstruction $requireReset
             }
         }
@@ -736,8 +723,6 @@ function Verify-FastbootState([string]$state) {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        Wait-Continue
     }
 
     return $result
@@ -829,10 +814,8 @@ function Perform-FactoryReset {
         if ($success) {
             Write-Log "Factory reset completed successfully." "Success"
         } elseif ($lastError.Message -notlike "*Abort*") {
-            Write-Log "EDL mode might have timed out. Reboot device into EDL and try again." "Warning"
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         }
-        
-        Wait-Continue
     }
 
     return $success
@@ -950,6 +933,9 @@ $host.UI.RawUI.WindowTitle = "more-picohaxx-tool"
 try {
     if (Check-Prerequisites) {
         Clear-Host
+    } else {
+        Write-Log "Some prerequisites are missing. Functions may not work correctly." "Warning"
+        Wait-Continue
     }
 
     $quit = $false
@@ -1018,7 +1004,7 @@ try {
             }
         }
         if (-not $quit) {
-            Wait-Continue "return to the menu..."
+            Wait-Continue "return '${cCyan}Pico Unlock${cReset}'..."
         }
     }
 } catch {

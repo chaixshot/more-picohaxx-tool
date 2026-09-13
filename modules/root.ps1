@@ -446,12 +446,12 @@ function Perform-PullImage([string]$partition) {
         } else {
             if ($lastError.Message -notlike "*Abort*") {
                 Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-                Wait-Continue
             }
-
             Warning-EDL-ManualReboot
         }
     }
+
+    return $success
 }
 
 function Prepare-Magisk {
@@ -547,7 +547,6 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$fileName) {
     } finally {
         if ($success) {
             Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
-            Wait-Continue
         }
     }
 
@@ -600,7 +599,6 @@ function FlashBoot-ViaEDL([string]$partition, [string]$fileName) {
     } finally {
         if ($success) {
             Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
-            Wait-Continue
         }
     }
 
@@ -690,20 +688,22 @@ function Show-RootMenu {
         switch ($selection) {
             "1" {
                 Select-Firehose
-                Perform-PullImage "boot"
-                Write-Log "The next step is perform ${cCyan}Prepare Magisk${cReset}." "Info"
+                if (Perform-PullImage "boot") {
+                    Write-Log "The next step is perform ${cCyan}Prepare Magisk${cReset}." "Info"
+                }
             }
             "2" {
                 Prepare-Magisk
             }
             "3" {
                 if (Perform-FlashImage "boot" "magisk_patched") {
+                    Wait-Continue
                     Verify-RootState "root"
                 }
             }
             "p" {
                 Select-Firehose
-                Perform-PullImage
+                $null = Perform-PullImage
             }
             "f" {
                 $null = Perform-FlashImage
@@ -713,6 +713,7 @@ function Show-RootMenu {
             }
             "u" {
                 if (Perform-FlashImage "boot" "boot") {
+                    Wait-Continue
                     Verify-RootState "unroot"
                 }
             }
@@ -727,7 +728,7 @@ function Show-RootMenu {
             }
         }
         if (-not $rootQuit) {
-            Wait-Continue "return to the Root menu..."
+            Wait-Continue "return '${cCyan}Root / Flash Image${cReset}'..."
         }
     }
 }
