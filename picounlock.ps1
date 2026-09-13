@@ -241,14 +241,14 @@ function Generate-UnlockCode {
 # ----------------------------
 
 function Flash-EngineeringABL {
-    Write-Header "Flash Engineering ABL"
-    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
-    Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
-
     $success = $true
     $lastError = $null
-
+    
     try {
+        Write-Header "Flash Engineering ABL"
+        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
+        Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+
         $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
@@ -455,12 +455,12 @@ function Flash-BackupABL {
 # ----------------------------
 
 function Perform-FastbootUnlock {
-    Write-Header "Unlock Bootloader"
-
     $success = $true
     $requireReset = $false
-
+    
     try {
+        Write-Header "Unlock Bootloader"
+
         if ($IsRetryBootloader -eq 0) {
             Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to unlock bootloader." "Warning"
             Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
@@ -535,12 +535,12 @@ function Perform-FastbootUnlock {
 }
 
 function Perform-FastbootLock {
-    Write-Header "Lock Bootloader"
-    
     $success = $true
     $requireReset = $false
-
+    
     try {
+        Write-Header "Lock Bootloader"
+
         if ($IsRetryBootloader -eq 0) {
             Write-Log "This step will reboot your device into ${cCyan}FASTBOOT${cReset} mode to lock bootloader." "Warning"
             Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
@@ -672,15 +672,13 @@ function Test-Bootloader {
 }
 
 function Verify-FastbootState([string]$state) {
-    # Normalize state check
+    $result = $null
     $isCheckUnlock = $state -match "^unlock"
     $actionName = if ($isCheckUnlock) { "Verify Unlock" } else { "Verify Lock" }
-
-    Write-Header $actionName
-
-    $result = $null
-
+    
     try {
+        Write-Header $actionName
+
         if (IsFastbootMode) {
             Fastboot-To-Fastboot
         } elseif (IsAdbMode) {
@@ -792,15 +790,15 @@ function IsFastbootUnlocked {
 }
 
 function Perform-FactoryReset {
-    Write-Header "Factory Reset"
-    Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to wipe user data partition." "Warning"
-    Write-Log "Factory reset may be required to prevent non-bootable states or bootloops from data mismatch." "Warning"
-    Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
-
     $success = $true
     $lastError = $null
 
     try {
+        Write-Header "Factory Reset"
+        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to wipe user data partition." "Warning"
+        Write-Log "Factory reset may be required to prevent non-bootable states or bootloops from data mismatch." "Warning"
+        Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
+
         $confirmation = Read-HostLog "To proceed with factory reset, type [${cYellow}YES${cReset}] and press Enter"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
@@ -846,21 +844,22 @@ function Perform-FactoryReset {
 }
 
 function SystemUpdate-Management([string]$selection = "") {
-    Write-Header "System Update Management"
-
-    # Ensure device is in ADB mode
-    if (IsFastbootMode) {
-        Fastboot-To-System
-    } elseif (IsEdlMode) {
-        Edl-To-System
-    } elseif (-not (IsAdbMode)) {
-        Warning-ADB
-    }
-
-    if (-not (Wait-AdbMode)) {
-        throw "ADB device connection timed out."
-    }
     try {
+        Write-Header "System Update Management"
+
+        # Ensure device is in ADB mode
+        if (IsFastbootMode) {
+            Fastboot-To-System
+        } elseif (IsEdlMode) {
+            Edl-To-System
+        } elseif (-not (IsAdbMode)) {
+            Warning-ADB
+        }
+
+        if (-not (Wait-AdbMode)) {
+            throw "ADB device connection timed out."
+        }
+    
         while ($selection -eq "") {
             Write-Header "System Update Management"
             Write-Log "[${cCyan}1${cReset}] Disable Auto System Update"
@@ -930,8 +929,8 @@ function SystemUpdate-Management([string]$selection = "") {
 
                 Write-Log "System update enabled. " "Success"
             }
-            Default {
-                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
+            default {
+                throw "Invalid input: [${cYellow}$selection${cReset}]"
             }
         }
     } catch {

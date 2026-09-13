@@ -564,71 +564,59 @@ function Prepare-Firmware {
 }
 
 function Get-LunsSizeGB {
-    $lunsSize = 15
+    $gpt = Execute-EdlCommand "printgpt" -silent $true $true
+    $totalSizeGB = 0
+    $lunsSize = $null
 
-    try {
-        # In EDL mode, use edl-ng to find total sectors across all LUNs
-        $gpt = Execute-EdlCommand "printgpt" -silent $true $true
-        $totalSizeGB = 0
-
-        foreach ($line in $gpt) {
-            if ($line -match "Backup LBA:\s+(\d+)") {
-                $lastLba = [long]$matches[1]
-                # Total size of this LUN in GB (assuming 4096 sector size for UFS)
-                $totalSizeGB += ($lastLba + 1) * 4096 / 1GB
-            }
-        }
-
-        if ($totalSizeGB -gt 0) {
-            $userdataSize = Get-UserdataSizeGB
-            $lunsSize = [math]::Round($totalSizeGB - $userdataSize, 2) + 1
-            throw ""
-        }
-
-        throw "Could not determine partition size."
-    } catch {
-        if ($_.Exception.Message) {
-            Write-Log "$($_.Exception.Message)" "Error"
+    foreach ($line in $gpt) {
+        if ($line -match "Backup LBA:\s+(\d+)") {
+            $lastLba = [long]$matches[1]
+            # Total size of this LUN in GB (assuming 4096 sector size for UFS)
+            $totalSizeGB += ($lastLba + 1) * 4096 / 1GB
         }
     }
 
-    return $lunsSize
+    if ($totalSizeGB -gt 0) {
+        $userdataSize = Get-UserdataSizeGB
+        $lunsSize = [math]::Round($totalSizeGB - $userdataSize, 2) + 1
+    }
+
+    if ($lunsSize) {
+        return $lunsSize
+    } else {
+        Write-Log "Could not determine userdata partition size" "Error"
+        return 15
+    }
 }
 
 function Get-UserdataSizeGB {
-    $userdataSize = 110
+    $gpt = Execute-EdlCommand "printgpt --lun 0" $true $true
+    $isUserdataBlock = $false
+    $userdataSize = $null
 
-    try {
-        # In EDL mode, use edl-ng to find userdata partition size
-        $gpt = Execute-EdlCommand "printgpt --lun 0" $true $true
-        $isUserdataBlock = $false
-
-        foreach ($line in $gpt) {
-            if ($line -match "Name:\s+userdata") {
-                $isUserdataBlock = $true
-                continue
-            }
-            # Look for the Size line following the userdata Name line
-            if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
-                $sizeMiB = [double]$matches[1]
-                $userdataSize = [math]::Round($sizeMiB / 1024, 2) + 1
-                throw ""
-            }
-            # If we hit a new partition or header, reset the flag
-            if ($line -match "Name:" -or $line -match "--- GPT Header") {
-                $isUserdataBlock = $false
-            }
+    foreach ($line in $gpt) {
+        if ($line -match "Name:\s+userdata") {
+            $isUserdataBlock = $true
+            continue
         }
-
-        throw "Could not determine userdata partition size."
-    } catch {
-        if ($_.Exception.Message) {
-            Write-Log "$($_.Exception.Message)" "Error"
-            Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
+        # Look for the Size line following the userdata Name line
+        if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
+            $sizeMiB = [double]$matches[1]
+            $userdataSize = [math]::Round($sizeMiB / 1024, 2) + 1
+        }
+        # If we hit a new partition or header, reset the flag
+        if ($line -match "Name:" -or $line -match "--- GPT Header") {
+            $isUserdataBlock = $false
         }
     }
 
-    return $userdataSize
+    if ($userdataSize) {
+        return $userdataSize
+    } else {
+        Write-Log "Could not determine userdata partition size" "Error"
+        Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
+        return 110
+    }
 }
 
 function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$manualSizeGB) {

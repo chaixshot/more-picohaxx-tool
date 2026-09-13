@@ -512,9 +512,9 @@ function Execute-FastbootCommand([string]$sCMDLine, [bool]$silent = $false, [boo
 }
 
 function Perform-Reboot {
-    Write-Header "Reboot Selection"
-
     try {
+        Write-Header "Reboot Selection"
+        
         if (IsFastbootMode) {
             Write-Log "Device detected: ${cCyan}FASTBOOT${cReset}"
         } elseif (IsAdbMode) {

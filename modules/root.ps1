@@ -650,7 +650,7 @@ function Perform-FlashImage([string]$partition = "", [string]$fileName = "") {
                 Write-Log "Using Fastboot." "Info"
                 $success = FlashBoot-ViaFastboot $partition $fileName
             }
-            Default {
+            default {
                 throw "Invalid input: [${cYellow}$selection${cReset}]"
             }
         }
