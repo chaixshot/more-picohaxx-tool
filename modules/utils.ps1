@@ -1162,7 +1162,7 @@ function Edl-To-Fastboot {
 
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    Write-Log "Keep holding $button until menu shows up before continue, and don't let go." "Interactive"
+    Write-Log "Keep holding $button until menu shows up before continue." "Interactive"
     Wait-Continue
 }
 

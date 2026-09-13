@@ -647,6 +647,30 @@ function Show-FastbootFinalInstruction([bool]$requireReset) {
     }
 }
 
+function Test-Bootloader {
+    Write-Header "Test Bootloader"
+
+    if (IsAdbMode) {
+        ADB-To-Fastboot
+    } elseif (IsEdlMode) { 
+        Edl-To-Fastboot
+    } elseif (-not (IsFastbootMode)) {
+        Warning-FASTBOOT
+    }
+        
+    if (-not (Wait-FastbootMode)) {
+        throw ""
+    }
+
+    if (IsFastbootUnlocked) {
+        Write-Log ""
+        Write-Log "Device bootloader: ${cGreen}Unlocked${cReset}" "Info"
+    } else {
+        Write-Log ""
+        Write-Log "Device bootloader: ${cRed}Locked${cReset}" "Info"
+    }
+}
+
 function Verify-FastbootState([string]$state) {
     # Normalize state check
     $isCheckUnlock = $state -match "^unlock"
@@ -729,7 +753,7 @@ function Verify-FastbootState([string]$state) {
 }
 
 function IsFastbootUnlocked {
-    $result = $null
+    $isUnlocked = $null
 
     try {
         # Primary Check: fastboot oem device-info
@@ -739,10 +763,10 @@ function IsFastbootUnlocked {
         Write-Log $deviceInfo
 
         if ($deviceInfo -match "Device\s*Unlocked\s*[:=]\s*true") {
-            $result = $true
+            $isUnlocked = $true
             throw ""
         } elseif ($deviceInfo -match "Device\s*Unlocked\s*[:=]\s*false") {
-            $result = $false
+            $isUnlocked = $false
             throw ""
         }
 
@@ -754,9 +778,9 @@ function IsFastbootUnlocked {
         Write-Log $unlockedVar
 
         if ($unlockedVar -match "unlocked:\s*yes") {
-            $result = $true
+            $isUnlocked = $true
         } elseif ($unlockedVar -match "unlocked:\s*no") {
-            $result = $false
+            $isUnlocked = $false
         }
     } catch {
         if ($_.Exception.Message) {
@@ -764,7 +788,7 @@ function IsFastbootUnlocked {
         }
     }
     
-    return $result
+    return $isUnlocked
 }
 
 function Perform-FactoryReset {
@@ -949,6 +973,7 @@ try {
         Write-Log "[${cCyan}5${cReset}] Root / Flash Image"
         Write-Log ""
         Write-Log "[${cCyan}b${cReset}] Backup / Restore / Downgrade"
+        Write-Log "[${cCyan}t${cReset}] Test Bootloader"
         Write-Log "[${cCyan}l${cReset}] Lock Bootloader"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}update${cReset}] System Update Management"
@@ -978,6 +1003,9 @@ try {
             }
             "b" {
                 Show-BackupRestoreMenu
+            }
+            "t" {
+                Test-Bootloader
             }
             "l" {
                 Perform-FastbootLock
