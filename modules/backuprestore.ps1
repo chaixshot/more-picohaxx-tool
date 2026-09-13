@@ -790,16 +790,18 @@ function Folder-Compression([string]$folderPath) {
         $maxFileSizeBytes = ($fileList | Measure-Object -Property Length -Maximum).Maximum
         $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
 
+        Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
+        Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
+        Write-Log "Required free disk space is for the shadow copy; it will be deleted after the compression finished." "Info"
+        Write-Log "This process takes at least ${cGreen}10 minutes${cReset} depends on PC power." "Warning"
+        Write-Log ""
+
         if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
             throw ""
         }
         Wait-Continue
 
-        Write-Log "Using Windows native ${cCyan}LZX${cReset} algorithm to compress folder for maximum space savings up to ${cGreen}60%${cReset}." "Info"
-        Write-Log "Files stay as files, ${cGreen}negligible CPU impact${cReset} during decompression." "Info"
-        Write-Log "This process takes at least ${cGreen}10 minutes${cReset}." "Warning"
         Write-Log ""
-
         Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
         $confirmation = Read-HostLog "To proceed, type [${cYellow}YES${cReset}] and press Enter"
 
