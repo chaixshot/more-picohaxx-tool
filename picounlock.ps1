@@ -1036,9 +1036,6 @@ try {
     } catch {
 
     }
-    try {
-        Clean-LogFormat -LogFile $LogFile
-    } catch {
-
-    }
+    
+    Clean-LogFormat -LogFile $LogFile
 }

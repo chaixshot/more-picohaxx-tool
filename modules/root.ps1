@@ -406,7 +406,7 @@ function Pull-BootImage {
         }
 
         # Delete existing boot.img
-        if ((Test-Path $dumpedBoot) -or (Get-Item $dumpedBoot).Length -ne 0) {
+        if ((Test-Path $dumpedBoot) -and (Get-Item $dumpedBoot).Length -ne 0) {
             Remove-Item -Path $dumpedBoot -Recurse -Force -ErrorAction SilentlyContinue
         }
 
