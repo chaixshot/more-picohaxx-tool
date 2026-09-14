@@ -578,7 +578,7 @@ function Get-LunsSizeGB {
     }
 
     if ($totalSizeGB -gt 0) {
-        $userdataSize = Get-UserdataSizeGB
+        $userdataSize = Get-UserdataSizeGB -fullPartition
         $lunsSize = [math]::Round($totalSizeGB - $userdataSize, 2) + 1
     }
 
@@ -590,24 +590,58 @@ function Get-LunsSizeGB {
     }
 }
 
-function Get-UserdataSizeGB {
+function Get-UserdataSizeGB([switch]$fullPartition) {
     $gpt = Execute-EdlCommand "printgpt --lun 0" $true $true
     $isUserdataBlock = $false
     $userdataSize = $null
+    $obPInfo = $null
+    $sizeMiB = $null
 
     foreach ($line in $gpt) {
         if ($line -match "Name:\s+userdata") {
             $isUserdataBlock = $true
             continue
         }
-        # Look for the Size line following the userdata Name line
-        if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
+        # Look for the LBA and Size line following the userdata Name line
+        if ($isUserdataBlock -and $line -match "LBA:\s+(\d+)-(\d+)\s+\(Size:\s+([\d.]+)\s+MiB\)") {
+            $iStart = [uint64]$matches[1]
+            $iEnd = [uint64]$matches[2]
+            $sizeMiB = [double]$matches[3]
+            $iSectors = ($iEnd + 1) - $iStart
+            $userdataSize = [math]::Round($sizeMiB / 1024, 2) + 1
+
+            $obPInfo = [PSCustomObject]@{
+                sLabel   = "userdata"
+                iLUN     = 0
+                iStart   = $iStart
+                iEnd     = $iEnd
+                iSectors = $iSectors
+            }
+        } elseif ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
             $sizeMiB = [double]$matches[1]
             $userdataSize = [math]::Round($sizeMiB / 1024, 2) + 1
         }
         # If we hit a new partition or header, reset the flag
         if ($line -match "Name:" -or $line -match "--- GPT Header") {
             $isUserdataBlock = $false
+        }
+    }
+
+    if (-not $fullPartition -and $obPInfo -and (Get-Command Get-AllocatedRanges -ErrorAction SilentlyContinue)) {
+        try {
+            $ranges = Get-AllocatedRanges -obPInfo $obPInfo
+            if ($null -ne $ranges -and $ranges.Count -gt 0) {
+                $totalUsedSectors = [uint64]0
+                foreach ($r in $ranges) { $totalUsedSectors += [uint64]$r.Sectors }
+                if ($totalUsedSectors -gt 0 -and $totalUsedSectors -lt $obPInfo.iSectors) {
+                    # UFS uses 4096-byte sectors
+                    $usedSizeGB = [math]::Round(($totalUsedSectors * 4096) / 1GB, 2) + 1
+                    Write-Log "Userdata sparse total: ${cCyan}$($ranges.Count) chunks${cReset}, ${cYellow}$totalUsedSectors sectors${cReset} (${cGreen}$usedSizeGB GB${cReset} estimated)." "Info"
+                    return $usedSizeGB
+                }
+            }
+        } catch {
+            Write-Log "Failed to calculate userdata size from ranges: $($_.Exception.Message)" "Warning"
         }
     }
 
@@ -706,11 +740,32 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
         }
 
         if ($backupMode -eq "userdata") {
-            $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
-            foreach ($file in $userDataFiles) {
+            $requiredGptFiles = @("lun0_gpt_header.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
+            foreach ($file in $requiredGptFiles) {
                 $filePath = Join-Path $folderPath $file
                 if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
                     throw "Required userdata file missing or empty: $file"
+                }
+            }
+
+            # Accept either: sparse manifest + chunk files, OR monolithic lun0_userdata.bin
+            $manifestFile = Join-Path $folderPath "userdata_manifest.json"
+            if (Test-Path $manifestFile) {
+                try {
+                    $manifestJson = Get-Content -Path $manifestFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                    foreach ($chunk in $manifestJson.chunks) {
+                        $chunkPath = Join-Path $folderPath $chunk.file
+                        if (-not (Test-Path -Path $chunkPath) -or (Get-Item $chunkPath).Length -eq 0) {
+                            throw "Chunk file missing or empty: $($chunk.file)"
+                        }
+                    }
+                } catch {
+                    throw "Manifest verification failed: $($_.Exception.Message)"
+                }
+            } else {
+                $monoPath = Join-Path $folderPath "lun0_userdata.bin"
+                if (-not (Test-Path -Path $monoPath) -or (Get-Item $monoPath).Length -eq 0) {
+                    throw "Required userdata file missing or empty: lun0_userdata.bin"
                 }
             }
         }
@@ -753,6 +808,7 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
             "downgrade" { 9 }
             "downgradeDDR5" { 8 }
             "firmware" { 6 }
+            "userdata" { 5 }
             default { 12 }
         }
 
