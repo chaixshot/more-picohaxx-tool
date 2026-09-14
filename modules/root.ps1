@@ -12,7 +12,7 @@
 
 $Magisk = Join-Path $WorkingDir "tools\magisk\Magisk4Pico.apk"
 $MagiskBoot = Join-Path $WorkingDir "tools\magisk\magiskboot.exe"
-$MagiskTMP = Join-Path $WorkingDir "tools\magisk\tmp"
+$MagiskTMP = Join-Path $WorkingDir "tools\tmp"
 $ImageBackupPath = Join-Path $BackupPath "img"
 
 function Perform-MagiskBoot([string]$bootImgPath) {

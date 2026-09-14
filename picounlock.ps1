@@ -950,8 +950,8 @@ if (-not (Test-Path $LogsPath)) {
 $LogFile = "$LogsPath\${TimeStamp}_console.log"
 Start-Transcript -Path $LogFile -Append
 
-$host.UI.RawUI.WindowTitle = "more-picohaxx-tool"
-[System.Console]::Title = "more-picohaxx-tool"
+$host.UI.RawUI.WindowTitle = $VersionStr
+[System.Console]::Title = $VersionStr
 
 try {
     if (Check-Prerequisites) {

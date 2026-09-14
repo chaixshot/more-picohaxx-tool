@@ -8,7 +8,7 @@
 #>
 
 # --- Local Variables ---
-$edlTMP = Join-Path $WorkingDir "tools\TMP"
+$edlTMP = Join-Path $WorkingDir "tools\tmp"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gaLunsOnline = @()
@@ -430,7 +430,7 @@ function LookUpNames($obPInfo) {
 }
 
 function ValidateCQF {
-    # Create/Clean TMP folder
+    # Create/Clean tmp folder
     if (-not (Test-Path $edlTMP)) {
         New-Item -Path $edlTMP -ItemType Directory -Force | Out-Null
     } else {
@@ -611,7 +611,7 @@ function ProcessCompleted([bool]$isExec = $true) {
 
     Write-Log ""
 
-    # Delete /tools/TMP folder
+    # Delete tmp folder
     if (Test-Path -Path $edlTMP) {
         Write-Log "Deleting '${cCyan}$( $edlTMP )${cReset}' folder..." "Action"
         Remove-Item -Path $edlTMP -Recurse -Force -ErrorAction SilentlyContinue
