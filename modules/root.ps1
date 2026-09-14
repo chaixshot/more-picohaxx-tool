@@ -352,27 +352,27 @@ function Test-SuperuserAccess {
 #########################################
 #########################################
 
-function ImageFile-Picker($imageName) {
-    $bootImgPath = $null
+function ImageFile-Picker($fileName, $extension ) {
+    $imgPath = $null
 
     try {
-        $targetPath = Join-Path $ImageBackupPath "$imageName.img"
+        $targetPath = Join-Path $ImageBackupPath "${fileName}${extension}"
 
         if ($targetPath -and (Test-Path $targetPath)) {
-            $bootImgPath = Get-Item -Path $targetPath
-            Write-Log "Using '${cGreen}$( $bootImgPath.FullName )${cReset}' from previous successful boot image." "Success"
+            $imgPath = Get-Item -Path $targetPath
+            Write-Log "Using '${cGreen}$( $imgPath.FullName )${cReset}' from previous successful boot image." "Success"
             throw ""
         }
 
-        if (-not [string]::IsNullOrEmpty($imageName)) {
-            Write-Log "Could not find any ${cYellow}'$imageName.img'${cReset} file automatically." "Warning"
+        if (-not [string]::IsNullOrEmpty($fileName)) {
+            Write-Log "Could not find any ${cYellow}'${fileName}${extension}'${cReset} file automatically." "Warning"
         }
 
-        $selectedPath = Get-FileOrFolderDialog "Select $imageName.img" 0 ".img"
+        $selectedPath = Get-FileOrFolderDialog "Select ${fileName}${extension}" 0 $extension
 
         if (-not [string]::IsNullOrWhiteSpace($selectedPath) -and (Test-Path $selectedPath)) {
-            $bootImgPath = Get-Item $selectedPath
-            Write-Log "Selected file: ${cYellow}$( $bootImgPath.FullName )${cReset}" "Info"
+            $imgPath = Get-Item $selectedPath
+            Write-Log "Selected file: ${cYellow}$( $imgPath.FullName )${cReset}" "Info"
             throw ""
         }
     } catch {
@@ -381,20 +381,20 @@ function ImageFile-Picker($imageName) {
         }
     }
 
-    return $bootImgPath
+    return $imgPath
 }
 
 function Perform-PullImage([string]$partition) {
-    if ([string]::IsNullOrWhiteSpace($partition)) {
-        $partition = Select-Partition
-    }
-
     $success = $true
     $lastError = $null
     $imgPath = $null
     $dumpedImg = Join-Path $ImageBackupPath "$partition.img"
 
     try {
+        if ([string]::IsNullOrWhiteSpace($partition)) {
+            $partition = Select-Partition
+        }
+    
         Write-Header "Pull $partition Image"
         Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to pull the '${cCyan}$partition${cReset}' image." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
@@ -461,7 +461,7 @@ function Prepare-Magisk {
         Write-Header "Preparing Magisk"
 
         # Find image
-        $bootImgPath = ImageFile-Picker "boot"
+        $bootImgPath = ImageFile-Picker "boot" ".img"
 
         if (-not $bootImgPath) {
             throw ""
@@ -506,18 +506,11 @@ function Prepare-Magisk {
     }
 }
 
-function FlashBoot-ViaFastboot([string]$partition, [string]$fileName) {
+function FlashBoot-ViaFastboot([string]$partition, [string]$imagePath) {
     $success = $true
 
     try {
         Write-Header "Fastboot Flash Image"
-
-        # Find image
-        $imagePath = ImageFile-Picker $fileName
-
-        if (-not $imagePath) {
-            throw ""
-        }
 
         if (IsAdbMode) {
             ADB-To-Fastboot
@@ -553,7 +546,7 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$fileName) {
     return $success
 }
 
-function FlashBoot-ViaEDL([string]$partition, [string]$fileName) {
+function FlashBoot-ViaEDL([string]$partition, [string]$imagePath) {
     $success = $true
 
     try {
@@ -565,13 +558,6 @@ function FlashBoot-ViaEDL([string]$partition, [string]$fileName) {
         $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
-        }
-
-        # Find image
-        $imagePath = ImageFile-Picker $fileName
-
-        if (-not $imagePath) {
-            throw ""
         }
 
         # Device Reboot to EDL Mode
@@ -609,7 +595,7 @@ function Select-Partition {
     Write-Header "Select Partition"
 
     # Define all partitions present in the GPT printout
-    $validPartitions = @("abl", "ablbak", "aop", "aopbak", "apdp", "bluetooth", "bluetoothbak", "boot", "bootbak", "cache", "cdt", "cmnlib", "cmnlib64", "cmnlib64bak", "cmnlibbak", "ddr", "devcfg", "devcfgbak", "devinfo", "dip", "dsp", "dspbak", "dtbo", "dtbobak", "featenabler", "featenablerbak", "frp", "fsc", "fsg", "hyp", "hypbak", "imagefv", "imagefvbak", "keymaster", "keymasterbak", "keystore", "limits", "limits-cdsp", "logdump", "logfs", "mdm1m9kefs1", "mdm1m9kefs2", "mdm1m9kefs3", "mdm1m9kefsc", "mdmddr", "mdtp", "mdtpbak", "mdtpsecapp", "mdtpsecappbak", "metadata", "misc", "modem", "modembak", "modemst1", "modemst2", "msadp", "multiimgoem", "multiimgoembak", "multiimgqti", "multiimgqtibak", "persist", "picocfg", "qupfw", "qupfwbak", "rawdump", "recovery", "secdata", "spunvm", "ssd", "storsec", "super", "tz", "tzbak", "uefisecapp", "uefisecappbak", "uefivarstore", "userdata", "vbmeta", "vbmeta_system", "vbmeta_systembak", "vbmetabak", "vm-data", "vm-keystore", "vm-linux", "vm-linuxbak", "vm-system", "vm-systembak", "xbl", "xbl_config", "xbl_configbak", "xblbak")
+    $validPartitions = @("abl", "aop", "apdp", "bluetooth", "boot", "cache", "cdt", "cmnlib", "cmnlib64", "ddr", "devcfg", "devinfo", "dip", "dsp", "dtbo", "featenabler", "frp", "fsc", "fsg", "hyp", "imagefv", "keymaster", "keystore", "limits", "limits-cdsp", "logdump", "logfs", "mdm1m9kefs1", "mdm1m9kefs2", "mdm1m9kefs3", "mdm1m9kefsc", "mdmddr", "mdtp", "mdtpsecapp", "metadata", "misc", "modem", "modemst1", "modemst2", "msadp", "multiimgoem", "multiimgqti", "persist", "picocfg", "qupfw", "rawdump", "recovery", "secdata", "spunvm", "ssd", "storsec", "super", "tz", "uefisecapp", "uefivarstore", "userdata", "vbmeta", "vbmeta_system", "vm-data", "vm-keystore", "vm-linux", "vm-system", "xbl", "xbl_config", "xblbak")
 
     # Select partition
     $selectedIndex = Select-InteractiveMenu -header "Select partition to flash." -options $validPartitions
@@ -626,29 +612,43 @@ function Select-Partition {
     return $partition
 }
 
-function Perform-FlashImage([string]$partition = "", [string]$fileName = "") {
-    if ([string]::IsNullOrWhiteSpace($partition)) {
-        $partition = Select-Partition
-    }
-
+function Perform-FlashImage([string]$fileName = "", [string]$partition = "") {
     $success = $true
+    $extension = ".img, .bin, .efl"
 
     try {
+        if ([string]::IsNullOrWhiteSpace($partition)) {
+            $partition = Select-Partition
+        }
+
+        if (-not ([string]::IsNullOrWhiteSpace($fileName))) {
+            $extension = [System.IO.Path]::GetExtension($path)
+        }
+
+        # Pick target file
+        Write-Header "Select Source File"
+        $imagePath = ImageFile-Picker $fileName $extension
+        if (-not $imagePath) {
+            throw ""
+        }
+    
         Write-Header "Select Flash Method"
-        Write-Log "Target Partition: '${cCyan}$partition${cReset}'"
+        Write-Log "Target Partition: ${cCyan}$partition${cReset}"
+        Write-Log "Source File: ${cCyan}$imagePath${cReset}"
+        Write-Log ""
         Write-Log "[${cCyan}1${cReset}] EDL ${cDarkGray}(Require bootloader unlocked)${cReset}"
         Write-Log "[${cCyan}2${cReset}] Fastboot ${cDarkGray}(Require bootloader unlocked and engineering ABL)${cReset}"
-        
+
         $selection = Read-HostLog "Select an option"
         switch ($selection) {
             "1" { 
                 Select-Firehose
                 Write-Log "Using EDL." "Info"
-                $success = FlashBoot-ViaEDL $partition $fileName
+                $success = FlashBoot-ViaEDL $partition $imagePath
             }
             "2" { 
                 Write-Log "Using Fastboot." "Info"
-                $success = FlashBoot-ViaFastboot $partition $fileName
+                $success = FlashBoot-ViaFastboot $partition $imagePath
             }
             default {
                 throw "Invalid input: [${cYellow}$selection${cReset}]"
@@ -696,7 +696,7 @@ function Show-RootMenu {
                 Prepare-Magisk
             }
             "3" {
-                if (Perform-FlashImage "boot" "magisk_patched") {
+                if (Perform-FlashImage "magisk_patched.img" "boot") {
                     Wait-Continue
                     Verify-RootState "root"
                 }
@@ -712,7 +712,7 @@ function Show-RootMenu {
                 Test-SuperuserAccess
             }
             "u" {
-                if (Perform-FlashImage "boot" "boot") {
+                if (Perform-FlashImage "boot.img" "boot") {
                     Wait-Continue
                     Verify-RootState "unroot"
                 }
