@@ -310,26 +310,26 @@ function Flash-EngineeringABL {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Original ABL backed up to '${cGreen}$currentBackupPath${cReset}'." "Success"
-            Write-Log "Engineering ${cCyan}ABL${cReset} and ${cCyan}Devinfo${cReset} flashed successfully." "Success"
-            Write-Log ""
-            Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
-            Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
-            Write-Log ""
-            Write-Log "The next step is perform ${cCyan}Unlock Bootloader${cReset}." "Info"
+    }
+
+    if ($success) {
+        Write-Log "Original ABL backed up to '${cGreen}$currentBackupPath${cReset}'." "Success"
+        Write-Log "Engineering ${cCyan}ABL${cReset} and ${cCyan}Devinfo${cReset} flashed successfully." "Success"
+        Write-Log ""
+        Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
+        Write-Log "If it boots into EDL mode, manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Warning"
+        Write-Log ""
+        Write-Log "The next step is perform ${cCyan}Unlock Bootloader${cReset}." "Info"
             
-            $choice = Read-HostLog "Would you like to skip and reboot to system? [y/${cYellow}N${cReset}]"
-            if ($choice -eq 'y') {
-                Edl-To-System
-            }
-        } else {
-            if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            }
-            Warning-EDL-ManualReboot
+        $choice = Read-HostLog "Would you like to skip and reboot to system? [y/${cYellow}N${cReset}]"
+        if ($choice -eq 'y') {
+            Edl-To-System
         }
+    } else {
+        if ($lastError.Message -notlike "*Abort*") {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+        Warning-EDL-ManualReboot
     }
 }
 
@@ -432,21 +432,21 @@ function Flash-BackupABL {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Original ABL restored successfully." "Success"
-            Write-Log ""
-            Write-Log "The next step is perform ${cCyan}Root${cReset}." "Info"
-            Write-Log "Device will boot to system normally." "Info"
-            Wait-Continue
+    }
 
-            Edl-To-System
-        } else {
-            if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            }
-            Warning-EDL-ManualReboot
+    if ($success) {
+        Write-Log "Original ABL restored successfully." "Success"
+        Write-Log ""
+        Write-Log "The next step is perform ${cCyan}Root${cReset}." "Info"
+        Write-Log "Device will boot to system normally." "Info"
+        Wait-Continue
+
+        Edl-To-System
+    } else {
+        if ($lastError.Message -notlike "*Abort*") {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         }
+        Warning-EDL-ManualReboot
     }
 }
 
@@ -515,21 +515,21 @@ function Perform-FastbootUnlock {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log ""
-            Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
-            Write-Log "Unplug the device and plug it back in." "Interactive"
+    }
+    
+    if ($success) {
+        Write-Log ""
+        Write-Log "Bootloader status confirmed: ${cGreen}UNLOCKED${cReset}" "Success"
+        Write-Log "Unplug the device and plug it back in." "Interactive"
 
-            if ($IsRetryBootloader -ne 2) {
-                $null = Wait-FastbootMode -WaitForDisconnect
-                $null = Wait-FastbootMode
-            }
+        if ($IsRetryBootloader -ne 2) {
+            $null = Wait-FastbootMode -WaitForDisconnect
+            $null = Wait-FastbootMode
+        }
 
-            if (Verify-FastbootState "unlock") {
-                Wait-Continue
-                Show-FastbootFinalInstruction $requireReset
-            }
+        if (Verify-FastbootState "unlock") {
+            Wait-Continue
+            Show-FastbootFinalInstruction $requireReset
         }
     }
 }
@@ -595,21 +595,21 @@ function Perform-FastbootLock {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log ""
-            Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Success"
-            Write-Log "Unplug the device and plug it back in." "Interactive"
+    }
 
-            if ($IsRetryBootloader -ne 2) {
-                $null = Wait-FastbootMode -WaitForDisconnect
-                $null = Wait-FastbootMode
-            }
+    if ($success) {
+        Write-Log ""
+        Write-Log "Bootloader status confirmed: ${cGreen}LOCKED${cReset}" "Success"
+        Write-Log "Unplug the device and plug it back in." "Interactive"
 
-            if (Verify-FastbootState "lock") {
-                Wait-Continue
-                Show-FastbootFinalInstruction $requireReset
-            }
+        if ($IsRetryBootloader -ne 2) {
+            $null = Wait-FastbootMode -WaitForDisconnect
+            $null = Wait-FastbootMode
+        }
+
+        if (Verify-FastbootState "lock") {
+            Wait-Continue
+            Show-FastbootFinalInstruction $requireReset
         }
     }
 }
@@ -832,12 +832,12 @@ function Perform-FactoryReset {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Factory reset completed successfully." "Success"
-        } elseif ($lastError.Message -notlike "*Abort*") {
-            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-        }
+    }
+    
+    if ($success) {
+        Write-Log "Factory reset completed successfully." "Success"
+    } elseif ($lastError.Message -notlike "*Abort*") {
+        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
     }
 
     return $success

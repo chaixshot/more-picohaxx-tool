@@ -171,7 +171,7 @@ function BackupPartitions([string]$backupPath) {
 }
 
 function FlashFirmware([string]$flashPath) {
-    if ( [string]::IsNullOrEmpty($flashPath)) {
+    if ([string]::IsNullOrEmpty($flashPath)) {
         return $false
     }
 
@@ -227,6 +227,7 @@ function FlashFirmware([string]$flashPath) {
         $fileInfo = $flashList.Partitions[$iCnt]
 
         if ($gaLunsOnline -notcontains $fileInfo.iLUN) {
+            Write-Log ""
             Write-Log "Skipping partition flash: lun$($fileInfo.iLUN) is offline." "Warning"
             continue
         }
