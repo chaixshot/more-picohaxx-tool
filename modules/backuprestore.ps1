@@ -252,18 +252,19 @@ function Perform-RollbackOS {
 
     try {
         Write-Header "Rollback OS"
-
-        if (-not (Wait-UserConfirm "rollback")) {
-            throw "Aborted by user. No changes have been made."
-        }
-        
-        Write-Log ""
         Write-Log "Select firmware downloaded file." "Warning"
         $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z"
 
-        if (-not (Test-Path -Path $firmwarePath) -or -not ([System.IO.Path]::GetExtension($firmwarePath) -in @('.zip', '.rar', '.7z'))) {
+        if ([string]::IsNullOrEmpty($firmwarePath) -or -not (Test-Path -Path $firmwarePath) -or -not ([System.IO.Path]::GetExtension($firmwarePath) -in @('.zip', '.rar', '.7z'))) {
             throw "No firmware file provided."
         }
+
+        Write-Log ""
+        Write-Log "Source: ${cCyan}$firmwarePath${cReset}" "Info"
+        if (-not (Wait-UserConfirm "rollback")) {
+            throw "Aborted by user. No changes have been made."
+        }
+
 
         $extractedFolder = $firmwarePath
         $fileList = Get-ChildItem -Path $firmwarePath -Recurse -File -Force -ErrorAction SilentlyContinue
@@ -936,7 +937,20 @@ function Backup-Device($selection) {
         Write-Header "Backup Device"
         $backupMode = $selection.backupMode
         $customPath = $selection.customPath
+        $isCustomDest = -not ([string]::IsNullOrWhiteSpace($customPath))
 
+        # Determine the info path
+        $destPath = if ($isCustomDest) {
+            $customPath
+        } else {
+            switch ($backupMode) {
+                "luns" { $LUNsBackupPath }
+                "userdata" { $UserBackupPath }
+                "partitions" { $PartitionsBackupPath }
+            }
+        }
+
+        Write-Log "Destination: ${cCyan}${destPath}${cReset}" "Info"
         if (-not (Wait-UserConfirm $backupMode)) {
             throw "Aborted by user. No changes have been made."
         }
@@ -961,15 +975,15 @@ function Backup-Device($selection) {
 
         # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
         if ($backupMode -eq "luns") {
-            $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $LUNsBackupPath }
+            $basePath = if ($isCustomDest) { $customPath } else { $LUNsBackupPath }
             $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
             BackupLUNs $backupPath
         } elseif ($backupMode -eq "userdata") {
-            $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $UserBackupPath }
+            $basePath = if ($isCustomDest) { $customPath } else { $UserBackupPath }
             $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
             BackupUserData $backupPath
         } elseif ($backupMode -eq "partitions") {
-            $basePath = if (-not [string]::IsNullOrWhiteSpace($customPath)) { $customPath } else { $PartitionsBackupPath }
+            $basePath = if ($isCustomDest) { $customPath } else { $PartitionsBackupPath }
             $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
             BackupPartitions $backupPath
         }
@@ -1028,6 +1042,7 @@ function Restore-Backup($backupInfo) {
             throw ""
         }
 
+        Write-Log "Source: ${cCyan}$flashPath${cReset}" "Info"
         if (-not (Wait-UserConfirm $backupMode)) {
             throw "Aborted by user. No changes have been made."
         }
