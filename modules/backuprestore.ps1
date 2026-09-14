@@ -147,6 +147,10 @@ function Select-BackupFolder {
             throw "Aborted by user. No changes have been made."
         }
 
+        if ([string]::IsNullOrEmpty($selection)) {
+            throw "Invalid input: [${cYellow}$selection${cReset}]"
+        }
+
         # Check if user pasted a compressed file
         if ($selection -match '\.(rar|zip|7z)$' -and (Test-Path -Path $selection -PathType Leaf)) {
             $result = Extract-CompressedFile $selection
@@ -161,7 +165,7 @@ function Select-BackupFolder {
             $pastedPath = (Get-Item -Path $selection).FullName
             $detectedType = $null
 
-            foreach ($type in @("luns", "userdata", "partitions", "downgrade", "downgradeDDR5")) {
+            foreach ($type in @("luns", "userdata", "partitions", "downgrade")) {
                 if (Verify-Backup -backupMode $type -folderPath $pastedPath -silent) {
                     $detectedType = $type
                     break
@@ -173,8 +177,7 @@ function Select-BackupFolder {
                     "luns" { "LUNs" }
                     "userdata" { "User Data" }
                     "partitions" { "Partitions" }
-                    "downgrade" { "Downgrade Pico 4/4 Enterprice" }
-                    "downgradeDDR5" { "Downgrade Pico 4 Pro" }
+                    "downgrade" { "Downgrade Pico 4 / 4 Enterprice / 4 Pro" }
                     default { $detectedType }
                 }
                 Write-Log "Detected valid ${cYellow}$typeName${cReset} backup at: ${cCyan}$pastedPath${cReset}" "Success"
@@ -274,7 +277,6 @@ function Perform-RollbackOS {
         if (-not (Verify-DiskSpace -targetPath $firmwarePath -manualSizeGB ($requiredSpaceGB * 5))) {
             throw "Aborted by disk space verify. No changes have been made."
         }
-        Wait-Continue
 
         # Handle archive extraction
         if ($firmwarePath -match '\.(rar|zip|7z)$' -and (Test-Path -Path $firmwarePath -PathType Leaf)) {
@@ -611,32 +613,48 @@ function Get-LunsSizeGB {
     }
 
     if ($totalSizeGB -gt 0) {
-        $userdataSize = Get-UserdataSizeGB
-        $lunsSize = [math]::Round($totalSizeGB - $userdataSize, 2) + 1
+        $userdataSize = Get-UserdataSizeGB -fullPartition
+        $lunsSize = [math]::Round($totalSizeGB - $userdataSize, 2)
     }
 
     if ($lunsSize) {
-        return $lunsSize
+        return $lunsSize + 1
     } else {
         Write-Log "Could not determine userdata partition size" "Error"
         return 0
     }
 }
 
-function Get-UserdataSizeGB {
+function Get-UserdataSizeGB([switch]$fullPartition) {
     $gpt = Execute-EdlCommand "printgpt --lun 0" $true $true
     $isUserdataBlock = $false
     $userdataSize = $null
+    $obPInfo = $null
+    $sizeMiB = $null
 
     foreach ($line in $gpt) {
         if ($line -match "Name:\s+userdata") {
             $isUserdataBlock = $true
             continue
         }
-        # Look for the Size line following the userdata Name line
-        if ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
+        # Look for the LBA and Size line following the userdata Name line
+        if ($isUserdataBlock -and $line -match "LBA:\s+(\d+)-(\d+)\s+\(Size:\s+([\d.]+)\s+MiB\)") {
+            $iStart = [uint64]$matches[1]
+            $iEnd = [uint64]$matches[2]
+            $sizeMiB = [double]$matches[3]
+            $iSectors = ($iEnd + 1) - $iStart
+            $userdataSize = [math]::Round($sizeMiB / 1024, 2)
+
+            $obPInfo = [PSCustomObject]@{
+                sLabel   = "userdata"
+                iLUN     = 0
+                iStart   = $iStart
+                iEnd     = $iEnd
+                iSectors = $iSectors
+            }
+        } elseif ($isUserdataBlock -and $line -match "Size:\s+([\d.]+)\s+MiB") {
             $sizeMiB = [double]$matches[1]
-            $userdataSize = [math]::Round($sizeMiB / 1024, 2) + 1
+            $userdataSize = [math]::Round($sizeMiB / 1024, 2)
         }
         # If we hit a new partition or header, reset the flag
         if ($line -match "Name:" -or $line -match "--- GPT Header") {
@@ -644,8 +662,25 @@ function Get-UserdataSizeGB {
         }
     }
 
+    if (-not $fullPartition -and $obPInfo -and (Get-Command Get-AllocatedRanges -ErrorAction SilentlyContinue)) {
+        try {
+            $ranges = Get-AllocatedRanges -obPInfo $obPInfo
+            if ($null -ne $ranges -and $ranges.Count -gt 0) {
+                $totalUsedSectors = [uint64]0
+                foreach ($r in $ranges) { $totalUsedSectors += [uint64]$r.Sectors }
+                if ($totalUsedSectors -gt 0 -and $totalUsedSectors -lt $obPInfo.iSectors) {
+                    # UFS uses 4096-byte sectors
+                    $userdataSize = [math]::Round(($totalUsedSectors * 4096) / 1GB, 2)
+                    Write-Log "Userdata sparse total: ${cCyan}$($ranges.Count) chunks${cReset}, ${cYellow}$totalUsedSectors sectors${cReset} (${cGreen}$userdataSize GB${cReset} estimated)." "Info"
+                }
+            }
+        } catch {
+            Write-Log "Failed to calculate userdata size from ranges: $($_.Exception.Message)" "Warning"
+        }
+    }
+
     if ($userdataSize) {
-        return $userdataSize
+        return $userdataSize + 1
     } else {
         Write-Log "Could not determine userdata partition size" "Error"
         return 0
@@ -661,6 +696,8 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
             $diskSize = Get-LunsSizeGB
         } elseif ($backupMode -eq "userdata") {
             $diskSize = Get-UserdataSizeGB
+        } elseif ($backupMode -eq "userdatafull") {
+            $diskSize = Get-UserdataSizeGB -fullPartition
         } elseif ($backupMode -eq "partitions") {
             $diskSize = Get-LunsSizeGB
         }
@@ -695,7 +732,10 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
         return $false
     } else {
         Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Interactive"
-        Write-Log ""
+        $confirmation = Read-HostLog "Enter to continue, type [${cYellow}C${cReset}] to cancel"
+        if ($confirmation -eq 'c') {
+            return $false
+        }
 
         return $true
     }
@@ -704,6 +744,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
 function Wait-UserConfirm([string]$backupMode) {
     $waitMinutes = switch ($backupMode) {
         "userdata" { 40 }
+        "userdatafull" { 40 }
         "rollback" { 20 }
         default { 10 }
     }
@@ -739,11 +780,32 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
         }
 
         if ($backupMode -eq "userdata") {
-            $userDataFiles = @("lun0_gpt_header.bin", "lun0_userdata.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
-            foreach ($file in $userDataFiles) {
+            $requiredGptFiles = @("lun0_gpt_header.bin", "lun1_gpt_header.bin", "lun2_gpt_header.bin", "lun3_gpt_header.bin", "lun4_gpt_header.bin", "lun5_gpt_header.bin")
+            foreach ($file in $requiredGptFiles) {
                 $filePath = Join-Path $folderPath $file
                 if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
                     throw "Required userdata file missing or empty: $file"
+                }
+            }
+
+            # Accept either: sparse manifest + chunk files, OR monolithic lun0_userdata.bin
+            $manifestFile = Join-Path $folderPath "userdata_manifest.json"
+            if (Test-Path $manifestFile) {
+                try {
+                    $manifestJson = Get-Content -Path $manifestFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                    foreach ($chunk in $manifestJson.chunks) {
+                        $chunkPath = Join-Path $folderPath $chunk.file
+                        if (-not (Test-Path -Path $chunkPath) -or (Get-Item $chunkPath).Length -eq 0) {
+                            throw "Chunk file missing or empty: $($chunk.file)"
+                        }
+                    }
+                } catch {
+                    throw "Manifest verification failed: $($_.Exception.Message)"
+                }
+            } else {
+                $monoPath = Join-Path $folderPath "lun0_userdata.bin"
+                if (-not (Test-Path -Path $monoPath) -or (Get-Item $monoPath).Length -eq 0) {
+                    throw "Required userdata file missing or empty: lun0_userdata.bin"
                 }
             }
         }
@@ -767,16 +829,6 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
                 }
             }
         }
-        
-        if ($backupMode -eq "downgradeDDR5") {
-            $partitionFiles = @("lun1_xbl.bin", "lun1_xbl_config.bin", "lun2_xbl_configbak.bin", "lun2_xblbak.bin")
-            foreach ($file in $partitionFiles) {
-                $filePath = Join-Path $folderPath $file
-                if (-not (Test-Path -Path $filePath) -or (Get-Item $filePath).Length -eq 0) {
-                    throw "Required downgradeDDR5 file missing or empty: $file"
-                }
-            }
-        }
 
         $folderSize = (Get-ChildItem -Path $folderPath -Recurse | Measure-Object -Property Length -Sum).Sum
         $sizeGB = $folderSize / 1GB
@@ -786,6 +838,7 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
             "downgrade" { 9 }
             "downgradeDDR5" { 8 }
             "firmware" { 6 }
+            "userdata" { 5 }
             default { 12 }
         }
 
@@ -794,12 +847,13 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
         }
 
         if (-not $silent) { 
-            Write-Log "Backup verification successful. Total size: ${cGreen}$sizeFormatted GB${cReset}" "Success" 
+            Write-Log "Backup verification successful." "Success" 
+            Write-Log "Total size: ${cGreen}$sizeFormatted GB${cReset}" "Info" 
         }
     } catch {
         $verifySuccess = $false
         if (-not $silent -and $_.Exception.Message) {
-            Write-Log "Backup verification failed: required backup sets are missing or empty." "Error"
+            Write-Log "$($_.Exception.Message)" "Error"
         }
     }
 
@@ -827,7 +881,6 @@ function Folder-Compression([string]$folderPath) {
         if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
             throw "Aborted by disk space verify. No changes have been made."
         }
-        Wait-Continue
 
         Write-Log ""
         Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
@@ -911,16 +964,22 @@ function Select-BackupMode {
     Write-Log "[${cCyan}1${cReset}] Physical Binary Dump (LUNs)"
     Write-Log "    ${cGray}-> Sector-by-sector clone of physical drives (LUN 0-6).${cReset}"
     Write-Log "    ${cGray}-> Best for unbricking, GPT repair, and low-level recovery.${cReset}"
-    Write-Log "    ${cGray}-> Excludes bulk of UserData to save space (~12-15 GB).${cReset}"
+    Write-Log "    ${cGray}-> Excludes partition of 'userdata'.${cReset}"
     Write-Log ""
-    Write-Log "[${cCyan}2${cReset}] User Personal Data (UserData)"
-    Write-Log "    ${cGray}-> Backup of the 'userdata' partition ONLY.${cReset}"
+    Write-Log "[${cCyan}2${cReset}] Full User Personal Data (UserData)"
+    Write-Log "    ${cGray}-> Backup of the full partition 'userdata' only.${cReset}"
     Write-Log "    ${cGray}-> Includes all apps, games, photos, and internal storage files.${cReset}"
-    Write-Log "    ${cGray}-> Size depends on usage (up to 128/256/512 GB).${cReset}"
+    Write-Log "    ${cGray}-> Size depends on device model (e.g., 128/256/512 GB).${cReset}"
     Write-Log ""
-    Write-Log "[${cCyan}3${cReset}] System Partition Dump (Partitions)"
+    Write-Log "[${cCyan}3${cReset}] Usage Of User Personal Data (Used UserData)"
+    Write-Log "    ${cGray}-> Backup of the usage of 'userdata' sector only.${cReset}"
+    Write-Log "    ${cGray}-> Includes all apps, games, photos, and internal storage files.${cReset}"
+    Write-Log "    ${cGray}-> Size depends on the usage of the device data. Good for a 256/512GB device.${cReset}"
+    Write-Log "    ${cYellow}-> This is experimental to reduce the backup disk space. It might be unreliable.${cReset}"
+    Write-Log ""
+    Write-Log "[${cCyan}4${cReset}] System Partition Dump (Partitions)"
     Write-Log "    ${cGray}-> Individual file per system partition (boot, abl, system, etc.).${cReset}"
-    Write-Log "    ${cGray}-> Best for general firmware backup or modding. Excludes userdata.${cReset}"
+    Write-Log "    ${cGray}-> Best for general firmware backup or modding. Excludes 'userdata'.${cReset}"
     Write-Log "    ${cGray}-> Balanced safety and manageable size (~10-15 GB).${cReset}"
     Write-Log ""
 
@@ -930,8 +989,10 @@ function Select-BackupMode {
     if ($selection -eq "1") {
         $mode = "luns"
     } elseif ($selection -eq "2") {
-        $mode = "userdata"
+        $mode = "userdatafull"
     } elseif ($selection -eq "3") {
+        $mode = "userdata"
+    } elseif ($selection -eq "4") {
         $mode = "partitions"
     }
 
@@ -979,6 +1040,7 @@ function Backup-Device($selection) {
             switch ($backupMode) {
                 "luns" { $LUNsBackupPath }
                 "userdata" { $UserBackupPath }
+                "userdatafull" { $UserBackupPath }
                 "partitions" { $PartitionsBackupPath }
             }
         }
@@ -1004,7 +1066,6 @@ function Backup-Device($selection) {
         if (-not (Verify-DiskSpace $backupMode $customPath)) {
             throw "Aborted by disk space verify. No changes have been made."
         }
-        Wait-Continue
 
         # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
         if ($backupMode -eq "luns") {
@@ -1015,6 +1076,10 @@ function Backup-Device($selection) {
             $basePath = if ($isCustomDest) { $customPath } else { $UserBackupPath }
             $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
             BackupUserData $backupPath
+        } elseif ($backupMode -eq "userdatafull") {
+            $basePath = if ($isCustomDest) { $customPath } else { $UserBackupPath }
+            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
+            BackupUserData $backupPath -fullPartition
         } elseif ($backupMode -eq "partitions") {
             $basePath = if ($isCustomDest) { $customPath } else { $PartitionsBackupPath }
             $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
