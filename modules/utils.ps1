@@ -980,7 +980,7 @@ function IsPicoNeo3 {
 
 function Warning-ADB {
     Write-Log ""
-    Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Error"
+    Write-Log "Device not detected in ${cCyan}ADB${cReset} mode." "Warning"
     Write-Log "Please connect your device and enable USB Debug." "Interactive"
     Write-Log ""
     Write-Log "1. Open PicoOS settings menu" "Info"
@@ -996,8 +996,8 @@ function Warning-RECOVERY {
     }
 
     Write-Log ""
-    Write-Log "Device not detected in ${cCyan}RECOVERY${cReset} mode." "Error"
-    Write-Log "Please ensure device connected and in ${cCyan}RECOVERY${cReset} mode." "Error"
+    Write-Log "Device not detected in ${cCyan}RECOVERY${cReset} mode." "Warning"
+    Write-Log "Please ensure device connected and in ${cCyan}RECOVERY${cReset} mode." "Warning"
     Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding $button until dead robot shows up." "Interactive"
 }
 
@@ -1008,14 +1008,14 @@ function Warning-FASTBOOT {
     }
 
     Write-Log ""
-    Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Error"
-    Write-Log "Please ensure device connected and in ${cCyan}FASTBOOT${cReset} mode." "Error"
+    Write-Log "Device not detected in ${cCyan}FASTBOOT${cReset} mode." "Warning"
+    Write-Log "Please ensure device connected and in ${cCyan}FASTBOOT${cReset} mode." "Warning"
     Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding $button until menu shows up." "Interactive"
 }
 
 function Warning-EDL {
     Write-Log ""
-    Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Error"
+    Write-Log "Device not detected in ${cCyan}EDL${cReset} mode." "Warning"
     if (IsPicoNeo3) {
         Write-Log "1. Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding ${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} + ${cYellow}Home${cReset} until menu shows up." "Interactive"
         Write-Log "2. Use the tool Reboot menu to enter ${cCyan}EDL${cReset}." "Interactive"
