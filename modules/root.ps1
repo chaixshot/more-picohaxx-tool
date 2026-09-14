@@ -206,10 +206,10 @@ SHA1=$sha1
 
         # Cleanup Temporary Artifacts inside $MagiskTMP
         Write-Log ""
-        if (Test-Path -Path $MagiskTMP) {
-            Write-Log "Deleting '${cCyan}$( $MagiskTMP )${cReset}' folder..." "Action"
-            Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        Write-Log "Deleting temp folder..." "Action"
+        Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$env:TEMP\TemporaryFile-*" -Recurse -Force -ErrorAction SilentlyContinue
+    }
 
         if ($success) {
             Write-Log "Boot image patched to '${cCyan}$( $outputImgPath )${cReset}' successfully." "Success"
