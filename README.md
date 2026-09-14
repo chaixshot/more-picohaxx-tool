@@ -2,7 +2,7 @@
 
 <img height="300" alt="unlocked" src="./src/unlocked.jpg" /> <img height="300" alt="unlocked" src="./src/mainmenu.png" />
 
-This repository contains a comprehensive set of tools and scripts for unlock Bootloader, rooting and full backup the **Pico 4**, **Pico 4 Pro**, and **Pico Neo 3** VR headsets.
+This tool contains a comprehensive set automation scripts for unlock Bootloader, rooting, full backup, and Rollback OS the **Pico 4**, **Pico 4 Pro**, **Pico 4 Enterprise**, and **Pico Neo 3** VR headsets.
 
 ### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/releases/latest/download/more-picohaxx-tool.zip) and run `picounlock.bat` to begin
 >To update the new version, please move `./backup` and `./logs` from the previous tool folder.
