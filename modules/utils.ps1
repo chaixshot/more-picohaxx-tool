@@ -414,10 +414,10 @@ function Execute-UnlockCommand {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Unlock command executed successfully." "Success"
-        }
+    }
+    
+    if ($success) {
+        Write-Log "Unlock command executed successfully." "Success"
     }
 
     return $success

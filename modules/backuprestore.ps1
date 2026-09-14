@@ -449,24 +449,24 @@ function Perform-RollbackOS {
             Write-Log "Cleaning up temporary directory '${cCyan}${extractedFolder}${cReset}'..." "Action"
             Remove-Item -Path $extractedFolder -Recurse -Force -ErrorAction SilentlyContinue
         }
+    }
 
+    if ($lastError.Message -notlike "*Abort*") {
+        Play-BeepBeep
+    }
+
+    if ($success) {
+        Write-Log "Device has rollbacked successfully." "Success"
+
+        $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
+        if ($choice -eq 'y') {
+            Edl-To-System
+        }
+    } else {
         if ($lastError.Message -notlike "*Abort*") {
-            Play-BeepBeep
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         }
-
-        if ($success) {
-            Write-Log "Device has rollbacked successfully." "Success"
-
-            $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
-            if ($choice -eq 'y') {
-                Edl-To-System
-            }
-        } else {
-            if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            }
-            Warning-EDL-ManualReboot
-        }
+        Warning-EDL-ManualReboot
     }
 }
 
@@ -975,7 +975,7 @@ function Backup-Device($selection) {
         }
 
         # Verify folder existence
-        if (-not (Test-Path -Path $backupPath)) {
+        if ([string]::IsNullOrEmpty($backupPath) -or -not (Test-Path -Path $backupPath)) {
             throw "Could not find the backup folder in '${cCyan}$backupPath${cReset}'."
         }
 
@@ -989,29 +989,29 @@ function Backup-Device($selection) {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
-            Wait-Continue
+    }
 
-            Folder-Compression $backupFolder.FullName
-            Wait-Continue
+    if ($success) {
+        Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
+        Wait-Continue
 
-            $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
-            if ($choice -eq 'y') {
-                Edl-To-System
-            }
-        } else {
-            if ($backupFolder -and (Test-Path -Path $backupFolder.FullName)) {
-                Write-Log "Deleting invalid backup folder..." "Action"
-                Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            
-            if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            }
-            Warning-EDL-ManualReboot
+        Folder-Compression $backupFolder.FullName
+        Wait-Continue
+
+        $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
+        if ($choice -eq 'y') {
+            Edl-To-System
         }
+    } else {
+        if ($backupFolder -and (Test-Path -Path $backupFolder.FullName)) {
+            Write-Log "Deleting invalid backup folder..." "Action"
+            Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
+        }
+            
+        if ($lastError.Message -notlike "*Abort*") {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+        Warning-EDL-ManualReboot
     }
 }
 
@@ -1053,20 +1053,20 @@ function Restore-Backup($backupInfo) {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Device restore successfully" "Success"
+    }
+
+    if ($success) {
+        Write-Log "Device restore successfully" "Success"
             
-            $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
-            if ($choice -eq 'y') {
-                Edl-To-System
-            }
-        } else {
-            if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            }
-            Warning-EDL-ManualReboot
+        $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
+        if ($choice -eq 'y') {
+            Edl-To-System
         }
+    } else {
+        if ($lastError.Message -notlike "*Abort*") {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        }
+        Warning-EDL-ManualReboot
     }
 }
 

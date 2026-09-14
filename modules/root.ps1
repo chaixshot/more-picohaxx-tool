@@ -211,9 +211,8 @@ SHA1=$sha1
         Remove-Item -Path "$env:TEMP\TemporaryFile-*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-        if ($success) {
-            Write-Log "Boot image patched to '${cCyan}$( $outputImgPath )${cReset}' successfully." "Success"
-        }
+    if ($success) {
+        Write-Log "Boot image patched to '${cCyan}$( $outputImgPath )${cReset}' successfully." "Success"
     }
 
     return $success
@@ -300,26 +299,26 @@ function Verify-RootState([string]$state) {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log ""
-            Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
-        } else {
-            Write-Log ""
-            Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
-            if ($isCheckRoot) {
-                Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Info"
-                Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Interactive"
-            } else {
-                Write-Log "Root access or su binaries are still detected on the device." "Info"
-                Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Interactive"
-            }
-        }
+    }
 
+    if ($success) {
+        Write-Log ""
+        Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
+    } else {
+        Write-Log ""
+        Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
         if ($isCheckRoot) {
-            Wait-Continue
-            SystemUpdate-Management "1"
+            Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Info"
+            Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Interactive"
+        } else {
+            Write-Log "Root access or su binaries are still detected on the device." "Info"
+            Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Interactive"
         }
+    }
+
+    if ($isCheckRoot) {
+        Wait-Continue
+        SystemUpdate-Management "1"
     }
 }
 
@@ -440,15 +439,15 @@ function Perform-PullImage([string]$partition) {
             $lastError = $_.Exception
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Stock '${cCyan}$partition${cReset}' image pulled to ${cGreen}'${imgPath}'${cReset} successfully." "Success"
-        } else {
-            if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
-            }
-            Warning-EDL-ManualReboot
+    }
+
+    if ($success) {
+        Write-Log "Stock '${cCyan}$partition${cReset}' image pulled to ${cGreen}'${imgPath}'${cReset} successfully." "Success"
+    } else {
+        if ($lastError.Message -notlike "*Abort*") {
+            Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         }
+        Warning-EDL-ManualReboot
     }
 
     return $success
@@ -498,11 +497,11 @@ function Prepare-Magisk {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log ""
-            Write-Log "The next step is perform ${cCyan}Root With Magisk${cReset}." "Info"
-        }
+    }
+
+    if ($success) {
+        Write-Log ""
+        Write-Log "The next step is perform ${cCyan}Root With Magisk${cReset}." "Info"
     }
 }
 
@@ -537,10 +536,10 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imagePath) {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
-        }
+    }
+    
+    if ($success) {
+        Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
     }
 
     return $success
@@ -582,10 +581,10 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imagePath) {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
-        if ($success) {
-            Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
-        }
+    }
+    
+    if ($success) {
+        Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
     }
 
     return $success
