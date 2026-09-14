@@ -271,7 +271,7 @@ function Perform-RollbackOS {
         $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
 
         if (-not (Verify-DiskSpace -targetPath $firmwarePath -manualSizeGB ($requiredSpaceGB * 5))) {
-            throw ""
+            throw "Aborted by disk space verify. No changes have been made."
         }
         Wait-Continue
 
@@ -463,7 +463,7 @@ function Perform-RollbackOS {
             }
         } else {
             if ($lastError.Message -notlike "*Abort*") {
-                Write-Log "Rollback process encountered errors." "Error"
+                Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
             }
             Warning-EDL-ManualReboot
         }
@@ -585,7 +585,7 @@ function Get-LunsSizeGB {
         return $lunsSize
     } else {
         Write-Log "Could not determine userdata partition size" "Error"
-        return 15
+        return 0
     }
 }
 
@@ -614,15 +614,15 @@ function Get-UserdataSizeGB {
         return $userdataSize
     } else {
         Write-Log "Could not determine userdata partition size" "Error"
-        Write-Log "Userdata size depends on your device model (e.g., 128GB, 256GB, or 512GB)." "Warning"
-        return 110
+        return 0
     }
 }
 
-function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$manualSizeGB) {
+function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$manualSizeGB = 0) {
     if ($manualSizeGB -gt 0) {
         $diskSize = $manualSizeGB
     } else {
+        # Determind partition size via EDL
         if ($backupMode -eq "luns") {
             $diskSize = Get-LunsSizeGB
         } elseif ($backupMode -eq "userdata") {
@@ -630,6 +630,12 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
         } elseif ($backupMode -eq "partitions") {
             $diskSize = Get-LunsSizeGB
         }
+    }
+
+    # Size 0
+    if ($diskSize -eq 0) {
+        Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
+        return $false
     }
 
     $targetDrivePath = if ($targetPath) { $targetPath } else { $WorkingDir }
@@ -785,7 +791,7 @@ function Folder-Compression([string]$folderPath) {
         Write-Log ""
 
         if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
-            throw ""
+            throw "Aborted by disk space verify. No changes have been made."
         }
         Wait-Continue
 
@@ -949,7 +955,7 @@ function Backup-Device($selection) {
         }
 
         if (-not (Verify-DiskSpace $backupMode $customPath)) {
-            throw ""
+            throw "Aborted by disk space verify. No changes have been made."
         }
         Wait-Continue
 
