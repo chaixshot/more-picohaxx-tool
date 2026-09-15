@@ -526,11 +526,14 @@ function Perform-FastbootUnlock {
             $null = Wait-FastbootMode -WaitForDisconnect
             $null = Wait-FastbootMode
         }
+    } elseif ($IsRetryBootloader -ne 2) {
+        Wait-Continue
+    }
 
-        if (Verify-FastbootState "unlock") {
-            Wait-Continue
-            Show-FastbootFinalInstruction $requireReset
-        }
+    $retryAction = (Get-Command Perform-FastbootUnlock).ScriptBlock
+    if (Verify-FastbootState -state "unlock" -retryAction $retryAction) {
+        Wait-Continue
+        Show-FastbootFinalInstruction $requireReset
     }
 }
 
@@ -606,11 +609,14 @@ function Perform-FastbootLock {
             $null = Wait-FastbootMode -WaitForDisconnect
             $null = Wait-FastbootMode
         }
+    } elseif ($IsRetryBootloader -ne 2) {
+        Wait-Continue
+    }
 
-        if (Verify-FastbootState "lock") {
-            Wait-Continue
-            Show-FastbootFinalInstruction $requireReset
-        }
+    $retryAction = (Get-Command Perform-FastbootLock).ScriptBlock
+    if (Verify-FastbootState -state "lock" -retryAction $retryAction) {
+        Wait-Continue
+        Show-FastbootFinalInstruction $requireReset
     }
 }
 
@@ -671,7 +677,7 @@ function Test-Bootloader {
     }
 }
 
-function Verify-FastbootState([string]$state) {
+function Verify-FastbootState([string]$state, [scriptblock]$retryAction) {
     $result = $null
     $isCheckUnlock = $state -match "^unlock"
     $actionName = if ($isCheckUnlock) { "Verify Unlock" } else { "Verify Lock" }
@@ -731,11 +737,7 @@ function Verify-FastbootState([string]$state) {
             }
 
             if ($IsRetryBootloader -ne 0) {
-                if ($isCheckUnlock) {
-                    Perform-FastbootUnlock
-                } else {
-                    Perform-FastbootLock
-                }
+                & $retryAction
                 throw ""
             }
 
