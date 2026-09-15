@@ -473,7 +473,7 @@ function Perform-RollbackOS {
 
 function Prepare-Firmware {    
     $FirmwareData = [ordered]@{
-        "Pico 4" = [ordered]@{
+        "Pico 4"     = [ordered]@{
             "Global"  = [ordered]@{
                 "OEM"     = [ordered]@{
                     "5.13.8" = "https://lf-stone-iot-my.dlpicovr.com/obj/stone-iot-my/5.13.8-202609021949-RELEASE-user-phoenix-b10102-5cc013c385.zip"
@@ -536,14 +536,47 @@ function Prepare-Firmware {
                 }
             }
         }
-        "Pico 3" = [ordered]@{
+        "Pico Neo 3" = [ordered]@{
             "Global"   = [ordered]@{
                 "5.13.7" = "https://static.us-pui.picovr.com/5.13.7.0-202510301731-RELEASE-user-neo3-b3527-a84e92f190.zip"
                 "5.13.3" = "https://static.us-pui.picovr.com/5.13.3.0-202507031601-RELEASE-user-neo3-b3446-5418c43b4d.zip"
+                "5.12.2" = "https://static.us-pui.picovr.com/5.12.2.0-202412240022-RELEASE-user-neo3-b3199-7b62ef57a2.zip"
+                "5.11.2" = "https://static.us-pui.picovr.com/5.11.3.0-202409110016-RELEASE-user-neo3-b3009-b26306c648.zip"
+                "5.9.9"  = "https://static.us-pui.picovr.com/5.9.9.0-202409100009-RELEASE-user-neo3-b3003-0eb48d3eb2.zip"
+                "5.9.8"  = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.9.8.0-202406140016-RELEASE-user-neo3-b2785-d4423088ed.zip"
+                "5.9.5"  = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/5.9.5.0-202403020351-RELEASE-user-neo3-b2505-7a2f1f044d.zip"
+                "5.7.5"  = "https://static.us-pui.picovr.com/5.7.5.0-202308042231-RELEASE-user-neo3-b1648-424b2c4282.zip"
+                "5.6.3"  = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.6.3-202305190333-RELEASE-user-neo3-b3484-31441931eb.zip"
+                "4.9.6"  = "https://lf-iot-ota.picovr.com/obj/iot-ota/4.9.6-202212220929-RELEASE-user-neo3-b2617-f1ff139269.zip"
             }
             "Chinese"  = [ordered]@{
-                "5.13.7" = "https://alistatic.pui.picovr.com/5.13.7-202510301728-RELEASE-user-neo3-b5902-ddd6d04448.zip?_gl=1*1n8xuja*_gcl_au*MTM2ODg0NzA2MS4xNzYwMDUxMTY3"
-                "5.13.3" = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.13.2-202506120456-RELEASE-user-neo3-b5809-52a79f45aa.zip"
+                "5.13.7"  = "https://alistatic.pui.picovr.com/5.13.7-202510301728-RELEASE-user-neo3-b5902-ddd6d04448.zip?_gl=1*1n8xuja*_gcl_au*MTM2ODg0NzA2MS4xNzYwMDUxMTY3"
+                "5.13.3"  = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.13.2-202506120456-RELEASE-user-neo3-b5809-52a79f45aa.zip"
+                "5.11.2"  = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.11.2-202408281327-RELEASE-user-neo3-b5300-fd6420b7b8.zip"
+                "5.11.1"  = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.11.1-202408201619-RELEASE-user-neo3-b5273-427bebf884.zip"
+                "5.9.5"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.9.5-202403020034-RELEASE-user-neo3-b4838-37010dfa96.zip"
+                "5.9.4"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.9.4-202401171311-RELEASE-user-neo3-b4751-af264200bc.zip"
+                "5.9.2"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.9.2-202312300344-RELEASE-user-neo3-b4664-25dd847df2.zip"
+                "5.9.1"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.9.1-202312191901-RELEASE-user-neo3-b4554-8b07e2146b.zip"
+                "5.9.0"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.9.0-202312090328-RELEASE-user-neo3-b4498-204e75274e.zip"
+                "5.8.4"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.8.4-202310092224-RELEASE-user-neo3-b4229-bb75569dbd.zip"
+                "5.8.3"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.8.3-202309201642-RELEASE-user-neo3-b4187-1b19721fad.zip"
+                "5.8.1"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.8.1-202309130147-RELEASE-user-neo3-b4140-78e518d2ac.zip"
+                "5.8.0"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.8.0-202308231557-RELEASE-user-neo3-b4004-d76ffa8022.zip"
+                "5.7.5"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.7.5-202308042058-RELEASE-user-neo3-b3885-e308f76ba0.zip"
+                "5.7.0"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.7.0-202306201921-RELEASE-user-neo3-b3622-bc35be0cba.zip"
+                "5.6.3"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.6.3-202305190333-RELEASE-user-neo3-b3484-31441931eb.zip"
+                "5.6.2"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.6.2-202305101525-RELEASE-user-neo3-b3433-0a4ee1a5cf.zip"
+                "5.6.1"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.6.1-202304240021-RELEASE-user-neo3-b3381-4715c18385.zip"
+                "5.6.0"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.6.0-202304181715-RELEASE-user-neo3-b3357-749f1c9d49.zip"
+                "5.5.4"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.5.4-202304060113-RELEASE-user-neo3-b3309-8a1d186f01.zip"
+                "5.5.3"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.5.3-202303281900-RELEASE-user-neo3-b3222-0bbea8b7fe.zip"
+                "5.5.2"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.5.2-202303210021-RELEASE-user-neo3-b3186-5df5f0d193.zip"
+                "5.4.4"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.4.4-202302161153-RELEASE-user-neo3-b2967-6d52eaeb58.zip"
+                "5.4.3"   = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.4.3-202302090023-RELEASE-user-neo3-b2915-5869286510.zip"
+                "5.4.2  " = "https://lf-iot-ota.picovr.com/obj/iot-ota/5.4.2-202302022115-RELEASE-user-neo3-b2878-1b00056c1a.zip"
+                "5.4.0"   = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/341f6f87ebea4a8493c3caf2fe899901.zip"
+                "5.3.1"   = "https://lf-stone-iot-va.dlpicovr.com/obj/stone-iot-us/ota-out/pico_oversea_rls_neo3-mol-5.3.3-20230103-SEKSA.falconcv3apollo-user/202301040122/5.3.1.0-202301032255-RELEASE-user-neo3-b756-6de3f4fa71.zip"
             }
             "Business" = [ordered]@{
                 "5.11.3" = "http://corntube.net/index.php/s/p529wTbWWgdFfor"
