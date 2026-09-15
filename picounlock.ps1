@@ -1054,6 +1054,4 @@ try {
     } catch {
 
     }
-
-    Clean-LogFormat -LogFile $LogFile
 }
