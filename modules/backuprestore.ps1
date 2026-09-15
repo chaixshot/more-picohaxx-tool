@@ -274,7 +274,7 @@ function Perform-RollbackOS {
         $maxFileSizeBytes = ($fileList | Measure-Object -Property Length -Maximum).Maximum
         $requiredSpaceGB = [math]::Max(1.0, [math]::Round($maxFileSizeBytes / 1GB, 2))
 
-        if (-not (Verify-DiskSpace -targetPath $firmwarePath -manualSizeGB ($requiredSpaceGB * 5))) {
+        if ($false -eq (Verify-DiskSpace -targetPath $firmwarePath -manualSizeGB ($requiredSpaceGB * 5))) {
             throw "Aborted by disk space verify. No changes have been made."
         }
 
@@ -618,7 +618,7 @@ function Get-LunsSizeGB {
     }
 
     if ($lunsSize) {
-        return $lunsSize + 1
+        return $lunsSize
     } else {
         Write-Log "Could not determine userdata partition size" "Error"
         return 0
@@ -680,7 +680,7 @@ function Get-UserdataSizeGB([switch]$fullPartition) {
     }
 
     if ($userdataSize) {
-        return $userdataSize + 1
+        return $userdataSize
     } else {
         Write-Log "Could not determine userdata partition size" "Error"
         return 0
@@ -707,6 +707,8 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
     if ($diskSize -eq 0) {
         Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         return $false
+    } else {
+        $diskSize += 1
     }
 
     $targetDrivePath = if ($targetPath) { $targetPath } else { $WorkingDir }
@@ -737,7 +739,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
             return $false
         }
 
-        return $true
+        return $diskSize - 1
     }
 }
 
@@ -766,7 +768,7 @@ function Wait-UserConfirm([string]$backupMode) {
     return $true
 }
 
-function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent) {
+function Verify-Backup([string]$backupMode, [string]$folderPath, [int]$diskSize = 6, [switch]$silent) {
     $verifySuccess = $true
 
     try {
@@ -834,16 +836,8 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [switch]$silent
         $sizeGB = $folderSize / 1GB
         $sizeFormatted = "{0:N2}" -f $sizeGB
 
-        $minSizeGB = switch ($backupMode) {
-            "downgrade" { 9 }
-            "downgradeDDR5" { 8 }
-            "firmware" { 6 }
-            "userdata" { 5 }
-            default { 12 }
-        }
-
-        if ($sizeGB -lt $minSizeGB) {
-            throw "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is less than minimum expected (${cYellow}$minSizeGB GB${cReset})."
+        if ($sizeGB -lt $diskSize) {
+            throw "Backup verification failed: total folder size (${cYellow}$sizeFormatted GB${cReset}) is less than minimum expected (${cYellow}$diskSize GB${cReset})."
         }
 
         if (-not $silent) { 
@@ -878,7 +872,7 @@ function Folder-Compression([string]$folderPath) {
         Write-Log "This process takes at least ${cGreen}10 minutes${cReset} depends on PC power." "Warning"
         Write-Log ""
 
-        if (-not (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
+        if ($false -eq (Verify-DiskSpace -targetPath $folderPath -manualSizeGB $requiredSpaceGB)) {
             throw "Aborted by disk space verify. No changes have been made."
         }
 
@@ -1063,7 +1057,8 @@ function Backup-Device($selection) {
             throw ""
         }
 
-        if (-not (Verify-DiskSpace $backupMode $customPath)) {
+        $diskSize = Verify-DiskSpace $backupMode $customPath
+        if ($diskSize -eq $false) {
             throw "Aborted by disk space verify. No changes have been made."
         }
 
@@ -1092,7 +1087,7 @@ function Backup-Device($selection) {
         }
 
         $backupFolder = Get-Item -Path $backupPath
-        if (-not(Verify-Backup $backupMode $backupFolder.FullName)) {
+        if (-not(Verify-Backup -backupMode $backupMode -folderPath $backupFolder.FullName -diskSize $diskSize)) {
             throw "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed."
         }
     } catch {
