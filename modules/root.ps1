@@ -107,15 +107,15 @@ function Perform-MagiskBoot([string]$bootImgPath) {
 
         # Determine pre-init storage device
         $preinit = $null
-        $adbDevices = Execute-ADBCommand "devices" -get $true
+        $adbDevices = Execute-ADBCommand "devices" -get
         if ($adbDevices -match "\t(device|recovery)") {
-            Execute-ADBCommand "push $(Join-Path $MagiskTMP 'magisk') /data/local/tmp/magisk" -silent $true
-            $detectedPreinit = (Execute-ADBCommand "shell chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device" -get $true).Trim()
+            Execute-ADBCommand "push $(Join-Path $MagiskTMP 'magisk') /data/local/tmp/magisk" -silent
+            $detectedPreinit = (Execute-ADBCommand "shell chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device" -get).Trim()
             if ($detectedPreinit) {
                 $preinit = $detectedPreinit
                 Write-Log "Detected pre-init storage partition: ${cGreen}$preinit${cReset}" "Info"
             }
-            Execute-ADBCommand "shell rm -f /data/local/tmp/magisk" -silent $true
+            Execute-ADBCommand "shell rm -f /data/local/tmp/magisk" -silent
         }
 
         if (-not $preinit) {
@@ -232,7 +232,7 @@ function IsDeviceRooted {
     # Secondary Primary Check: check root uid via su -c id
     Write-Log ""
     Write-Log "Checking Superuser access using '${cCyan}adb shell -c id${cReset}'..." "Action"
-    $suOutputRaw = Execute-ADBCommand "shell su -c id" -get $true
+    $suOutputRaw = Execute-ADBCommand "shell su -c id" -get
     $suOutput = ($suOutputRaw -join "`n").Trim()
     Write-Log $suOutput "Info"
     if ($suOutput -match "uid=0(\(root\))?") {
@@ -242,7 +242,7 @@ function IsDeviceRooted {
     # Fallback Check: su 0 id
     Write-Log ""
     Write-Log "Checking fallback with ${cCyan}adb shell su 0 id${cReset}..." "Action"
-    $altSuRaw = Execute-ADBCommand "shell su 0 id" -get $true
+    $altSuRaw = Execute-ADBCommand "shell su 0 id" -get
     $altSu = ($altSuRaw -join "`n").Trim()
     Write-Log $altSu "Info"
     if ($altSu -match "uid=0(\(root\))?") {
@@ -252,7 +252,7 @@ function IsDeviceRooted {
     # Fallback Check: adb root (if adbd runs as root)
     Write-Log ""
     Write-Log "Checking fallback with ${cCyan}adb shell id${cReset}..." "Action"
-    $idRaw = Execute-ADBCommand "shell id" -get $true
+    $idRaw = Execute-ADBCommand "shell id" -get
     $idOutput = ($idRaw -join "`n").Trim()
     if ($idOutput -match "uid=0(\(root\))?") {
         return $true

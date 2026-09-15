@@ -249,7 +249,7 @@ function Get-AllocatedRanges($obPInfo) {
         }
 
         Write-Log "Reading userdata superblock for range detection..." "Action"
-        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obSB -isTemp $true) -silent $true)) {
+        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obSB -isTemp $true) -silent)) {
             throw "Failed to read superblock for range detection."
         }
 
@@ -316,7 +316,7 @@ function Get-AllocatedRanges-F2FS($obPInfo, $sbBytes, $sbBase) {
             sLabel = "userdata_cp_tmp"; iLUN = $obPInfo.iLUN
             iStart = $cpSecStart; iEnd = $cpSecStart + $cpSectors - 1; iSectors = $cpSectors
         }
-        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obCP -isTemp $true) -silent $true)) { throw "" }
+        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obCP -isTemp $true) -silent)) { throw "" }
         $sCPFile = BuildFileName -obPInfo $obCP -isTemp $true
         if (-not (Test-Path $sCPFile)) { throw "" }
         try { $cpBytes = [System.IO.File]::ReadAllBytes($sCPFile) } catch { throw "" }
@@ -330,7 +330,7 @@ function Get-AllocatedRanges-F2FS($obPInfo, $sbBytes, $sbBase) {
                 sLabel = "userdata_cp1_tmp"; iLUN = $obPInfo.iLUN
                 iStart = $cp1SecStart; iEnd = $cp1SecStart + $cpSectors - 1; iSectors = $cpSectors
             }
-            if (Execute-EdlCommand (BuildCommand -obPInfo $obCP1 -isTemp $true) -silent $true) {
+            if (Execute-EdlCommand (BuildCommand -obPInfo $obCP1 -isTemp $true) -silent) {
                 $sCP1File = BuildFileName -obPInfo $obCP1 -isTemp $true
                 if (Test-Path $sCP1File) {
                     try {
@@ -362,7 +362,7 @@ function Get-AllocatedRanges-F2FS($obPInfo, $sbBytes, $sbBase) {
             iStart = $sitSecStart; iEnd = $sitSecStart + $sitSectors - 1; iSectors = $sitSectors
         }
         Write-Log "Scanning ${cCyan}F2FS SIT${cReset} table for allocated segment ranges..." "Action"
-        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obSIT -isTemp $true) -silent $true)) { throw "" }
+        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obSIT -isTemp $true) -silent)) { throw "" }
         $sSITFile = BuildFileName -obPInfo $obSIT -isTemp $true
         if (-not (Test-Path $sSITFile)) { throw "" }
         try { $sitBytes = [System.IO.File]::ReadAllBytes($sSITFile) } catch { throw "" }
@@ -498,7 +498,7 @@ function Get-AllocatedRanges-Ext4($obPInfo, $sbBytes, $sbBase) {
             iStart = $bgdStartSector; iEnd = $bgdStartSector + $bgdSectors - 1; iSectors = $bgdSectors
         }
         Write-Log "Scanning ext4 ${cCyan}BGD${cReset} table for allocated group ranges..." "Action"
-        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obBGD -isTemp $true) -silent $true)) { throw "" }
+        if (-not (Execute-EdlCommand (BuildCommand -obPInfo $obBGD -isTemp $true) -silent)) { throw "" }
         $sBGDFile = BuildFileName -obPInfo $obBGD -isTemp $true
         if (-not (Test-Path $sBGDFile)) { throw "" }
         try { $bgdBytes = [System.IO.File]::ReadAllBytes($sBGDFile) } catch { throw "" }

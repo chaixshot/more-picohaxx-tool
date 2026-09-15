@@ -213,7 +213,7 @@ function Generate-UnlockCode {
     Write-Header "Generate-Get Unlock Code"
 
     if (IsAdbMode) {
-        $rawSerial = Execute-ADBCommand "shell cat /sys/devices/soc0/serial_number" -get $true
+        $rawSerial = Execute-ADBCommand "shell cat /sys/devices/soc0/serial_number" -get
         $serialNumber = ($rawSerial -join '').Trim()
         if ($serialNumber -match "^\d+$") {
             # Create backup directory if it doesn't exist
@@ -756,7 +756,7 @@ function IsFastbootUnlocked {
     try {
         # Primary Check: fastboot oem device-info
         Write-Log "Checking bootloader status using ${cCyan}fastboot oem device-info${cReset}..." "Action"
-        $deviceInfoRaw = Execute-FastbootCommand "oem device-info" -get $true
+        $deviceInfoRaw = Execute-FastbootCommand "oem device-info" -get
         $deviceInfo = $deviceInfoRaw -join "`n"
         Write-Log $deviceInfo
 
@@ -771,7 +771,7 @@ function IsFastbootUnlocked {
         # Fallback Check: fastboot getvar unlocked
         Write-Log "OEM command unrecognized/unparseable." "Warning"
         Write-Log "Checking with ${cCyan}fastboot getvar unlocked${cReset}..." "Action"
-        $unlockedVarRaw = Execute-FastbootCommand "getvar unlocked" -get $true
+        $unlockedVarRaw = Execute-FastbootCommand "getvar unlocked" -get
         $unlockedVar = $unlockedVarRaw -join "`n"
         Write-Log $unlockedVar
 
@@ -881,16 +881,16 @@ function SystemUpdate-Management([string]$selection = "") {
                 Execute-ADBCommand "shell settings put global pvr_update_auto_upgrade 0"
                 Execute-ADBCommand "shell settings put global pvr_update_auto_update 0"
 
-                $out = Execute-ADBCommand "shell pm disable-user --user 0 com.pvr.version" -get $true
+                $out = Execute-ADBCommand "shell pm disable-user --user 0 com.pvr.version" -get
                 if ($out -and ($out -match "Error" -or $out -match "Exception")) { throw "pm disable-user failed: $out" }
 
-                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.picovr.updatesystem" -get $true
+                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.picovr.updatesystem" -get
                 if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall updatesystem failed: $out" }
 
-                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.picovr.firmwareupdate" -get $true
+                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.picovr.firmwareupdate" -get
                 if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall firmwareupdate failed: $out" }
 
-                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.android.dynsystem" -get $true
+                $out = Execute-ADBCommand "shell pm uninstall --user 0 com.android.dynsystem" -get
                 if ($out -and ($out -match "Failure" -and $out -notmatch "not installed")) { throw "pm uninstall dynsystem failed: $out" }
 
                 Execute-ADBCommand "shell update_engine_client --suspend"
@@ -913,16 +913,16 @@ function SystemUpdate-Management([string]$selection = "") {
                 Execute-ADBCommand "shell settings put global pvr_update_auto_upgrade 1"
                 Execute-ADBCommand "shell settings put global pvr_update_auto_update 1"
 
-                $out = Execute-ADBCommand "shell pm enable com.pvr.version" -get $true
+                $out = Execute-ADBCommand "shell pm enable com.pvr.version" -get
                 if ($out -and ($out -match "Error" -or $out -match "Exception")) { throw "pm enable failed: $out" }
 
-                $out = Execute-ADBCommand "shell cmd package install-existing com.picovr.updatesystem" -get $true
+                $out = Execute-ADBCommand "shell cmd package install-existing com.picovr.updatesystem" -get
                 if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing updatesystem failed: $out" }
 
-                $out = Execute-ADBCommand "shell cmd package install-existing com.picovr.firmwareupdate" -get $true
+                $out = Execute-ADBCommand "shell cmd package install-existing com.picovr.firmwareupdate" -get
                 if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing firmwareupdate failed: $out" }
 
-                $out = Execute-ADBCommand "shell cmd package install-existing com.android.dynsystem" -get $true
+                $out = Execute-ADBCommand "shell cmd package install-existing com.android.dynsystem" -get
                 if ($out -and ($out -match "Failure" -or $out -match "Error")) { throw "install-existing dynsystem failed: $out" }
 
                 Execute-ADBCommand "shell update_engine_client --reset_status"

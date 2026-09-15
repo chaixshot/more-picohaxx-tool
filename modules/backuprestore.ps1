@@ -600,7 +600,7 @@ function Prepare-Firmware {
 }
 
 function Get-LunsSizeGB {
-    $gpt = Execute-EdlCommand "printgpt" -silent $true $true
+    $gpt = Execute-EdlCommand "printgpt" -silent -get
     $totalSizeGB = 0
     $lunsSize = $null
 
@@ -626,7 +626,7 @@ function Get-LunsSizeGB {
 }
 
 function Get-UserdataSizeGB([switch]$fullPartition) {
-    $gpt = Execute-EdlCommand "printgpt --lun 0" $true $true
+    $gpt = Execute-EdlCommand "printgpt --lun 0" -silent -get
     $isUserdataBlock = $false
     $userdataSize = $null
     $obPInfo = $null

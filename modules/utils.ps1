@@ -155,12 +155,12 @@ function IsEdlMode {
 }
 
 function IsAdbMode {
-    $adbOutput = Execute-ADBCommand "devices" -get $true
+    $adbOutput = Execute-ADBCommand "devices" -get
     return $adbOutput | Select-String -Pattern "`tdevice$" -Quiet
 }
 
 function IsFastbootMode {
-    $fbDevices = Execute-FastbootCommand "devices" -get $true
+    $fbDevices = Execute-FastbootCommand "devices" -get
     return $fbDevices -match "fastboot$"
 }
 
@@ -292,7 +292,7 @@ function Wait-AdbMode([int]$timeout = 360, [switch]$waitForDisconnect) {
                 [System.Console]::Write("`r  Validating stable ADB connection...                                ")
                 
                 # Check 1: Wait until Android OS reports boot complete
-                $rawBoot = Execute-ADBCommand "shell getprop sys.boot_completed" -get $true
+                $rawBoot = Execute-ADBCommand "shell getprop sys.boot_completed" -get
                 $bootCompleted = (($rawBoot -join '').Trim()) -eq "1"
                 
                 # Check 2: Ensure connection stays active for 2 consecutive seconds
@@ -439,7 +439,7 @@ function Execute-UnlockCommand {
     return $success
 }
 
-function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
+function Execute-EdlCommand([string]$sCMDLine, [switch]$silent, [switch]$get) {
     $outputLines = [System.Collections.Generic.List[string]]::new()
     $lastWasProgress = $false
     $success = $true
@@ -503,7 +503,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
     }
 }
 
-function Execute-ADBCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
+function Execute-ADBCommand([string]$sCMDLine, [switch]$silent, [switch]$get) {
     $arguments = $sCMDLine.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
 
     if ($silent) {
@@ -515,7 +515,7 @@ function Execute-ADBCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
     }
 }
 
-function Execute-FastbootCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$get = $false) {
+function Execute-FastbootCommand([string]$sCMDLine, [switch]$silent, [switch]$get) {
     $arguments = $sCMDLine.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)
 
     if ($silent) {
@@ -1109,25 +1109,25 @@ function Warning-EDL-ManualReboot {
 function ADB-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
-    Execute-ADBCommand "reboot" -silent $true
+    Execute-ADBCommand "reboot" -silent
 }
 
 function ADB-To-Recovery {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
-    Execute-ADBCommand "reboot recovery" -silent $true
+    Execute-ADBCommand "reboot recovery" -silent
 }
 
 function ADB-To-Fastboot {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    Execute-ADBCommand "reboot bootloader" -silent $true
+    Execute-ADBCommand "reboot bootloader" -silent
 }
 
 function ADB-To-Edl {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}ADB${cReset} mode. Attempting to reboot into ${cCyan}EDL${cReset} mode..." "Action"
-    Execute-ADBCommand "reboot edl" -silent $true
+    Execute-ADBCommand "reboot edl" -silent
 }
 
 # ---------------------------------------------
@@ -1135,19 +1135,19 @@ function ADB-To-Edl {
 function Fastboot-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
-    Execute-FastbootCommand "reboot" -silent $true
+    Execute-FastbootCommand "reboot" -silent
 }
 
 function Fastboot-To-Recovery {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}RECOVERY${cReset} mode..." "Action"
-    Execute-FastbootCommand "reboot recovery" -silent $true
+    Execute-FastbootCommand "reboot recovery" -silent
 }
 
 function Fastboot-To-Fastboot {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}FASTBOOT${cReset} mode. Attempting to reboot into ${cCyan}FASTBOOT${cReset} mode..." "Action"
-    Execute-FastbootCommand "reboot bootloader" -silent $true
+    Execute-FastbootCommand "reboot bootloader" -silent
 }
 
 function Fastboot-To-Edl {
@@ -1160,7 +1160,7 @@ function Fastboot-To-Edl {
         Wait-Continue
 
         if (IsFastbootMode) {
-            Execute-FastbootCommand "reboot" -silent $true
+            Execute-FastbootCommand "reboot" -silent
         }
     }
 }
@@ -1182,7 +1182,7 @@ function Edl-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     
-    if (Execute-EdlCommand "reset" $true) { 
+    if (Execute-EdlCommand "reset" -silent) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
@@ -1202,7 +1202,7 @@ function Edl-To-Recovery {
     Write-Log "Keep holding $button before continue, and don't let go" "Interactive"
     Wait-Continue
     
-    if (Execute-EdlCommand "reset" $true) { 
+    if (Execute-EdlCommand "reset" -silent) { 
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
@@ -1234,7 +1234,7 @@ function Edl-To-Edl {
     Write-Log "Keep holding $button before continue, and don't let go." "Interactive"
     Wait-Continue
     
-    if (Execute-EdlCommand "reset" $true) { 
+    if (Execute-EdlCommand "reset" -silent) { 
         Write-Log "Reboot command sent successfully." "Success"
 
         if (IsPicoNeo3) {
