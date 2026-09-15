@@ -12,37 +12,55 @@
 $SelectedFirehose = 0
 $IsPicoNeo3 = $false
 
-$e = [char]27
-$cReset = "$e[0m"
-$cCyan = "$e[36m"
-$cYellow = "$e[33m"
-$cBrightAmber = "$e[38;5;208m"
-$cGreen = "$e[32m"
-$cMagenta = "$e[35m"
-$cRed = "$e[31m"
-$cBold = "$e[1m"
-$cGray = "$e[90m"
-$cDarkGray = "$e[90m"
-$cWhite = "$e[97m"
+$esc = [char]27
+$cReset = "$esc[0m"
+$cCyan = "$esc[36m"
+$cYellow = "$esc[33m"
+$cBrightAmber = "$esc[38;5;208m"
+$cGreen = "$esc[32m"
+$cMagenta = "$esc[35m"
+$cRed = "$esc[31m"
+$cBold = "$esc[1m"
+$cGray = "$esc[90m"
+$cDarkGray = "$esc[90m"
+$cWhite = "$esc[97m"
 
-function Write-Log([string]$message, [string]$type, [string]$ForegroundColor) {
-    $params = @{}
-    if ($ForegroundColor) { $params['ForegroundColor'] = $ForegroundColor }
+function Write-Log([string]$message, [string]$type, [string]$foregroundColor, [switch]$mute) {
+    if (-not [string]::IsNullOrWhiteSpace($foregroundColor)) {
+        [Console]::ForegroundColor = [System.ConsoleColor]::$foregroundColor
+    }
+
+    # Extract tag and map to target $type
+    if ($message -match '\[(INFO|WARN|WARNING|ERROR|SUCCESS)\]') {
+        $extracted = $Matches[1].ToUpper()
+        $type = switch ($extracted) {
+            "INFO" { "Info" }
+            "WARN" { "Warning" }
+            "WARNING" { "Warning" }
+            "ERROR" { "Error" }
+            "SUCCESS" { "Success" }
+            Default { $extracted }
+        }
+    }
+
+    # Strip timestamp (HH:mm:ss.fff) and log tag [TAG] from $message
+    $message = $message -replace '(?m)^\s*\d{2}:\d{2}:\d{2}\.\d{3}\s*', '' -replace '\[(INFO|WARN|WARNING|ERROR|SUCCESS)\]\s*', ''
 
     if ($type -in $null, "") {
-        Write-Host " $message" @params
+        [Console]::Write("`n $message")
+        Write-Transcript "  $message"
     } else {
         $Color = switch ($type) {
             "Success" {
-                if ($IsWindows -or $env:OS -like "*Windows*") { [System.Media.SystemSounds]::Asterisk.Play() }
+                if (-not $mute -and ($IsWindows -or $env:OS -like "*Windows*")) { [System.Media.SystemSounds]::Asterisk.Play() }
                 $cGreen
             }
             "Warning" {
-                if ($IsWindows -or $env:OS -like "*Windows*") { [System.Media.SystemSounds]::Exclamation.Play() }
+                if (-not $mute -and ($IsWindows -or $env:OS -like "*Windows*")) { [System.Media.SystemSounds]::Exclamation.Play() }
                 $cYellow
             }
             "Error" {
-                if ($IsWindows -or $env:OS -like "*Windows*") { [System.Media.SystemSounds]::Hand.Play() }
+                if (-not $mute -and ($IsWindows -or $env:OS -like "*Windows*")) { [System.Media.SystemSounds]::Hand.Play() }
                 $cRed
             }
             "Action" {
@@ -64,41 +82,39 @@ function Write-Log([string]$message, [string]$type, [string]$ForegroundColor) {
             }
         }
 
-        Write-Host " ${Color}[$type] ${cReset}$message" @params
+        [Console]::Write("`n ${Color}[$type] ${cReset}$message")
+        Write-Transcript "  [$type] $message"
+    }
+
+    [Console]::ResetColor()
+
+}
+
+function Write-Transcript([string] $message) {
+    # Remove ANSI escape sequences (colors, styles, etc.)
+    $pattern = "$( $esc )\[[0-9;]*[a-zA-Z]"
+    $cleanMessage = $message -replace $pattern, ""
+
+    $transcriptWriter = $ExecutionContext.SessionState.PSVariable.GetValue('TranscriptWriter', $null)
+    if ($transcriptWriter -and $transcriptWriter.InnerWriter) {
+        # Write directly to transcript pipeline if active, bypassing screen display
+        $transcriptWriter.InnerWriter.WriteLine($cleanMessage)
+    } else {
+        # Standard transcript logging
+        Write-Host $cleanMessage -InformationAction Ignore
     }
 }
 
 function Read-HostLog([string]$prompt) {
-    [Console]::Write("`n${cGreen}>${cReset} ${prompt}: ${cGreen}")
+    [Console]::Write("`n`n${cGreen}>${cReset} ${prompt}: ${cGreen}")
 
     $inputResult = [Console]::ReadLine()
 
     [Console]::Write($cReset)
 
-    # Write directly to transcript pipeline if active, bypassing screen display
-    $transcriptWriter = $ExecutionContext.SessionState.PSVariable.GetValue('TranscriptWriter', $null)
-    if ($transcriptWriter -and $transcriptWriter.InnerWriter) {
-        $transcriptWriter.InnerWriter.WriteLine("> ${prompt}: ${inputResult}")
-    } else {
-        # Fallback for standard Write-Host transcript logging
-        Write-Host "`n> ${prompt}: ${inputResult}" -InformationAction Ignore
-    }
+    Write-Transcript "`n> ${prompt}: ${inputResult}"
 
     return $inputResult.ToString().ToLower().Trim()
-}
-
-function Clean-LogFormat([string]$LogFile) {
-    if (Test-Path $LogFile) {
-        $content = Get-Content $LogFile -Raw
-
-        # Remove ANSI escape sequences (colors, styles, etc.)
-        # This covers $cReset, $cCyan, $cYellow, $cGreen, $cMagenta, $cRed, $cBold, $cGray, $cWhite
-        $esc = [char]27
-        $pattern = "$( $esc )\[[0-9;]*[a-zA-Z]"
-
-        $cleanContent = $content -replace $pattern, ""
-        $cleanContent | Set-Content $LogFile -Force
-    }
 }
 
 function Write-Header([string]$title) {
@@ -179,7 +195,7 @@ function Wait-FastbootMode([int]$timeout = 120, [switch]$waitForDisconnect) {
             break
         }
 
-        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] ")
+        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}]                                ")
 
         $skipped = $false
         for ($j = 0; $j -lt 10; $j++) {
@@ -229,7 +245,7 @@ function Wait-EdlMode([int]$timeout = 120, [switch]$waitForDisconnect) {
             break
         }
 
-        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] ")
+        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}]                                ")
 
         $skipped = $false
         for ($j = 0; $j -lt 10; $j++) {
@@ -273,7 +289,7 @@ function Wait-AdbMode([int]$timeout = 360, [switch]$waitForDisconnect) {
             
             # If connecting, verify stability to avoid post-reboot ADB dropouts
             if (-not $waitForDisconnect) {
-                [System.Console]::Write("`r  Validating stable ADB connection...                        ")
+                [System.Console]::Write("`r  Validating stable ADB connection...                                ")
                 
                 # Check 1: Wait until Android OS reports boot complete
                 $rawBoot = Execute-ADBCommand "shell getprop sys.boot_completed" -get $true
@@ -295,7 +311,7 @@ function Wait-AdbMode([int]$timeout = 360, [switch]$waitForDisconnect) {
             break
         }
 
-        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}] ")
+        [System.Console]::Write("`r  ...waiting ($i/$timeout) [${cCyan}ESC to skip${cReset}]                                ")
 
         $skipped = $false
         for ($j = 0; $j -lt 10; $j++) {
@@ -460,7 +476,7 @@ function Execute-EdlCommand([string]$sCMDLine, [bool]$silent = $false, [bool]$ge
                         Write-Log ""
                         $lastWasProgress = $false
                     }
-                    Write-Log $line
+                    Write-Log $line -mute
                 }
             }
         }
@@ -682,34 +698,58 @@ function Select-InteractiveMenu([string]$header = "", [string[]]$options, [int]$
     
     try { [Console]::CursorVisible = $false } catch {}
 
-    # Initial Render Helper Function
+    # Helper Function to Render Menu Frame
     function Render-Menu {
-
         param([int]$selected, [int]$pSize)
 
         # Determine visible window start index
         $startIndex = [Math]::Max(0, [Math]::Min($selected - [Math]::Floor($pSize / 2), $options.Count - $pSize))
         $endIndex = $startIndex + $pSize - 1
 
+        # Use -2 margin to leave room for the explicit newline without auto-wrapping double lines
+        $winWidth = try { [Console]::WindowWidth - 2 } catch { 78 }
+
         for ($i = $startIndex; $i -le $endIndex; $i++) {
             $num = $i + 1
             $prefix = if ($i -eq $selected) { " > " } else { "   " }
             $line = "${prefix}[${num}] $($options[$i])"
 
-            if ($i -eq $selected) {
-                Write-Host $line.PadRight([Console]::WindowWidth - 1) -ForegroundColor Cyan
+            # Safely truncate or pad line width
+            if ($line.Length -gt $winWidth) {
+                $paddedLine = $line.Substring(0, $winWidth)
             } else {
-                Write-Host $line.PadRight([Console]::WindowWidth - 1)
+                $paddedLine = $line.PadRight($winWidth)
+            }
+
+            if ($i -eq $selected) {
+                [Console]::ForegroundColor = [ConsoleColor]::Cyan
+                [Console]::Write("${paddedLine}`n")  # Added explicit `n
+                [Console]::ResetColor()
+            } else {
+                [Console]::Write("${paddedLine}`n")  # Added explicit `n
             }
         }
         
         # Display page navigation indicator
-        $pageInfo = "--- Page $([Math]::Ceiling(($selected + 1) / $pSize)) of $([Math]::Ceiling($options.Count / $pSize)) [${cYellow}Up/Down${cReset}] or [${cYellow}Left/Right${cReset}] to Navigate) ---"
-        Write-Host $pageInfo.PadRight([Console]::WindowWidth - 1) -ForegroundColor DarkGray
+        $pageInfo = "--- Page $([Math]::Ceiling(($selected + 1) / $pSize)) of $([Math]::Ceiling($options.Count / $pSize)) [Up/Down] or [Left/Right] to Navigate) ---"
+        if ($pageInfo.Length -gt $winWidth) {
+            $paddedInfo = $pageInfo.Substring(0, $winWidth)
+        } else {
+            $paddedInfo = $pageInfo.PadRight($winWidth)
+        }
+
+        [Console]::ForegroundColor = [ConsoleColor]::DarkGray
+        [Console]::Write("${paddedInfo}`n")  # Added explicit `n
+        [Console]::ResetColor()
     }
 
     # First Pass Render
-    Write-Log $header "Info"
+    if ($header) {
+        [Console]::ForegroundColor = [ConsoleColor]::Green
+        [Console]::Write("${header}`n")
+        [Console]::ResetColor()
+    }
+
     Render-Menu -selected $selectedIndex -pSize $pageSize
 
     while ($true) {
@@ -744,6 +784,8 @@ function Select-InteractiveMenu([string]$header = "", [string[]]$options, [int]$
     }
 
     try { [Console]::CursorVisible = $true } catch {}
+
+    Write-Transcript "`n> ${header}: $($options[$selectedIndex])"
 
     return $selectedIndex
 }
