@@ -841,8 +841,16 @@ function Verify-Backup([string]$backupMode, [string]$folderPath, [int]$diskSize 
         }
 
         if (-not $silent) { 
+            $typeName = switch ($backupMode) {
+                "luns" { "LUNs" }
+                "userdata" { "User Data" }
+                "partitions" { "Partitions" }
+                "downgrade" { "Downgrade Pico 4 / 4 Enterprice / 4 Pro" }
+                default { $backupMode }
+            }
             Write-Log "Backup verification successful." "Success" 
-            Write-Log "Total size: ${cGreen}$sizeFormatted GB${cReset}" "Info" 
+            Write-Log "Total size: ${cCyan}$sizeFormatted GB${cReset}" "Success" 
+            Write-Log "Type: ${cCyan}$typeName${cReset}" "Success" 
         }
     } catch {
         $verifySuccess = $false
@@ -1019,27 +1027,23 @@ function Backup-Device($selection) {
     $success = $true
     $lastError = $null
     $backupPath = $null
-    $backupFolder = $null
 
     try {
         Write-Header "Backup Device"
         $backupMode = $selection.backupMode
         $customPath = $selection.customPath
-        $isCustomDest = -not ([string]::IsNullOrWhiteSpace($customPath))
 
-        # Determine the info path
-        $destPath = if ($isCustomDest) {
-            $customPath
-        } else {
-            switch ($backupMode) {
-                "luns" { $LUNsBackupPath }
-                "userdata" { $UserBackupPath }
-                "userdatafull" { $UserBackupPath }
-                "partitions" { $PartitionsBackupPath }
-            }
+        # Determine target path
+        $basePaths = @{
+            "luns"         = $LUNsBackupPath
+            "userdata"     = $UserBackupPath
+            "userdatafull" = $UserBackupPath
+            "partitions"   = $PartitionsBackupPath
         }
+        $targetFolder = if (-not ([string]::IsNullOrWhiteSpace($customPath))) { $customPath } else { $basePaths[$backupMode] }
+        $backupPath = Join-Path -Path $targetFolder -ChildPath $TimeStamp
 
-        Write-Log "Destination: ${cCyan}${destPath}${cReset}" "Info"
+        Write-Log "Destination: ${cCyan}${backupPath}${cReset}" "Info"
         if (-not (Wait-UserConfirm $backupMode)) {
             throw "Aborted by user. No changes have been made."
         }
@@ -1063,22 +1067,11 @@ function Backup-Device($selection) {
         }
 
         # Start the automated helper - suppress any stray pipeline outputs using [void] or $null =
-        if ($backupMode -eq "luns") {
-            $basePath = if ($isCustomDest) { $customPath } else { $LUNsBackupPath }
-            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-            BackupLUNs $backupPath
-        } elseif ($backupMode -eq "userdata") {
-            $basePath = if ($isCustomDest) { $customPath } else { $UserBackupPath }
-            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-            BackupUserData $backupPath
-        } elseif ($backupMode -eq "userdatafull") {
-            $basePath = if ($isCustomDest) { $customPath } else { $UserBackupPath }
-            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-            BackupUserData $backupPath -fullPartition
-        } elseif ($backupMode -eq "partitions") {
-            $basePath = if ($isCustomDest) { $customPath } else { $PartitionsBackupPath }
-            $backupPath = Join-Path -Path $basePath -ChildPath $TimeStamp
-            BackupPartitions $backupPath
+        switch ($backupMode) {
+            "luns" { BackupLUNs $backupPath }
+            "userdata" { BackupUserData $backupPath }
+            "userdatafull" { BackupUserData $backupPath -fullPartition }
+            "partitions" { BackupPartitions $backupPath }
         }
 
         # Verify folder existence
@@ -1086,9 +1079,8 @@ function Backup-Device($selection) {
             throw "Could not find the backup folder in '${cCyan}$backupPath${cReset}'."
         }
 
-        $backupFolder = Get-Item -Path $backupPath
-        if (-not(Verify-Backup -backupMode $backupMode -folderPath $backupFolder.FullName -diskSize $diskSize)) {
-            throw "Found backup folder at '${cCyan}$( $backupFolder.FullName )${cReset}', but validation failed."
+        if (-not(Verify-Backup -backupMode $backupMode -folderPath $backupPath -diskSize $diskSize)) {
+            throw "Found backup folder at '${cCyan}$( $backupPath )${cReset}', but validation failed."
         }
     } catch {
         $success = $false
@@ -1099,10 +1091,10 @@ function Backup-Device($selection) {
     }
 
     if ($success) {
-        Write-Log "Detected new backup at: ${cCyan}$( $backupFolder.FullName )${cReset}" "Success"
+        Write-Log "Backup: ${cCyan}$( $backupPath )${cReset}" "Success"
         Wait-Continue
 
-        Folder-Compression $backupFolder.FullName
+        Folder-Compression $backupPath
         Wait-Continue
 
         $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
@@ -1110,9 +1102,9 @@ function Backup-Device($selection) {
             Edl-To-System
         }
     } else {
-        if ($backupFolder -and (Test-Path -Path $backupFolder.FullName)) {
+        if ($backupFolder -and (Test-Path -Path $backupPath)) {
             Write-Log "Deleting invalid backup folder..." "Action"
-            Remove-Item -Path $backupFolder.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path $backupPath -Recurse -Force -ErrorAction SilentlyContinue
         }
             
         if ($lastError.Message -notlike "*Abort*") {
