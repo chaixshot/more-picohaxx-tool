@@ -246,7 +246,7 @@ function Flash-EngineeringABL {
     
     try {
         Write-Header "Flash Engineering ABL"
-        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering files." "Warning"
+        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering ABL files." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
         $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
@@ -273,22 +273,29 @@ function Flash-EngineeringABL {
         }
         
         # Create a timestamped backup folder
-        $currentBackupPath = Join-Path $AblBackupPath $TimeStamp
-        New-Item -Path $currentBackupPath -ItemType Directory -Force | Out-Null
-        $backupAbl = Join-Path $currentBackupPath "abl.bin"
-        $backupDevInfo = Join-Path $currentBackupPath "devinfo.bin"
+        New-Item -Path $AblBackupPath -ItemType Directory -Force | Out-Null
+        $backupAbl = Join-Path $AblBackupPath "abl.elf"
+        $backupDevInfo = Join-Path $AblBackupPath "devinfo"
         
-        # Backup ABL
-        Write-Log "Backing up original ABL to '${cCyan}${backupAbl}${cReset}'..." "Action"
-        if (-not (Execute-EdlCommand "read-part abl $backupAbl") -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
-            throw "Backing up ABL failed with code ${cCyan}${LASTEXITCODE}${cReset}."
+        # Backup ABL if doesn't exist
+        if (-not (Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) {
+            Write-Log "Backing up original ABL to '${cCyan}${backupAbl}${cReset}'..." "Action"
+            if (-not (Execute-EdlCommand "read-part abl $backupAbl") -or !(Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) { 
+                throw "Backing up ABL failed with code ${cCyan}${LASTEXITCODE}${cReset}."
+            }
+        } else {
+            Write-Log "Skipped backing up ABL, file '${cYellow}$backupAbl${cReset}' already exist." "Info"
         }
 
-        # Backup Devinfo
-        Write-Log ""
-        Write-Log "Backing up original Devinfo to '${cCyan}${backupDevInfo}${cReset}'..." "Action"
-        if (-not (Execute-EdlCommand "read-part devinfo $backupDevInfo") -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
-            throw "Backing up Devinfo failed with code ${cCyan}${LASTEXITCODE}${cReset}."
+        # Backup Devinfo if doesn't exist
+        if (-not (Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
+            Write-Log ""
+            Write-Log "Backing up original Devinfo to '${cCyan}${backupDevInfo}${cReset}'..." "Action"
+            if (-not (Execute-EdlCommand "read-part devinfo $backupDevInfo") -or !(Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
+                throw "Backing up Devinfo failed with code ${cCyan}${LASTEXITCODE}${cReset}."
+            }
+        } else {
+            Write-Log "Skipped backing up Devinfo, file '${cYellow}$backupDevInfo${cReset}' already exist." "Info"
         }
 
         # Flash custom ABL
@@ -313,7 +320,7 @@ function Flash-EngineeringABL {
     }
 
     if ($success) {
-        Write-Log "Original ABL backed up to '${cGreen}$currentBackupPath${cReset}'." "Success"
+        Write-Log "Original ABL backed up to '${cGreen}$AblBackupPath${cReset}'." "Success"
         Write-Log "Engineering ${cCyan}ABL${cReset} and ${cCyan}Devinfo${cReset} flashed successfully." "Success"
         Write-Log ""
         Write-Log "Engineering ABL might reboot the device to EDL mode (Black screen) sometimes and perform a slower boot time." "Warning"
@@ -336,69 +343,36 @@ function Flash-EngineeringABL {
 function Flash-BackupABL {
     $success = $true
     $lastError = $null
-    $header = {
+
+    try {
         Write-Header "Flash Backup ABL"
+        Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to restore ABL partition." "Warning"
         Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
         Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode." "Info"
         Write-Log "Fastboot will no longer work for device modification." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
-    }
 
-    try {
-        if (-not (Test-Path -Path $AblBackupPath -PathType Container)) {
-            throw "Aborted. The specified backup directory '${cYellow}$AblBackupPath${cReset}' does not exist."
+        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+        if ($confirmation -ne 'yes') {
+            throw "Aborted by user. No changes have been made."
         }
 
-        $folders = Get-ChildItem -Path $AblBackupPath -Directory |
-        Where-Object { $_.Name -match '^\d+$|^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$' } |
-        Sort-Object -Property LastWriteTime -Descending
-        if (-not $folders) {
-            throw "Aborted. No valid backup folders found in '${cYellow}$AblBackupPath${cReset}'."
-        }
-
-        # Get backupFolder
-        $backupFolder = $null
-        while (-not $backupFolder) {
-            & $header
-
-            Write-Log ""
-            Write-Log "Available backup folders:" "Info"
-            for ($i = 0; $i -lt $folders.Count; $i++) {
-                Write-Log "[${cCyan}$($i + 1)${cReset}] $($folders[$i].Name) ${cGreen}($($folders[$i].CreationTime))${cReset}"
-            }
-            $selection = Read-HostLog "Select backup [${cYellow}1-$($folders.Count)${cReset}], cancel [${cYellow}C${cReset}]"
-
-            if ($selection -eq 'c') {
-                throw "Aborted by user. No changes have been made."
-            }
-
-            if ($selection -match '^\d+$') {
-                $index = [int]$selection - 1
-                if ($index -ge 0 -and $index -lt $folders.Count) {
-                    $backupFolder = $folders[$index].FullName
-                }
-            }
-
-            if (-not $backupFolder) {
-                Write-Log "Invalid input: [${cYellow}$selection${cReset}]" "Error"
-                Wait-Continue
-            }
+        # Create backup directory if it doesn't exist
+        if (-not (Test-Path $AblBackupPath)) {
+            New-Item -Path $AblBackupPath -ItemType Directory -Force | Out-Null
         }
 
         # Test partition files
-        $backupAbl = Join-Path $backupFolder "abl.bin"
-        $backupDevInfo = Join-Path $backupFolder "devinfo.bin"
+        $backupAbl = Join-Path $AblBackupPath "abl.elf"
+        $backupDevInfo = Join-Path $AblBackupPath "devinfo"
         if (-not (Test-Path $backupAbl) -or (Get-Item $backupAbl).Length -eq 0) {
-            throw "Aborted. Backup ABL file '${cYellow}$backupAbl${cReset}' does not exist or is empty."
-        } elseif (-not (Test-Path $backupDevInfo) -or (Get-Item $backupDevInfo).Length -eq 0) {
-            throw "Aborted .Backup Devinfo file '${cYellow}$backupDevInfo${cReset}' does not exist or is empty."
-        }
-        
-        # User confirm
-        Write-Log "Target backup folder: ${cGreen}$backupFolder${cReset}" "Info"
-        $confirmation = Read-HostLog "Are you sure you want to flash this backup? [${cYellow}Y${cReset}/n]"
-        if ($confirmation -ne 'y') {
-            throw "Aborted by user. No changes have been made."
+            Write-Log "Backup file '${cYellow}$backupAbl${cReset}' does not exist or is empty." "Error"
+            Write-Log "Download matching ${cCyan}firmware.zip${cReset} for the device from the next step." "Info"
+            Write-Log "Then extract downloaded ${cCyan}firmware.zip${cReset}, copy '${cYellow}firmware\firmware-update\abl.elf${cReset}' to '${cYellow}$backupAbl${cReset}' and try again." "Info"
+            Wait-Continue
+            Prepare-Firmware
+            
+            throw "Aborted."
         }
 
         # Reboot to EDl
@@ -411,20 +385,26 @@ function Flash-BackupABL {
         }
 
         if (-not (Wait-EdlMode)) {
-            throw "Device failed to enter EDL mode."
+            throw ""
         }
 
         # Flash backup ABL
-        Write-Log "Backing up backup ABL from '${cCyan}${backupAbl}${cReset}'..." "Action"
+        Write-Log "Flashing backup ABL..." "Action"
         if (-not (Execute-EdlCommand "write-part abl `"$backupAbl`"")) { 
             throw "Flashing backup ABL failed with code ${cCyan}${LASTEXITCODE}${cReset}."
         }
 
         # Flash backup Devinfo
-        Write-Log ""
-        Write-Log "Backing up backup Devinfo from '${cCyan}${backupDevInfo}${cReset}'..." "Action"
-        if (-not (Execute-EdlCommand "write-part devinfo `"$backupDevInfo`"")) { 
-            throw "Flashing backup Devinfo failed with code ${cCyan}${LASTEXITCODE}${cReset}."
+        if (Test-Path -Path $backupDevInfo -PathType Leaf) {
+            if ((Get-Item -Path $backupDevInfo).Length -gt 0) {
+                Write-Log ""
+                Write-Log "Flashing backup Devinfo from..." "Action"
+                if (-not (Execute-EdlCommand "write-part devinfo `"$backupDevInfo`"")) { 
+                    throw "Flashing backup Devinfo failed with code ${cCyan}${LASTEXITCODE}${cReset}."
+                }
+            }
+        } else {
+            Write-Log "Skipped flashing backup Devinfo, file '${cYellow}$backupDevInfo${cReset}' does not exist." "Info"
         }
     } catch {
         $success = $false
@@ -446,6 +426,7 @@ function Flash-BackupABL {
         if ($lastError.Message -notlike "*Abort*") {
             Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         }
+
         Warning-EDL-ManualReboot
     }
 }
@@ -900,7 +881,7 @@ function SystemUpdate-Management([string]$selection = "") {
                 Execute-ADBCommand "shell update_engine_client --reset_status"
                 Execute-ADBCommand "shell update_engine_client --switch_slot=false"
 
-                Write-Log "System update disabled. " "Success"
+                Write-Log "System update disabled." "Success"
             }
             "2" { 
                 Write-Log "Enabling system update..." "Action"
@@ -929,7 +910,7 @@ function SystemUpdate-Management([string]$selection = "") {
 
                 Execute-ADBCommand "shell update_engine_client --reset_status"
 
-                Write-Log "System update enabled. " "Success"
+                Write-Log "System update enabled." "Success"
             }
             default {
                 throw "Invalid input: [${cYellow}$selection${cReset}]"
