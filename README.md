@@ -33,16 +33,22 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 ### Backup Modes
 
 * **Physical Binary Dump (LUNs)**
-  * Sector-by-sector clone of physical drives (LUN 0-5).
+  * Sector-by-sector clone of physical drives (`LUN 0-6`).
   * Best for unbricking, GPT repair, and low-level recovery.
-  * Excludes `userdata`.
-* **User Personal Data (UserData)**
-  * Backup only the `userdata` partition.
-  * Includes all apps, games, save files, photos, settings, and internal storage files.
+  * Excludes partition of `userdata`.
+* **Full User Personal Data (UserData)**
+  * Backup of the full partition `userdata` only.
+  * Includes all apps, games, photos, and internal storage files.
+  * Size depends on device model (e.g., `128/256/512 GB`).
+* **Usage Of User Personal Data (Used UserData)**
+  * Backup of the usage of `userdata` sector only.
+  * Includes all apps, games, photos, and internal storage files.
+  * Size depends on the usage of the device data. Good for a `256/512 GB` device.
+  > This is experimental to reduce the backup disk space. It might be unreliable.
 * **System Partition Dump (Partitions)**
   * Individual file per system partition (`boot`, `abl`, `system`, etc.).
-  * Best for general firmware backup or modding.
-  * Excludes `userdata`.
+  * Best for general firmware backup or modding. Excludes `userdata`.
+  * Balanced safety and manageable size (`~10-15 GB`).
 
 ### Backup Features
 
