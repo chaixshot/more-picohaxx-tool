@@ -426,11 +426,10 @@ function Perform-RollbackOS {
 
         foreach ($item in $flashMap) {
             if (Test-Path $item.Path) {
-                Write-Log ""
-                Write-Log "Flashing firmware ${cCyan}$($item.Part)${cReset} to device..." "Action"
-                if (-not (Execute-EdlCommand "write-part $($item.Part) $($item.Path)")) {
-                    throw "Failed writing partition $($item.Part)"
-                }
+                $sCMDLine = "write-part $($item.Part) $($item.Path)"
+                $logMsg = "Flashing firmware ${cCyan}$($item.Part)${cReset} to device..."
+
+                Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $item.Part -ActionName "flashing partition"
             } else {
                 Write-Log "Skipping missing non-critical image file: $($item.Path)" "Warning"
             }

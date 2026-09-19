@@ -409,6 +409,38 @@ function Invoke-PicoHaxxScript {
     return $unlockKey
 }
 
+function Invoke-EdlCommandWithRetry([string]$CommandLine, [string]$LogMessage, [string]$ItemLabel, [string]$ActionName) {
+    do {
+        $retryChoice = $null
+
+        Write-Log ""
+        Write-Log $LogMessage "Action"
+
+        $success = Execute-EdlCommand $CommandLine
+
+        if (-not $success) {
+            Write-Log "Failed $ActionName '${cCyan}$ItemLabel${cReset}'." "Error"
+            $retryChoice = Read-HostLog "Would you like to retry $ActionName '${cCyan}$ItemLabel${cReset}'? [${cYellow}Y${cReset}/n]"
+
+            if ($retryChoice -eq 'y') {
+                Warning-EDL
+
+                if (-not (Wait-EdlMode -waitForDisconnect)) {
+                    throw ""
+                }
+                if (-not (Wait-EdlMode)) {
+                    throw ""
+                }
+            } else {
+                $script:geFailed = 1
+                throw "Failed $ActionName '${cCyan}$ItemLabel${cReset}'"
+            }
+        }
+    } while (-not $success -and $retryChoice -eq 'y')
+
+    return $true
+}
+
 function Execute-UnlockCommand {
     $success = $true
 

@@ -18,6 +18,8 @@ $geFailed = 0 # 0: NOERR, 1: FAILD, 2: ABORT
 # --- Functions ---
 
 function BackupLUNs([string]$backupPath) {
+    $isExec = $false
+
     try {
         if (-not (ValidateCQF)) {
             throw "CQF validation failed."
@@ -28,12 +30,8 @@ function BackupLUNs([string]$backupPath) {
 
         # Read GPT Headers to get partition layouts for each LUN
         if (-not (ReadGPTHeaders -isTemp $true)) {
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $false
             throw "Failed to read GPT Headers."
         }
-
-        $isExec = $false
 
         # Iterate through LUN 0 to 5
         $totalParts = 5
@@ -52,28 +50,27 @@ function BackupLUNs([string]$backupPath) {
             }
 
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
+            $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
+            $logMsg = "[$( $iCnt + 1 )/$( $totalParts + 1 )] Backing up partition '${cCyan}$itemLabel${cReset}'..."
 
-            Write-Log ""
-            Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
-
-            if (-not (Execute-EdlCommand $sCMDLine)) {
-                $script:geFailed = 1
-                break
-            }
+            Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "backing up partition"
 
             $isExec = $true
         }
-
-        CleanUpBackupFolder
-        ProcessCompleted -isExec $isExec
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     }
+
+    CleanUpBackupFolder
+    ProcessCompleted -isExec $isExec
+
 }
 
 function BackupUserData([string]$backupPath, [switch]$fullPartition) {
+    $isExec = $false
+
     try {
         if (-not (ValidateCQF)) {
             throw "CQF validation failed."
@@ -84,8 +81,6 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
 
         # Read GPT Headers with sorting enabled to allow looking up partition names
         if (-not (ReadGPTHeaders -isTemp $false -isSort $true)) {
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $false
             throw "Failed to read GPT Headers."
         }
 
@@ -98,8 +93,6 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
         }
 
         if (-not (LookUpNames $obPInfo)) {
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $false
             throw "Failed to resolve LUN and sectors for partition 'userdata'."
         }
 
@@ -118,12 +111,9 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
             if (-not (Execute-EdlCommand $sCMDLine)) {
                 $script:geFailed = 1
-                CleanUpBackupFolder
-                ProcessCompleted -isExec $false
                 throw "Execution of EDL command failed."
             }
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $true
+            $isExec = $true
         } elseif ($ranges.Count -eq 1 -and $ranges[0].StartSector -eq $obPInfo.iStart) {
             # Single contiguous range covering from partition start -> use standard filename
             $obSingle = [PSCustomObject]@{
@@ -138,8 +128,6 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}' (${cYellow}$($ranges[0].Sectors) sectors${cReset})..." "Action"
             if (-not (Execute-EdlCommand $sCMDLine)) {
                 $script:geFailed = 1
-                CleanUpBackupFolder
-                ProcessCompleted -isExec $false
                 throw "Execution of EDL command failed."
             }
             # Write manifest even for single-chunk so restore logic is uniform
@@ -161,8 +149,7 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             }
             $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Encoding UTF8
             Write-Log "Manifest written: '${cCyan}userdata_manifest.json${cReset}'." "Info"
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $true
+            $isExec = $true
         } else {
             # Multi-chunk: back up each range to lun0_userdata_partN.bin
             $totalChunks = $ranges.Count
@@ -186,16 +173,9 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
 
                 $sCMDLine = BuildCommand -obPInfo $obChunk -isTemp $false
                 $chunkGB = [Math]::Round($range.Sectors * 4096 / 1GB, 2)
+                $logMsg = "[$partNum/$totalChunks] Backing up userdata chunk '${cCyan}$chunkFileName${cReset}' (sectors ${cYellow}$($range.StartSector)${cReset} - ${cYellow}$($range.StartSector + $range.Sectors - 1)${cReset}, ${cGreen}${chunkGB} GB${cReset})..."
 
-                Write-Log ""
-                Write-Log "[$partNum/$totalChunks] Backing up userdata chunk '${cCyan}$chunkFileName${cReset}' (sectors ${cYellow}$($range.StartSector)${cReset} - ${cYellow}$($range.StartSector + $range.Sectors - 1)${cReset}, ${cGreen}${chunkGB} GB${cReset})..." "Action"
-
-                if (-not (Execute-EdlCommand $sCMDLine)) {
-                    $script:geFailed = 1
-                    CleanUpBackupFolder
-                    ProcessCompleted -isExec $false
-                    throw "Execution of EDL command failed."
-                }
+                Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $chunkFileName -ActionName "backing up userdata chunk"
 
                 $chunkObjects += [PSCustomObject]@{
                     file        = $chunkFileName
@@ -222,14 +202,16 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             Write-Log "Sparse backup complete: ${cCyan}$totalChunks chunks${cReset}, ${cYellow}$totalUsedSectors sectors${cReset} (${cGreen}$totalGB GB${cReset}) of ${cYellow}$fullSectors${cReset} total sectors backed up." "Success"
             Write-Log "Manifest written: '${cCyan}userdata_manifest.json${cReset}'." "Info"
 
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $true
+            $isExec = $true
         }
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     }
+
+    CleanUpBackupFolder
+    ProcessCompleted -isExec $isExec
 }
 
 function Get-AllocatedRanges($obPInfo) {
@@ -558,6 +540,8 @@ function Get-AllocatedRanges-Ext4($obPInfo, $sbBytes, $sbBase) {
 }
 
 function BackupPartitions([string]$backupPath) {
+    $isExec = $false
+
     try {
         if (-not (ValidateCQF)) {
             throw "CQF validation failed."
@@ -568,12 +552,9 @@ function BackupPartitions([string]$backupPath) {
 
         # Read GPT Headers to populate $galoLookUp
         if (-not (ReadGPTHeaders -isTemp $true)) {
-            CleanUpBackupFolder
-            ProcessCompleted -isExec $false
             throw "Failed to read GPT Headers."
         }
 
-        $isExec = $false
         $totalParts = 97
         $iCnt = 0
 
@@ -595,33 +576,28 @@ function BackupPartitions([string]$backupPath) {
 
                 $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
                 $iCnt++
-                
-                Write-Log ""
-                Write-Log "[$iCnt/$totalParts] Backing up partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        
+                $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
+                $logMsg = "[$iCnt/$totalParts] Backing up partition '${cCyan}$itemLabel${cReset}'..."
 
-                if (-not (Execute-EdlCommand $sCMDLine)) {
-                    $script:geFailed = 1
-                    break
-                }
+                Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "backing up partition"
+
                 $isExec = $true
             }
-
-            if ($geFailed -eq 1) {
-                break
-            }
         }
-
-        CleanUpBackupFolder
-        ProcessCompleted -isExec $isExec
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     }
+
+    CleanUpBackupFolder
+    ProcessCompleted -isExec $isExec
 }
 
 function FlashFirmware([string]$flashPath) {
     $functionResult = $false
+    $isExec = $false
 
     try {
         if ([string]::IsNullOrEmpty($flashPath)) {
@@ -636,21 +612,16 @@ function FlashFirmware([string]$flashPath) {
 
         # Read GPT Headers to get partition layouts for each LUN
         if (-not (ReadGPTHeaders -isTemp $true)) {
-            ProcessCompleted -isExec $false
             throw ""
         }
 
         $flashList = LoadFileList -FlashPath $flashPath
         if ($flashList.Count -eq 0) {
             throw "No firmware files found in '${cCyan}${flashPath}${cCyan}'."
-            ProcessCompleted -isExec $false
         }
-
-        $isExec = $false
 
         # Flash LUNs
         if (-not (FlashLUNs -flashList $flashList -FlashPath $flashPath)) {
-            ProcessCompleted -isExec $isExec
             throw ""
         }
         if ($flashList.LUNs.Count -gt 0) {
@@ -659,7 +630,6 @@ function FlashFirmware([string]$flashPath) {
 
         # Flash GPTs
         if (-not (FlashGPTs -flashList $flashList -FlashPath $flashPath)) {
-            ProcessCompleted -isExec $isExec
             throw ""
         }
         if ($flashList.GPTs.Count -gt 0) {
@@ -669,7 +639,6 @@ function FlashFirmware([string]$flashPath) {
         # Re-read GPT headers before flashing partitions to ensure we use the new layout
         ResetLookUp
         if (-not (ReadGPTHeaders -isTemp $true -isSort $true)) {
-            ProcessCompleted -isExec $isExec
             throw ""
         }
 
@@ -703,14 +672,11 @@ function FlashFirmware([string]$flashPath) {
             }
 
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+            $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
+            $logMsg = "[$( $iCnt + 1 )/$( $totalParts )] Flashing partition '${cCyan}$itemLabel${cReset}'..."
 
-            Write-Log ""
-            Write-Log "[$( $iCnt + 1 )/$( $totalParts )] Flashing partition '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+            Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "flashing partition"
 
-            if (-not (Execute-EdlCommand $sCMDLine)) {
-                $script:geFailed = 1
-                break
-            }
             $isExec = $true
         }
 
@@ -738,14 +704,11 @@ function FlashFirmware([string]$flashPath) {
                     }
 
                     $chunkGB = [Math]::Round($chunk.sectors * 4096 / 1GB, 2)
-                    Write-Log ""
-                    Write-Log "[$($ci + 1)/$totalChunks] Flashing userdata chunk '${cCyan}$($chunk.file)${cReset}' -> LBA ${cYellow}$($chunk.startSector)${cReset} (${cGreen}$chunkGB GB${cReset})..." "Action"
-
                     $sCMDLine = "write-sector $($chunk.startSector) `"$chunkPath`" --lun $($manifest.iLUN)"
-                    if (-not (Execute-EdlCommand $sCMDLine)) {
-                        $script:geFailed = 1
-                        break
-                    }
+                    $logMsg = "[$($ci + 1)/$totalChunks] Flashing userdata chunk '${cCyan}$($chunk.file)${cReset}' -> LBA${cYellow}$($chunk.startSector)${cReset} (${cGreen}$chunkGB GB${cReset})..."
+
+                    Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel$chunk.file -ActionName "flashing userdata chunk"
+
                     $isExec = $true
                 }
             }
@@ -772,12 +735,13 @@ function FlashFirmware([string]$flashPath) {
         }
 
         $functionResult = ($geFailed -eq 0)
-        ProcessCompleted -isExec $isExec
     } catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     }
+
+    ProcessCompleted -isExec $isExec
 
     return $functionResult
 }
@@ -878,14 +842,10 @@ function FlashLUNs($flashList, [string]$flashPath) {
         }
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+        $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
+        $logMsg = "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}$itemLabel${cReset}'..."
 
-        Write-Log ""
-        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
-
-        if (-not (Execute-EdlCommand $sCMDLine)) {
-            $script:geFailed = 1
-            return $false
-        }
+        Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "flashing LUN"
     }
     return $true
 }
