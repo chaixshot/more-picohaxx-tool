@@ -617,7 +617,7 @@ function FlashFirmware([string]$flashPath) {
 
         $flashList = LoadFileList -FlashPath $flashPath
         if ($flashList.Count -eq 0) {
-            throw "No firmware files found in '${cCyan}${flashPath}${cCyan}'."
+            throw "No firmware files found in '${cCyan}${flashPath}${cReset}'."
         }
 
         # Flash LUNs
