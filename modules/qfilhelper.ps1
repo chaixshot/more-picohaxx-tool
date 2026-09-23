@@ -707,7 +707,7 @@ function FlashFirmware([string]$flashPath) {
                     $sCMDLine = "write-sector $($chunk.startSector) `"$chunkPath`" --lun $($manifest.iLUN)"
                     $logMsg = "[$($ci + 1)/$totalChunks] Flashing userdata chunk '${cCyan}$($chunk.file)${cReset}' -> LBA${cYellow}$($chunk.startSector)${cReset} (${cGreen}$chunkGB GB${cReset})..."
 
-                    Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel$chunk.file -ActionName "flashing userdata chunk"
+                    Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $chunk.file -ActionName "flashing userdata chunk"
 
                     $isExec = $true
                 }
