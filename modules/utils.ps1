@@ -266,7 +266,7 @@ function Wait-EdlMode([int]$timeout = 120, [switch]$waitForDisconnect) {
     
     Write-Log ""
     if (-not $success -and -not $waitForDisconnect) {
-        Warning-EDl
+        Warning-EDL
     }
 
     return $success
