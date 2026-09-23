@@ -1101,7 +1101,7 @@ function Backup-Device($selection) {
             Edl-To-System
         }
     } else {
-        if ($backupFolder -and (Test-Path -Path $backupPath)) {
+        if ($backupPath -and (Test-Path -Path $backupPath)) {
             Write-Log "Deleting invalid backup folder..." "Action"
             Remove-Item -Path $backupPath -Recurse -Force -ErrorAction SilentlyContinue
         }
