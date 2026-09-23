@@ -843,7 +843,7 @@ function FlashLUNs($flashList, [string]$flashPath) {
 
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
         $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
-        $logMsg = "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing LUN '${cCyan}$itemLabel${cReset}'..."
+        $logMsg = "[$( $iCnt + 1 )/$( $totalParts )] Flashing LUN '${cCyan}$itemLabel${cReset}'..."
 
         Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "flashing LUN"
     }
@@ -871,7 +871,7 @@ function FlashGPTs($flashList, [string]$flashPath) {
         $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
 
         Write-Log ""
-        Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+        Write-Log "[$( $iCnt + 1 )/$( $totalParts )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
         if (-not (Execute-EdlCommand $sCMDLine)) {
             $script:geFailed = 1
