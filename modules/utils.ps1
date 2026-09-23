@@ -827,7 +827,8 @@ function Select-InteractiveMenu([string]$header = "", [string[]]$options, [int]$
 
     try { [Console]::CursorVisible = $true } catch {}
 
-    Write-Transcript "`n> ${header}: $($options[$selectedIndex])"
+    $selectedText = if ($selectedIndex -ge 0) { $options[$selectedIndex] } else { "(cancelled)" }
+    Write-Transcript "`n> ${header}: $selectedText"
 
     return $selectedIndex
 }
