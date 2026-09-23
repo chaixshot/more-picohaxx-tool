@@ -987,7 +987,7 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
                 
                 Write-Log "Skipping lun${iCnt}: LUN not detected on device." "Warning"
                 $script:geFailed = 0
-                continu
+                continue
             }
 
             $script:gaLunsOnline += $iCnt
