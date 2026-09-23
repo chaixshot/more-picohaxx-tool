@@ -621,7 +621,7 @@ function Perform-FlashImage([string]$fileName = "", [string]$partition = "") {
         }
 
         if (-not ([string]::IsNullOrWhiteSpace($fileName))) {
-            $extension = [System.IO.Path]::GetExtension($path)
+            $extension = [System.IO.Path]::GetExtension($fileName)
         }
 
         # Pick target file
