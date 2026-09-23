@@ -64,7 +64,8 @@ function Perform-MagiskBoot([string]$bootImgPath) {
                     [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
                 }
             }
-        } finally {
+        }
+        finally {
             $zip.Dispose()
         }
 
@@ -96,7 +97,8 @@ function Perform-MagiskBoot([string]$bootImgPath) {
         if ($LASTEXITCODE -eq 0 -and (Test-Path "ramdisk.cpio.raw")) {
             Write-Log "Ramdisk was compressed, using decompressed version for patching." "Info"
             Move-Item -Path "ramdisk.cpio.raw" -Destination "ramdisk.cpio" -Force
-        } else {
+        }
+        else {
             # Not compressed (or already raw CPIO) - remove leftover temp file if any
             Write-Log "Ramdisk already decompressed." "Info"
             Remove-Item -Path "ramdisk.cpio.raw" -Force -ErrorAction SilentlyContinue
@@ -193,12 +195,14 @@ SHA1=$sha1
         if (-not (Test-Path $outputImgPath)) {
             throw "Repack failed. Output image was not created."
         }
-    } catch {
+    }
+    catch {
         $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
-    } finally {
+    }
+    finally {
         # Safely restore original working directory if dynamic location push occurred
         if ((Get-Location).Path -eq $MagiskTMP) {
             Pop-Location
@@ -231,7 +235,7 @@ function IsDeviceRooted {
 
     # Secondary Primary Check: check root uid via su -c id
     Write-Log ""
-    Write-Log "Checking Superuser access using '${cCyan}adb shell -c id${cReset}'..." "Action"
+    Write-Log "Checking Superuser access using '${cCyan}adb shell su -c id${cReset}'..." "Action"
     $suOutputRaw = Execute-ADBCommand "shell su -c id" -get
     $suOutput = ($suOutputRaw -join "`n").Trim()
     Write-Log $suOutput "Info"
@@ -273,9 +277,11 @@ function Verify-RootState([string]$state) {
         # Ensure device is in ADB mode
         if (IsFastbootMode) {
             Fastboot-To-System
-        } elseif (IsEdlMode) {
+        }
+        elseif (IsEdlMode) {
             Edl-To-System
-        } elseif (-not (IsAdbMode)) {
+        }
+        elseif (-not (IsAdbMode)) {
             Warning-ADB
         }
 
@@ -294,7 +300,8 @@ function Verify-RootState([string]$state) {
         $desiredState = if ($isCheckRoot) { $true } else { $false }
         $success = ($isRooted -eq $desiredState)
         $statusText = if ($isRooted) { "ROOTED" } else { "NOT ROOTED" }
-    } catch {
+    }
+    catch {
         $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
@@ -304,13 +311,15 @@ function Verify-RootState([string]$state) {
     if ($success) {
         Write-Log ""
         Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
-    } else {
+    }
+    else {
         Write-Log ""
         Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
         if ($isCheckRoot) {
             Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Info"
             Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Interactive"
-        } else {
+        }
+        else {
             Write-Log "Root access or su binaries are still detected on the device." "Info"
             Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Interactive"
         }
@@ -328,9 +337,11 @@ function Test-SuperuserAccess {
     # Reboot system
     if (IsFastbootMode) {
         Fastboot-To-System
-    } elseif (IsEdlMode) {
+    }
+    elseif (IsEdlMode) {
         Edl-To-System
-    } elseif (-not (IsAdbMode)) {
+    }
+    elseif (-not (IsAdbMode)) {
         Warning-ADB
     }
 
@@ -342,7 +353,8 @@ function Test-SuperuserAccess {
     Write-Log ""
     if ($isRooted) {
         Write-Log "Superuser access is granted." "Success"
-    } else {
+    }
+    else {
         Write-Log "Superuser access is denied or device is not rooted." "Error"
     }
 }
@@ -374,7 +386,8 @@ function ImageFile-Picker($fileName, $extension ) {
             Write-Log "Selected file: ${cYellow}$( $imgPath.FullName )${cReset}" "Info"
             throw ""
         }
-    } catch {
+    }
+    catch {
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -416,9 +429,11 @@ function Perform-PullImage([string]$partition) {
         # Reboot EDL
         if (IsAdbMode) {
             ADB-To-Edl
-        } elseif (IsFastbootMode) {
+        }
+        elseif (IsFastbootMode) {
             Fastboot-To-Edl
-        } elseif (-not (IsEdlMode)) {
+        }
+        elseif (-not (IsEdlMode)) {
             Warning-EDL
         }
 
@@ -433,7 +448,8 @@ function Perform-PullImage([string]$partition) {
             throw "Pulling '${cCyan}$partition${cReset}' image failed with code ${cCyan}${LASTEXITCODE}${cReset}."
         }
         $imgPath = (Get-Item $dumpedImg).FullName
-    } catch {
+    }
+    catch {
         $success = $false
         if ($_.Exception.Message) {
             $lastError = $_.Exception
@@ -443,7 +459,8 @@ function Perform-PullImage([string]$partition) {
 
     if ($success) {
         Write-Log "Stock '${cCyan}$partition${cReset}' image pulled to ${cGreen}'${imgPath}'${cReset} successfully." "Success"
-    } else {
+    }
+    else {
         if ($lastError.Message -notlike "*Abort*") {
             Write-Log "EDL mode might have timed out. Reboot EDL and try again." "Warning"
         }
@@ -469,9 +486,11 @@ function Prepare-Magisk {
         # Reboot system
         if (IsFastbootMode) {
             Fastboot-To-System
-        } elseif (IsEdlMode) {
+        }
+        elseif (IsEdlMode) {
             Edl-To-System
-        } elseif (-not (IsAdbMode)) {
+        }
+        elseif (-not (IsAdbMode)) {
             Warning-ADB
         }
 
@@ -492,7 +511,8 @@ function Prepare-Magisk {
         Write-Log "${cCyan}Magisk${cReset} installed successfully." "Success"
 
         $success = Perform-MagiskBoot $bootImgPath
-    } catch {
+    }
+    catch {
         $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
@@ -513,7 +533,8 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imagePath) {
 
         if (IsAdbMode) {
             ADB-To-Fastboot
-        } elseif (-not (IsFastbootMode)) {
+        }
+        elseif (-not (IsFastbootMode)) {
             Warning-FASTBOOT
         }
 
@@ -531,7 +552,8 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imagePath) {
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to flash ${cCyan}$partition${cReset} partiton."
         }
-    } catch {
+    }
+    catch {
         $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
@@ -562,9 +584,11 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imagePath) {
         # Device Reboot to EDL Mode
         if (IsAdbMode) {
             ADB-To-Edl
-        } elseif (IsFastbootMode) {
+        }
+        elseif (IsFastbootMode) {
             Fastboot-To-Edl
-        } elseif (-not (IsEdlMode)) {
+        }
+        elseif (-not (IsEdlMode)) {
             Warning-EDL
         }
 
@@ -576,7 +600,8 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imagePath) {
         if (-not (Execute-EdlCommand "write-part $partition $($imagePath)")) {
             throw "Failed to flash ${cCyan}$partition${cReset} partiton."
         }
-    } catch {
+    }
+    catch {
         $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
@@ -653,7 +678,8 @@ function Perform-FlashImage([string]$fileName = "", [string]$partition = "") {
                 throw "Invalid input: [${cYellow}$selection${cReset}]"
             }
         }
-    } catch {
+    }
+    catch {
         $success = $false
 
         if ($_.Exception.Message) {
