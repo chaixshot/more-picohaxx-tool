@@ -1289,20 +1289,14 @@ function Test-DeviceManufacturing {
         $rawProduct = $props['ro.product.model']
 
         # Map raw model identifiers to display names
-        $modelMap = @{
-            "A8110" = "Pico 4"
-            "A8E50" = "Pico 4 Enterprise"
-            "A8Pro" = "Pico 4 Pro"
-            "A9210" = "Pico 4 Ultra"
-            "A7H10" = "Pico Neo 3"
-            "A7E10" = "Pico Neo 3 Pro"
-        }
-
-        # Resolve display name or fallback to raw model property
-        if ($modelMap.ContainsKey($rawProduct)) {
-            $product = $modelMap[$rawProduct]
-        } else {
-            $product = $rawProduct
+        $product = switch ($rawProduct) {
+            "A8110" { "Pico 4" }
+            "A8E50" { "Pico 4 Enterprise" }
+            "A8Pro" { "Pico 4 Pro" }
+            "A9210" { "Pico 4 Ultra" }
+            "A7H10" { "Pico Neo 3" }
+            "A7E10" { "Pico Neo 3 Pro" }
+            default { $rawProduct }
         }
 
         Write-Header "Test Device Manufacturing"
@@ -1314,54 +1308,32 @@ function Test-DeviceManufacturing {
         Write-Log ("-" * 35)
 
         # Tag / Variant Checks
-        if ($picoTag) {
-            # Check 'SE' tag (Secure Boot)
-            if ($picoTag -match "SE") {
-                if ($secureBoot -eq "true") {
-                    $seStatus = "${cGreen}PASS${cReset} (${cYellow}ro.secure.boot.tag = true${cReset})"
-                } else {
-                    $seStatus = "${cRed}MISMATCH${cReset} (${cYellow}Expected ro.secure.boot.tag = true${cReset})"
-                }
-                Write-Log "Variant contains '${cCyan}SE${cReset}' : $seStatus"
-            }
-
-            # Check 'K' tag (User Build)
-            if ($picoTag -match "K") {
-                if ($buildType -eq "user") {
-                    $kStatus = "${cGreen}PASS${cReset} (${cYellow}ro.build.type = user${cReset})"
-                } else {
-                    $kStatus = "${cRed}MISMATCH${cReset} (${cYellow}Expected ro.build.type = user${cReset})"
-                }
-                Write-Log "Variant contains '${cCyan}K${cReset}'  : $kStatus"
-            }
-
-            # Check 'O' tag (OEM State - Pico 4 / Pro / Enterprise)
-            if ($picoTag -match "O") {
-                if ($oemState -eq "true") {
-                    $oStatus = "${cGreen}PASS${cReset}"
-                    $oemLabel = "OEM                   : ${cGreen}Yes${cReset} (${cYellow}ro.oem.state = true, Outsourced Mfg${cReset})"
-                } else {
-                    $oStatus = "${cRed}MISMATCH (${cYellow}Expected ro.oem.state = true${cReset})"
-                    $oemLabel = "OEM                   : ${cRed}No${cReset} (${cYellow}ro.oem.state != true${cReset})"
-                }
-
-                Write-Log "Variant contains '${cCyan}O${cReset}'  : $oStatus"
-                Write-Log "$oemLabel"
-            } else {
-                # Explicit statement when 'O' tag is absent
-                if ($oemState -eq "true") {
-                    Write-Log "OEM                   : ${cGreen}Yes${cReset} (${cYellow}ro.oem.state = true, but '${cCyan}O${cReset}' tag missing${cReset})"
-                } else {
-                    Write-Log "OEM                   : ${cRed}No${cReset} (${cYellow}Standard In-House Build${cReset})"
-                }
-            }
-
-            # Note on SA omission
-            if (-not $picoTag.EndsWith("SA")) {
-                Write-Log "Tag Structure         : ${cGreen}Valid${cReset} ('${cCyan}SA${cReset}' omitted at end)${cReset}"
-            }
+        # Check 'SE' tag (Secure Boot)
+        if ($secureBoot -eq "true") {
+            Write-Log "Variant contains '${cCyan}SE${cReset}' : ${cGreen}PASS${cReset} (${cYellow}ro.secure.boot.tag = true${cReset})"
         } else {
-            Write-Log "'${cCyan}ro.pico.tag${cReset}' property not found on this device." "Warning"
+            Write-Log "Variant contains '${cCyan}SE${cReset}' : ${cRed}MISMATCH${cReset} (${cYellow}Expected ro.secure.boot.tag = true${cReset})"
+        }
+
+        # Check 'K' tag (User Build)
+        if ($buildType -eq "user") {
+            Write-Log "Variant contains '${cCyan}K${cReset}'  : ${cGreen}PASS${cReset} (${cYellow}ro.build.type = user${cReset})"
+        } else {
+            Write-Log "Variant contains '${cCyan}K${cReset}'  : ${cRed}MISMATCH${cReset} (${cYellow}Expected ro.build.type = user${cReset})"
+        }
+
+        # Check 'O' tag (OEM State - Pico 4 / Pro / Enterprise)
+        if ($oemState -eq "true") {
+            Write-Log "Variant contains '${cCyan}O${cReset}'  : ${cGreen}PASS${cReset} (${cYellow}ro.oem.state = true${cReset})"
+            Write-Log "OEM                   : ${cGreen}Yes${cReset}"
+        } else {
+            Write-Log "Variant contains '${cCyan}O${cReset}'  : ${cRed}MISMATCH${cReset} (${cYellow}Expected ro.oem.state = true${cReset})"
+            Write-Log "OEM                   : ${cRed}No${cReset}"
+        }
+
+        # Note on SA omission
+        if (-not $picoTag.EndsWith("SA")) {
+            Write-Log "Tag Structure         : ${cGreen}Valid${cReset} ('${cCyan}SA${cReset}' omitted at end)${cReset}"
         }
     } catch {
         if ($_.Exception.Message) {
