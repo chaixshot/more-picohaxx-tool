@@ -1244,6 +1244,132 @@ function Restore-Backup($backupInfo) {
     }
 }
 
+function Test-DeviceManufacturing {
+    try {
+        Write-Header "Test Device Manufacturing"
+
+        # Ensure device is in ADB mode
+        if (IsFastbootMode) {
+            Fastboot-To-System
+        } elseif (IsEdlMode) {
+            Edl-To-System
+        } elseif (-not (IsAdbMode)) {
+            Warning-ADB
+        }
+
+        if (-not (Wait-AdbMode)) {
+            throw "ADB device connection timed out."
+        }
+
+        Write-Log "${cCyan}Fetching device properties via ADB...${cReset}" "Action"
+    
+        try {
+            $getpropOutput = adb @("shell", "getprop") 2>&1
+        } catch {
+            throw "Failed to execute ADB. Ensure ADB is installed and in your PATH."
+        }
+
+        if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($getpropOutput)) {
+            throw "ADB command failed or no device detected."
+        }
+
+        # Parse getprop output into a hashtable
+        $props = @{}
+        foreach ($line in $getpropOutput) {
+            if ($line -match '^\[([^\]]+)\]:\s*\[([^\]]*)\]$') {
+                $props[$matches[1]] = $matches[2]
+            }
+        }
+
+        # Extract required properties
+        $picoTag = $props['ro.pico.tag']
+        $buildType = $props['ro.build.type']
+        $secureBoot = $props['ro.secure.boot.tag']
+        $oemState = $props['ro.oem.state']
+        $rawProduct = $props['ro.product.model']
+
+        # Map raw model identifiers to display names
+        $modelMap = @{
+            "A8110" = "Pico 4"
+            "A8E50" = "Pico 4 Enterprise"
+            "A8Pro" = "Pico 4 Pro"
+            "A9210" = "Pico 4 Ultra"
+            "A7H10" = "Pico Neo 3"
+            "A7E10" = "Pico Neo 3 Pro"
+        }
+
+        # Resolve display name or fallback to raw model property
+        if ($modelMap.ContainsKey($rawProduct)) {
+            $product = $modelMap[$rawProduct]
+        } else {
+            $product = $rawProduct
+        }
+
+        Write-Header "Test Device Manufacturing"
+        Write-Log "Model              : ${cCyan}$product${cReset}"
+        Write-Log "ro.pico.tag        : ${cCyan}$picoTag${cReset}"
+        Write-Log "ro.build.type      : ${cCyan}$buildType${cReset}"
+        Write-Log "ro.secure.boot.tag : ${cCyan}$secureBoot${cReset}"
+        Write-Log "ro.oem.state       : ${cCyan}$oemState${cReset}"
+        Write-Log ("-" * 35)
+
+        # Tag / Variant Checks
+        if ($picoTag) {
+            # Check 'SE' tag (Secure Boot)
+            if ($picoTag -match "SE") {
+                if ($secureBoot -eq "true") {
+                    $seStatus = "${cGreen}PASS${cReset} (${cYellow}ro.secure.boot.tag = true${cReset})"
+                } else {
+                    $seStatus = "${cRed}MISMATCH${cReset} (${cYellow}Expected ro.secure.boot.tag = true${cReset})"
+                }
+                Write-Log "Variant contains '${cCyan}SE${cReset}' : $seStatus"
+            }
+
+            # Check 'K' tag (User Build)
+            if ($picoTag -match "K") {
+                if ($buildType -eq "user") {
+                    $kStatus = "${cGreen}PASS${cReset} (${cYellow}ro.build.type = user${cReset})"
+                } else {
+                    $kStatus = "${cRed}MISMATCH${cReset} (${cYellow}Expected ro.build.type = user${cReset})"
+                }
+                Write-Log "Variant contains '${cCyan}K${cReset}'  : $kStatus"
+            }
+
+            # Check 'O' tag (OEM State - Pico 4 / Pro / Enterprise)
+            if ($picoTag -match "O") {
+                if ($oemState -eq "true") {
+                    $oStatus = "${cGreen}PASS${cReset}"
+                    $oemLabel = "OEM                   : ${cGreen}Yes${cReset} (${cYellow}ro.oem.state = true, Outsourced Mfg${cReset})"
+                } else {
+                    $oStatus = "${cRed}MISMATCH (${cYellow}Expected ro.oem.state = true${cReset})"
+                    $oemLabel = "OEM                   : ${cRed}No${cReset} (${cYellow}ro.oem.state != true${cReset})"
+                }
+
+                Write-Log "Variant contains '${cCyan}O${cReset}'  : $oStatus"
+                Write-Log "$oemLabel"
+            } else {
+                # Explicit statement when 'O' tag is absent
+                if ($oemState -eq "true") {
+                    Write-Log "OEM                   : ${cGreen}Yes${cReset} (${cYellow}ro.oem.state = true, but '${cCyan}O${cReset}' tag missing${cReset})"
+                } else {
+                    Write-Log "OEM                   : ${cRed}No${cReset} (${cYellow}Standard In-House Build${cReset})"
+                }
+            }
+
+            # Note on SA omission
+            if (-not $picoTag.EndsWith("SA")) {
+                Write-Log "Tag Structure         : ${cGreen}Valid${cReset} ('${cCyan}SA${cReset}' omitted at end)${cReset}"
+            }
+        } else {
+            Write-Log "'${cCyan}ro.pico.tag${cReset}' property not found on this device." "Warning"
+        }
+    } catch {
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
+    }
+}
+
 function Show-BackupRestoreMenu {
     $menuQuit = $false
     while (-not $menuQuit) {
@@ -1253,6 +1379,7 @@ function Show-BackupRestoreMenu {
         Write-Log "[${cCyan}4${cReset}] Downgrade Device ${cDarkGray}(Legacy)${cReset}"
         Write-Log "[${cCyan}5${cReset}] Rollback OS"
         Write-Log ""
+        Write-Log "[${cCyan}t${cReset}] Test Device Manufacturing"
         Write-Log "[${cCyan}c${cReset}] Compress Backup"
         Write-Log "[${cCyan}r${cReset}] Reboot"
         Write-Log "[${cCyan}0${cReset}] Back to Main Menu"
@@ -1280,6 +1407,9 @@ function Show-BackupRestoreMenu {
                 Select-Firehose
                 Prepare-Firmware
                 Perform-RollbackOS
+            }
+            "t" {
+                Test-DeviceManufacturing
             }
             "c" {
                 $backupInfo = Select-BackupFolder
