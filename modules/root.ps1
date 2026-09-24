@@ -546,11 +546,11 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imagePath) {
             throw ""
         }
 
-        Write-Log "Flashing ${cCyan}$partition${cReset} partiton with '${cCyan}$( $imagePath.FullName )${cReset}'..." "Action"
-        Execute-FastbootCommand "flash $partition $($imagePath.FullName)"
+        Write-Log "Flashing ${cCyan}$partition${cReset} partition with '${cCyan}$( $imagePath )${cReset}'..." "Action"
+        Execute-FastbootCommand "flash $partition $($imagePath)"
 
         if ($LASTEXITCODE -ne 0) {
-            throw "Failed to flash ${cCyan}$partition${cReset} partiton."
+            throw "Failed to flash ${cCyan}$partition${cReset} partition."
         }
     }
     catch {
@@ -561,7 +561,7 @@ function FlashBoot-ViaFastboot([string]$partition, [string]$imagePath) {
     }
     
     if ($success) {
-        Write-Log "Flashed '${cCyan}$partition${cReset}' partiton with '${cCyan}$( $imagePath.FullName )${cReset}' successful." "Success"
+        Write-Log "Flashed '${cCyan}$partition${cReset}' partition with '${cCyan}$( $imagePath )${cReset}' successful." "Success"
     }
 
     return $success
