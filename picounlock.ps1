@@ -646,14 +646,13 @@ function Test-Bootloader {
     }
         
     if (-not (Wait-FastbootMode)) {
-        throw ""
+        return
     }
 
+    Write-Header "Test Bootloader"
     if (IsFastbootUnlocked) {
-        Write-Log ""
         Write-Log "Device bootloader: ${cGreen}Unlocked${cReset}" "Info"
     } else {
-        Write-Log ""
         Write-Log "Device bootloader: ${cRed}Locked${cReset}" "Info"
     }
 }
