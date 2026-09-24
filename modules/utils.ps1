@@ -409,18 +409,18 @@ function Invoke-PicoHaxxScript {
     return $unlockKey
 }
 
-function Invoke-EdlCommandWithRetry([string]$sCMDLine, [string]$logMessage, [string]$itemLabel, [string]$actionName) {
+function Invoke-EdlCommandWithRetry([string]$CommandLine, [string]$LogMessage, [string]$ItemLabel, [string]$ActionName) {
     do {
         $retryChoice = $null
 
         Write-Log ""
-        Write-Log $logMessage "Action"
+        Write-Log $LogMessage "Action"
 
-        $success = Execute-EdlCommand $sCMDLine
+        $success = Execute-EdlCommand $CommandLine
 
         if (-not $success) {
-            Write-Log "Failed $actionName '${cCyan}$itemLabel${cReset}'." "Error"
-            $retryChoice = Read-HostLog "Would you like to retry $actionName '${cCyan}$itemLabel${cReset}'? [${cYellow}Y${cReset}/n]"
+            Write-Log "Failed $ActionName '${cCyan}$ItemLabel${cReset}'." "Error"
+            $retryChoice = Read-HostLog "Would you like to retry $ActionName '${cCyan}$ItemLabel${cReset}'? [${cYellow}Y${cReset}/n]"
 
             if ($retryChoice -eq 'y') {
                 Warning-EDL
@@ -432,7 +432,7 @@ function Invoke-EdlCommandWithRetry([string]$sCMDLine, [string]$logMessage, [str
                 }
             } else {
                 $script:geFailed = 1
-                throw "Failed $actionName '${cCyan}$itemLabel${cReset}'"
+                throw "Failed $ActionName '${cCyan}$ItemLabel${cReset}'"
             }
         }
     } while (-not $success -and $retryChoice -eq 'y')
