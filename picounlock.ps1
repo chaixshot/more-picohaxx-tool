@@ -348,7 +348,6 @@ function Flash-BackupABL {
         Write-Header "Flash Backup ABL"
         Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to restore ABL partition." "Warning"
         Write-Log "This fix resolves issues like slow reboots and unwanted booting into ${cCyan}EDL${cReset} mode." "Info"
-        Write-Log "SELinux will return to ${cYellow}Enforcing${cReset} mode, using ${cCyan}https://github.com/evdenis/selinux_permissive${cReset} to change back to Permissive mode." "Info"
         Write-Log "Fastboot will no longer work for device modification." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 

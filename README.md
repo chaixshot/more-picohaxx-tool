@@ -129,9 +129,6 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 1. Use the **"Flash backup ABL"** option in the script menu. This restores firmware `abl` partition.
 2. Because the unlock state is stored in the **RPMB**, headset will remain unlocked even with the firmware ABL.
 
-> [!NOTE]
-> This will return SELinux to Enforcing. Use a Magisk module [selinux_permissive](https://github.com/evdenis/selinux_permissive) to maintain permissive mode if the setup requires it.
-
 ### USB Connectivity
 
 * Use a high-quality USB-C cable.

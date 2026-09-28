@@ -177,6 +177,54 @@ SHA1=$sha1
             }
         }
 
+        # =====================================================================
+        # SELinux Permissive Patch
+        # =====================================================================
+        & {
+            Write-Log ""
+            Write-Log "Configuring SELinux permissive parameters..." "Action"
+
+            # Append permissive flag to header cmdline if dynamic header exists
+            if (Test-Path "header") {
+                $headerContent = Get-Content "header" -Raw
+                if ($headerContent -match "cmdline=") {
+                    if ($headerContent -notmatch "androidboot.selinux=permissive") {
+                        $headerContent = $headerContent -replace "cmdline=", "cmdline=androidboot.selinux=permissive "
+                        [System.IO.File]::WriteAllText((Join-Path $MagiskTMP "header"), $headerContent.Replace("`r`n", "`n"))
+                        Write-Log "Appended 'androidboot.selinux=permissive' to header cmdline." "Info"
+                    }
+                }
+            }
+
+            # Setup Magisk Init Overlay directory structure
+            $overlayDir = Join-Path $MagiskTMP "overlay.d"
+            $overlaySbinDir = Join-Path $MagiskTMP "overlay.d\sbin"
+
+            if (-not (Test-Path $overlaySbinDir)) {
+                New-Item -Path $overlaySbinDir -ItemType Directory -Force | Out-Null
+            }
+
+            # Create the init .rc script to trigger execution on boot
+            $rcScriptPath = Join-Path $overlayDir "init.permissive.rc"
+            $rcContent = "on early-init`n    exec u:r:magisk:s0 root root -- /sbin/permissive.sh`n"
+            [System.IO.File]::WriteAllText($rcScriptPath, $rcContent)
+
+            # Create the shell script
+            $sepolicyScript = Join-Path $overlaySbinDir "permissive.sh"
+            $shContent = "#!/system/bin/sh`nsetenforce 0`n"
+            [System.IO.File]::WriteAllText($sepolicyScript, $shContent)
+
+            # Inject both into ramdisk cpio overlay
+            $cpioInjectCommands = @(
+                "mkdir 0750 overlay.d",
+                "mkdir 0750 overlay.d/sbin",
+                "add 0644 overlay.d/init.permissive.rc $rcScriptPath",
+                "add 0755 overlay.d/sbin/permissive.sh $sepolicyScript"
+            )
+
+            & $MagiskBoot cpio ramdisk.cpio $cpioInjectCommands 2>&1 | Write-Host
+        }
+        
         # Keep original raw kernel to prevent bootloop or compression mismatches
         if (Test-Path "kernel") {
             Remove-Item "kernel" -Force
@@ -309,7 +357,7 @@ function Verify-RootState([string]$state) {
         Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
         if ($isCheckRoot) {
             Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Info"
-            Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it." "Interactive"
+            Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it. Or grant access from the Magisk app in the Superuser tab." "Interactive"
         } else {
             Write-Log "Root access or su binaries are still detected on the device." "Info"
             Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Interactive"
