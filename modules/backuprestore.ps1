@@ -336,14 +336,33 @@ function Perform-RollbackOS {
             }
         }
 
+        # Device Reboot to EDL Mode (query super.img partition size from device GPT)
+        if (IsAdbMode) {
+            ADB-To-Edl
+        } elseif (IsFastbootMode) {
+            Fastboot-To-Edl
+        } elseif (-not (IsEdlMode)) {
+            Warning-EDL
+        }
+
+        if (-not (Wait-EdlMode)) {
+            throw "Failed to enter EDL mode."
+        }
+
+        # Query super partition size dynamically from device GPT via EDL
+        $superSize = Get-PartitionSizeBytes "super"
+        if ($superSize -eq 0) {
+            throw "Could not determine super partition size from device GPT."
+        } else {
+            Write-Log "Detected super partition size from device: $superSize bytes ($([math]::Round($superSize / 1MB, 2)) MiB)." "Success"
+        }
+        $groupSize = $superSize - 4194304
+
         # Calculate exact raw sizes for lpmake boundary allocation
         $sysSize = (Get-Item .\system.img).Length
         $venSize = (Get-Item .\vendor.img).Length
         $prdSize = (Get-Item .\product.img).Length
         $odmSize = (Get-Item .\odm.img).Length
-
-        $superSize = 8589934592
-        $groupSize = $superSize - 4194304
 
         # Build RAW super.img for EDL
         Write-Log ""
@@ -384,19 +403,6 @@ function Perform-RollbackOS {
             throw "super.img falls short of the minimum size."
         } elseif ($superImg.Length -eq 0) {
             throw "super.img was created but is 0 bytes (empty file)."
-        }
-
-        # Device Reboot to EDL Mode
-        if (IsAdbMode) {
-            ADB-To-Edl
-        } elseif (IsFastbootMode) {
-            Fastboot-To-Edl
-        } elseif (-not (IsEdlMode)) {
-            Warning-EDL
-        }
-
-        if (-not (Wait-EdlMode)) {
-            throw ""
         }
 
         # Flash Firmware Partitions via EDL
@@ -697,6 +703,36 @@ function Get-LunsSizeGB {
         Write-Log "Could not determine userdata partition size" "Error"
         return 0
     }
+}
+
+function Get-PartitionSizeBytes([string]$partName) {
+    $sizeByte = 0
+
+    try {
+        $gpt = Execute-EdlCommand "printgpt" -silent -get
+        $isPartBlock = $false
+
+        foreach ($line in $gpt) {
+            if ($line -match "Name:\s+$partName\b") {
+                $isPartBlock = $true
+                continue
+            }
+
+            if ($isPartBlock -and $line -match "LBA:\s+(\d+)-(\d+)\s+\(Size:\s+([\d.]+)\s+MiB\)") {
+                $sizeMiB = [double]$matches[3]
+                $sizeByte = [uint64]($sizeMiB * 1024 * 1024)
+                break
+            }
+
+            if ($isPartBlock -and $line -match "Name:\s+") {
+                $isPartBlock = $false
+            }
+        }
+    } catch {
+
+    }
+
+    return $sizeByte
 }
 
 function Get-UserdataSizeGB([switch]$fullPartition) {
