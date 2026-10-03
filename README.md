@@ -5,12 +5,14 @@
 This tool contains a comprehensive set automation scripts for unlock Bootloader, rooting, full backup, and Rollback OS the **Pico 4**, **Pico 4 Pro**, **Pico 4 Enterprise**, and **Pico Neo 3** VR headsets.
 
 ### [Download Tool](https://github.com/chaixshot/more-picohaxx-tool/releases/latest/download/more-picohaxx-tool.zip) and run `picounlock.bat` to begin
+
+> [!IMPORTANT]
 >To update the new version, please move `./backup` and `./logs` from the previous tool folder.
 
 > [!CAUTION]
-> Unlocking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
-> It is highly recommended to backup **User Personal Data** before starting.
->**Risk**: Flashing firmware carries inherent risks. While this method is tested, proceed at own risk.
+> Unlocking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).<br>
+> It is highly recommended to backup **User Personal Data** before starting.<br>
+>**Risk**: Flashing firmware carries inherent risks. While this method is tested, proceed at own risk.<br>
 > <img height="200" alt="unlocked" src="./src/factoryreset.jpg" />
 
 ## Status
@@ -28,6 +30,8 @@ This tool contains a comprehensive set automation scripts for unlock Bootloader,
 ## Backup
 
 This tool includes a built-in **Backup** suite to protect user data from **Factory Reset** and **Headset Bricking**.
+
+> [!NOTE]
 > Uses the folder `./backup` to store data by default.
 
 ### Backup Modes
@@ -58,10 +62,11 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 
 ## Restore
 
-> Scan default folder `./backup` to create menu.
-
 * **Backup Selector**: Select between different backup sets using the menu.
 * **Custom Restore Folder**: Paste a backup folder path directly into the menu. Automatically detects the backup type (`LUNs`, `UserData`, `Partitions`, or `Downgrade`) based on the files inside.
+
+> [!NOTE]
+> Scan default folder `./backup` to create menu.
 
 ## Unlock Bootloader
 
@@ -81,7 +86,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 
 ## Root with Magisk
 
-The tool includes an automated workflow to root headset directly from Windows:
+The tool includes an automated workflow to **Root** and **SELinux Permissive** the headset directly from Windows:
 
 1. **Pull Boot Image**: Pull firmware `boot.img` directly from headset via EDL mode.
 1. **Install Magisk**: Installs `Magisk4Pico.apk` directly to headset.
@@ -112,8 +117,8 @@ Full firmware downgrades and dynamic partition processing, allowing the device t
 * **Automated EDL Flashing:** Safely transitions the device into EDL mode and flashes system and firmware images sequentially.
 
 > [!WARNING]
-> Downgrading OS versions introduces encryption (`keystore`) and SELinux mismatch risks.
-> Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops.
+> Downgrading OS versions introduces encryption (`keystore`) and SELinux mismatch risks.<br>
+> Depending on the target version, a factory reset may be required to prevent non-bootable states or bootloops.<br>
 > Always perform a **User Personal Data** backup before proceed.
 
 ## Troubleshooting & Tips
@@ -163,7 +168,20 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 * **Fastboot**: Hold <kbd>Vol Down</kbd> + <kbd>Power</kbd> + <kbd>Home</kbd> until menu shows up.
 * **EDL**: Boot to **Fastboot** and using the tool reboot menu to enter **EDL**.
 
-> Home button is the button that has Pico logo
+> [!NOTE]
+> **Home** button is the button that has Pico logo
+
+> [!TIP]
+>
+> * Manual EDL mode:
+>   1. Unplug the USB from the device that is still connected to the PC.
+>   1. Power off the device via the power button or the Bootloader menu.
+>   1. Holding <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd>.
+>   1. Plug the USB into the device while still holding the buttons.
+> * In the worst case:
+>   * Use **EDL 9008 Cable** confirmed it works to enter EDL mode from the off state.
+>     * [Make it yourself](https://xdaforums.com/t/edl-cable-for-nothing-phone-2.4654742/) or buy one.
+>   * [EDL test points jumper](https://github.com/chaixshot/more-picohaxx-tool/issues/5#issuecomment-5967802023)
 
 ### Recovery Mode
 
@@ -178,7 +196,7 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 This tool includes **Unroot** and **Lock Bootloader** options.
 
 > [!CAUTION]
-> Locking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).
+> Locking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).<br>
 > It is highly recommended to backup **User Personal Data** before starting.
 
 ## Key Components
