@@ -431,7 +431,6 @@ function Invoke-EdlCommandWithRetry([string]$CommandLine, [string]$LogMessage, [
                     throw ""
                 }
             } else {
-                $script:geFailed = 1
                 throw "Failed $ActionName '${cCyan}$ItemLabel${cReset}'"
             }
         }
@@ -1212,7 +1211,7 @@ function Edl-To-System {
     Write-Log ""
     Write-Log "Device detected in ${cCyan}EDL${cReset} mode. Attempting to reboot into ${cCyan}SYSTEM${cReset} mode..." "Action"
     
-    if (Execute-EdlCommand "reset" -silent) { 
+    if (Execute-EdlCommand "reset" -silent) {
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
@@ -1232,7 +1231,7 @@ function Edl-To-Recovery {
     Write-Log "Keep holding $button before continue, and don't let go" "Interactive"
     Wait-Continue
     
-    if (Execute-EdlCommand "reset" -silent) { 
+    if (Execute-EdlCommand "reset" -silent) {
         Write-Log "Reboot command sent successfully." "Success"
     } else {
         Warning-EDL-ManualReboot
@@ -1264,7 +1263,7 @@ function Edl-To-Edl {
     Write-Log "Keep holding $button before continue, and don't let go." "Interactive"
     Wait-Continue
     
-    if (Execute-EdlCommand "reset" -silent) { 
+    if (Execute-EdlCommand "reset" -silent) {
         Write-Log "Reboot command sent successfully." "Success"
 
         if (IsPicoNeo3) {

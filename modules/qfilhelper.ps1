@@ -58,6 +58,7 @@ function BackupLUNs([string]$backupPath) {
             $isExec = $true
         }
     } catch {
+        $script:geFailed = 1
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -65,7 +66,6 @@ function BackupLUNs([string]$backupPath) {
 
     CleanUpBackupFolder
     ProcessCompleted -isExec $isExec
-
 }
 
 function BackupUserData([string]$backupPath, [switch]$fullPartition) {
@@ -109,10 +109,7 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false
             Write-Log ""
             Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
-            if (-not (Execute-EdlCommand $sCMDLine)) {
-                $script:geFailed = 1
-                throw "Execution of EDL command failed."
-            }
+            if (-not (Execute-EdlCommand $sCMDLine)) { throw "" }
             $isExec = $true
         } elseif ($ranges.Count -eq 1 -and $ranges[0].StartSector -eq $obPInfo.iStart) {
             # Single contiguous range covering from partition start -> use standard filename
@@ -126,10 +123,7 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             $sCMDLine = BuildCommand -obPInfo $obSingle -isTemp $false
             Write-Log ""
             Write-Log "[1/1] Backing up partition '${cCyan}lun0_userdata.bin${cReset}' (${cYellow}$($ranges[0].Sectors) sectors${cReset})..." "Action"
-            if (-not (Execute-EdlCommand $sCMDLine)) {
-                $script:geFailed = 1
-                throw "Execution of EDL command failed."
-            }
+            if (-not (Execute-EdlCommand $sCMDLine)) { throw "" }
             # Write manifest even for single-chunk so restore logic is uniform
             $manifestPath = Join-Path $gsBackupDir "userdata_manifest.json"
             $manifest = [PSCustomObject]@{
@@ -205,6 +199,7 @@ function BackupUserData([string]$backupPath, [switch]$fullPartition) {
             $isExec = $true
         }
     } catch {
+        $script:geFailed = 1
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -586,6 +581,7 @@ function BackupPartitions([string]$backupPath) {
             }
         }
     } catch {
+        $script:geFailed = 1
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -689,18 +685,13 @@ function FlashFirmware([string]$flashPath) {
             Write-Log "Restoring ${cCyan}userdata${cReset} from sparse manifest (${cYellow}$totalChunks chunks${cReset})..." "Action"
             Write-Log "Erasing partition '${cCyan}userdata${cReset}' to clean all unwritten gaps..." "Action"
 
-            if (-not (Execute-EdlCommand "erase-part userdata")) {
-                Write-Log "Failed to erase '${cCyan}userdata${cReset}' partition." "Error"
-                $script:geFailed = 1
-            } else {
+            if (Execute-EdlCommand "erase-part userdata") {
                 for ($ci = 0; $ci -lt $totalChunks; $ci++) {
                     $chunk = $manifest.chunks[$ci]
                     $chunkPath = Join-Path $flashPath $chunk.file
 
                     if (-not (Test-Path $chunkPath)) {
-                        Write-Log "Chunk file missing: '${cYellow}$($chunk.file)${cReset}'." "Error"
-                        $script:geFailed = 1
-                        break
+                        throw "Chunk file missing: '${cYellow}$($chunk.file)${cReset}'."
                     }
 
                     $chunkGB = [Math]::Round($chunk.sectors * 4096 / 1GB, 2)
@@ -711,6 +702,8 @@ function FlashFirmware([string]$flashPath) {
 
                     $isExec = $true
                 }
+            } else {
+                throw "Failed to erase '${cCyan}userdata${cReset}' partition."
             }
         } elseif ($null -eq $flashList.UserdataManifest -and $geFailed -eq 0) {
             # Fall back: look for monolithic lun0_userdata.bin in Partitions list
@@ -725,10 +718,10 @@ function FlashFirmware([string]$flashPath) {
                     $sCMDLine = BuildCommand -obPInfo $obUD -isTemp $false -isFlash $true -FlashPath $flashPath
                     Write-Log ""
                     Write-Log "Flashing partition '${cCyan}lun0_userdata.bin${cReset}'..." "Action"
-                    if (-not (Execute-EdlCommand $sCMDLine)) {
-                        $script:geFailed = 1
-                    } else {
+                    if (Execute-EdlCommand $sCMDLine) {
                         $isExec = $true
+                    } else {
+                        throw ""
                     }
                 }
             }
@@ -736,6 +729,7 @@ function FlashFirmware([string]$flashPath) {
 
         $functionResult = ($geFailed -eq 0)
     } catch {
+        $script:geFailed = 1
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
@@ -829,56 +823,75 @@ function LoadFileList([string]$flashPath) {
 }
 
 function FlashLUNs($flashList, [string]$flashPath) {
-    $totalParts = $flashList.LUNs.Count
-    for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
-        $lunFile = $flashList.LUNs[$iCnt]
+    $success = $true
+    
+    try {
+        $totalParts = $flashList.LUNs.Count
+        for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
+            $lunFile = $flashList.LUNs[$iCnt]
 
-        $obPInfo = [PSCustomObject]@{
-            sLabel   = $lunFile.sLabel
-            iLUN     = $lunFile.iLUN
-            iStart   = 0
-            iEnd     = 0
-            iSectors = 0
+            $obPInfo = [PSCustomObject]@{
+                sLabel   = $lunFile.sLabel
+                iLUN     = $lunFile.iLUN
+                iStart   = 0
+                iEnd     = 0
+                iSectors = 0
+            }
+
+            $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+            $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
+            $logMsg = "[$( $iCnt + 1 )/$( $totalParts )] Flashing LUN '${cCyan}$itemLabel${cReset}'..."
+
+            Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "flashing LUN"
         }
-
-        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
-        $itemLabel = "lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin"
-        $logMsg = "[$( $iCnt + 1 )/$( $totalParts )] Flashing LUN '${cCyan}$itemLabel${cReset}'..."
-
-        Invoke-EdlCommandWithRetry -CommandLine $sCMDLine -LogMessage $logMsg -ItemLabel $itemLabel -ActionName "flashing LUN"
+    } catch {
+        $success = $false
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
     }
-    return $true
+    
+    return $success
 }
 
 function FlashGPTs($flashList, [string]$flashPath) {
+    $success = $true
     $totalParts = $flashList.GPTs.Count
-    for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
-        $gptFile = $flashList.GPTs[$iCnt]
 
-        if ($gaLunsOnline -notcontains $gptFile.iLUN) {
-            Write-Log "Skipping GPT flash: lun$($gptFile.iLUN) is offline." "Warning"
-            continue
+    try {
+        for ($iCnt = 0; $iCnt -lt $totalParts; $iCnt++) {
+            $gptFile = $flashList.GPTs[$iCnt]
+
+            if ($gaLunsOnline -notcontains $gptFile.iLUN) {
+                Write-Log "Skipping GPT flash: lun$($gptFile.iLUN) is offline." "Warning"
+                continue
+            }
+
+            $obPInfo = [PSCustomObject]@{
+                sLabel   = $gptFile.sLabel
+                iLUN     = $gptFile.iLUN
+                iStart   = 0
+                iEnd     = 0
+                iSectors = 0
+            }
+
+            $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
+
+            Write-Log ""
+            Write-Log "[$( $iCnt + 1 )/$( $totalParts )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
+
+            if (-not (Execute-EdlCommand $sCMDLine)) {
+                throw ""
+            }
         }
-
-        $obPInfo = [PSCustomObject]@{
-            sLabel   = $gptFile.sLabel
-            iLUN     = $gptFile.iLUN
-            iStart   = 0
-            iEnd     = 0
-            iSectors = 0
-        }
-
-        $sCMDLine = BuildCommand -obPInfo $obPInfo -isTemp $false -isFlash $true -FlashPath $flashPath
-
-        Write-Log ""
-        Write-Log "[$( $iCnt + 1 )/$( $totalParts )] Flashing GPT '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
-
-        if (-not (Execute-EdlCommand $sCMDLine)) {
-            $script:geFailed = 1
-            return $false
+    } catch {
+        $success = $false
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
         }
     }
-    return $true
+
+    return $success
 }
 
 function Short2Long($fileName, [string]$flashPath) {
@@ -979,10 +992,8 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
             Write-Log "[$( $iCnt + 1 )/$( $totalParts + 1 )] Reading gpt header '${cCyan}lun$( $obPInfo.iLUN )_$( $obPInfo.sLabel ).bin${cReset}'..." "Action"
 
             if (-not (Execute-EdlCommand $sCMDLine)) {
-                if ($iCnt -eq 0) {
-                    $script:geFailed = 1
-                    $functionResult = $false # LUN 0 is mandatory
-                    break
+                if ($iCnt -eq 0) { # LUN 0 is mandatory
+                    throw ""
                 }
                 
                 Write-Log "Skipping lun${iCnt}: LUN not detected on device." "Warning"
@@ -994,6 +1005,7 @@ function ReadGPTHeaders([bool]$isTemp = $false, [bool]$isSort = $false) {
             LoadGPTData -obPInfo $obPInfo -isTemp $isTemp -isSort $isSort
         }
     } catch {
+        $functionResult = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
