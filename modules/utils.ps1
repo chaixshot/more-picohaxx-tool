@@ -1124,12 +1124,23 @@ function Warning-EDL-ManualReboot {
         Write-Log "Manually boot to ${cCyan}SYSTEM${cReset} by keep holding ${cYellow}Power Button${cReset} until Pico logo shows up." "Info"
         Write-Log "Manually boot to ${cCyan}RECOVERY${cReset} by keep holding $btnRecovery until dead robot shows up." "Info"
         Write-Log "Manually boot to ${cCyan}FASTBOOT${cReset} by keep holding $btnFastboot until menu shows up." "Info"
+        Write-Log "Manually boot to ${cCyan}EDL${cReset}:" "Info"
+        Write-Log "- Method 1"
         if (IsPicoNeo3) {
-            Write-Log "1. Manually boot to ${cCyan}FASTBOOT${cReset}." "Info"
-            Write-Log "2. Use the tool Reboot menu to enter ${cCyan}EDL${cReset}." "Info"
+            Write-Log "     1. Manually boot to ${cCyan}FASTBOOT${cReset}."
+            Write-Log "     2. Use the tool Reboot menu to enter ${cCyan}EDL${cReset}."
         } else {
-            Write-Log "Manually boot to ${cCyan}EDL${cReset} by keep holding ${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} until screen off and USB detected." "Info"
+            Write-Log "     - Keep holding ${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset} + ${cYellow}Power${cReset} until screen off and USB detected."
         }
+        Write-Log "- Method 2"
+        Write-Log "     1. Unplug the USB from the device that is still connected to the PC."
+        Write-Log "     2. Power off the device via the ${cCyan}Power Button${cReset} or the ${cCyan}Bootloader Menu${cReset}."
+        Write-Log "     3. Holding ${cYellow}Vol Up${cReset} + ${cYellow}Vol Down${cReset}."
+        Write-Log "     4. Plug the USB into the device while still holding the buttons."
+        Write-Log "- In the worst case:"
+        Write-Log "     - Use ${cCyan}EDL 9008 Cable${cReset} confirmed it works to enter EDL mode from the off state."
+        Write-Log "       - Make it yourself (${cCyan}https://xdaforums.com/t/edl-cable-for-nothing-phone-2.4654742/${cReset}) or buy one."
+        Write-Log "     - EDL test points jumper (${cCyan}https://github.com/chaixshot/more-picohaxx-tool/issues/5#issuecomment-5967802023${cReset})"
     }
 }
 
