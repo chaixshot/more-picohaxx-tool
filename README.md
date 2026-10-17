@@ -10,9 +10,9 @@ This tool contains a comprehensive set automation scripts for unlock Bootloader,
 >To update the new version, please move `./backup` and `./logs` from the previous tool folder.
 
 > [!CAUTION]
-> Unlocking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).<br>
-> It is highly recommended to backup **User Personal Data** before starting.<br>
->**Risk**: Flashing firmware carries inherent risks. While this method is tested, proceed at own risk.<br>
+> Bootloader state changes (LOCK ↔ UNBLOCK) will **WIPE ALL USER DATA** (Factory Reset).<br>
+> Previous **User Personal Data** backup partition will not work after the state changes due to the internal decryption key being permanently reset.<br>
+> Perform app data backups using an external application before proceeding.<br>
 > <img height="200" alt="unlocked" src="./src/factoryreset.jpg" />
 
 ## Status
@@ -70,7 +70,7 @@ This tool includes a built-in **Backup** suite to protect user data from **Facto
 
 ## Unlock Bootloader
 
-1. **Backup**: Perform **User Personal Data** backup before proceeding, as unlocking will wipe headset user data.
+1. **Backup**: Perform app data backup using an external application.
 1. **Get Unlock Code**: Acquire headset `serial_number` (Chip ID) via `adb` (from `/sys/devices/soc0/serial_number`) to generate `fastboot oem picoXXXXXXXX unlock` command.
 1. **Flash Engineering ABL**: Flash the old `abl` and `devinfo` to enable bootloader token.
 1. **Unlock Bootloader**: Issue the generated command from **Get Unlock Code**, followed by:
@@ -98,10 +98,40 @@ The tool includes an automated workflow to **Root** and **SELinux Permissive** t
 
 Recommend [Magisk](https://github.com/topjohnwu/magisk) modules and [Xposed Framework](https://github.com/JingMatrix/Vector) apps
 
-* Core framework [Vector](https://github.com/JingMatrix/Vector) and [NyaZygisk](https://github.com/HSSkyBoy/NyaZygisk)
-* Magisk modules: [pico-screenshot-hires](https://github.com/hhhbwc/pico-screenshot-hires) | [pico4-aggressive-fan](https://github.com/hhhbwc/pico4-aggressive-fan)
-* Xposed modules: [PicoDockShortcut](https://github.com/chaixshot/PicoDockShortcut) | [Pico3dResolution](https://github.com/chaixshot/Pico3dResolution) | [PicoNeverSleep](https://github.com/chaixshot/PicoNeverSleep) | [Pico-4-IME-Unlock](https://github.com/Skyrimus/Pico-4-IME-Unlock) | [PicoFanControl](https://github.com/Seva167/PicoFanControl) | [pico-resfix](https://github.com/hhhbwc/pico-resfix) | [pico4-winlimit](https://github.com/hhhbwc/pico4-winlimit) | [PICO-Custom-Wallpaper](https://github.com/hhhbwc/PICO-Custom-Wallpaper) | [pico4-sleep-mode](https://github.com/hhhbwc/pico4-sleep-mode) | [pico4-quest3-swap](https://github.com/hhhbwc/pico4-quest3-swap)
-* Other: [PICO-4-GPU-Overclocking](https://github.com/hhhbwc/PICO-4-GPU-Overclocking) | [pico4_120hz](https://github.com/hhhbwc/pico4_120hz)
+#### Core Framework
+
+* [NyaZygisk](https://github.com/HSSkyBoy/NyaZygisk) - Zygote injection with ptrace
+* [Vector](https://github.com/JingMatrix/Vector) - Zygisk module providing an ART hooking framework that maintains API consistency with the original Xposed.
+
+#### Magisk Modules
+
+* [Pico-Screenshot-Hires](https://github.com/hhhbwc/pico-screenshot-hires) - Unlock system screenshot resolution.
+* [Pico4-Aggressive-Fan](https://github.com/hhhbwc/pico4-aggressive-fan) - Fan temp control, bypass stock 35% duty lock, one tier higher, vendor service untouched.
+* [PicoXPad](https://github.com/d4nielrx/PicoXPad) - Turn your Pico controllers into a system-wide Xbox gamepad.
+* [Pico4-TrackerLimit](https://github.com/hhhbwc/pico4-trackerlimit) - Motion Tracker full unlock. 2/3/5 point mode switching.
+
+#### Xposed Modules
+
+* [PicoDockShortcut](https://github.com/chaixshot/PicoDockShortcut) - Manage dock pinned shortcuts.
+* [Pico3dResolution](https://github.com/chaixshot/Pico3dResolution) - Change 3D resolution and power level.
+* [PicoNeverSleep](https://github.com/chaixshot/PicoNeverSleep) - Add the never-sleep shortcut to quick-setting panel to allow the headset to stay awake.
+* [PicoWindowResize](https://github.com/autodistries/PicoWindowResize) - Resize opened windows
+* [PicoLibraryCategories](https://github.com/autodistries/PicoLibraryCategories) - Lets you control categories and sort your apps through the native app launcher.
+* [Pico-4-IME-Unlock](https://github.com/Skyrimus/Pico-4-IME-Unlock) - Use other installed keyboard as default keyboard.
+* [PicoFanControl](https://github.com/Seva167/PicoFanControl) - App to override fan speed with root
+* [Pico-ResFix](https://github.com/hhhbwc/pico-resfix) - Unlocking per-app resolution for 2D applications.
+* [Pico4-WinLimit](https://github.com/hhhbwc/pico4-winlimit) - 2D floating window limit unlock LSPosed module.
+* [Pico-Custom-Wallpaper](https://github.com/hhhbwc/PICO-Custom-Wallpaper) - Provides independent static wallpapers and crop previews.
+* [Pico4-Sleep-Mode](https://github.com/hhhbwc/pico4-sleep-mode) - Quick-setting toggle that enables a low-power VR sleep mode.
+* [Pico4-Quest3-Swap](https://github.com/hhhbwc/pico4-quest3-swap) - Swap the quick-setting panel device art (headset + controllers) for official Meta Quest 3.
+* [Pico-Unknown-Source-Remover](https://github.com/hhhbwc/pico-unknown-source-remover) - Hide AppManager's Unknown section and show SDK apps under Apps.
+* [Pico4-Power-Mode](https://github.com/hhhbwc/pico4-power-mode) - Unlocks the hidden "High Performance" power mode in settings.
+* [Pico4-FW-Anchor](https://github.com/hhhbwc/pico4-fw-anchor) - Spatial window anchoring, keep 2D far windows where you put them.
+
+#### Other
+
+* [PICO-4-GPU-Overclocking](https://github.com/hhhbwc/PICO-4-GPU-Overclocking) - GPU overclock.
+* [Pico4_120HZ](https://github.com/hhhbwc/pico4_120hz)  - Unlocking display refresh rate 120Hz.
 
 ## Flash Custom Image
 
@@ -169,17 +199,20 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 * **EDL**: Boot to **Fastboot** and using the tool reboot menu to enter **EDL**.
 
 > [!NOTE]
-> **Home** button is the button that has Pico logo
+> **Pico Neo 3**:
+>
+> * **Home** button is the button that has Pico logo
+> * Newer firmware than **5.9.9**, enter **EDL** with key combination and command will no longer work.
 
 > [!TIP]
 >
 > * Manual EDL mode:
->   1. Unplug the USB from the device that is still connected to the PC.
->   1. Power off the device via the power button or the Bootloader menu.
->   1. Holding <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd>.
->   1. Plug the USB into the device while still holding the buttons.
-> * In the worst case:
->   * Use **EDL 9008 Cable** confirmed it works to enter EDL mode from the off state.
+>   * Key Combination:
+>     1. Unplug the USB from the device that is still connected to the PC.
+>     1. Power off the device via the power button or the Bootloader menu.
+>     1. Holding <kbd>Vol Up</kbd> + <kbd>Vol Down</kbd>.
+>     1. Plug the USB into the device while still holding the buttons.
+>   * Use **EDL 9008 Cable**, confirmed works to enter EDL from the power off state.
 >     * [Make it yourself](https://xdaforums.com/t/edl-cable-for-nothing-phone-2.4654742/) or buy one.
 >   * [EDL test points jumper](https://github.com/chaixshot/more-picohaxx-tool/issues/5#issuecomment-5967802023)
 
@@ -194,10 +227,6 @@ Using the **Engineering ABL** can cause issues like slower boot or unexpectedly 
 ### Undo
 
 This tool includes **Unroot** and **Lock Bootloader** options.
-
-> [!CAUTION]
-> Locking the Bootloader will **WIPE ALL USER DATA** (Factory Reset).<br>
-> It is highly recommended to backup **User Personal Data** before starting.
 
 ## Key Components
 
