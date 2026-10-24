@@ -169,7 +169,7 @@ function IsFastbootMode {
 #########################################
 
 function Wait-Continue([string]$action = "continue...") {
-    Write-Log "`nPress ${cCyan}Enter${cReset} to $action" -NoNewline
+    Write-Log "`nPress [${cYellow}Enter${cReset}] to $action" -NoNewline
     Read-Host | Out-Null
 }
 
