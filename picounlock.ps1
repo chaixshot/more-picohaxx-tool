@@ -249,7 +249,7 @@ function Flash-EngineeringABL {
         Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to flash engineering ABL files." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
         }
@@ -351,7 +351,7 @@ function Flash-BackupABL {
         Write-Log "Fastboot will no longer work for device modification." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
         }
@@ -446,7 +446,7 @@ function Perform-FastbootUnlock {
             Write-Log "If bootloader is in ${cRed}Locked${cReset} state, this process will factory reset device data." "Warning"
             Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Restore${cReset} menu." "Warning"
 
-            $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type [${cYellow}YES${cReset}] and press Enter"
+            $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
             if ($confirmation -ne 'yes') {
                 throw "Aborted by user. No changes have been made."
             }
@@ -529,7 +529,7 @@ function Perform-FastbootLock {
             Write-Log "If bootloader is in ${cGreen}Unlocked${cReset} state, this process will factory reset device data." "Warning"
             Write-Log "Recommended to backup ${cCyan}User Personal Data${cReset} from the ${cCyan}Backup/Restore${cReset} menu." "Warning"
 
-            $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type [${cYellow}YES${cReset}] and press Enter"
+            $confirmation = Read-HostLog "To proceed with rebooting to FASTBOOT, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
             if ($confirmation -ne 'yes') {
                 throw "Aborted by user. No changes have been made."
             }
@@ -780,7 +780,7 @@ function Perform-FactoryReset {
         Write-Log "Factory reset may be required to prevent non-bootable states or bootloops from data mismatch." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with factory reset, type [${cYellow}YES${cReset}] and press Enter"
+        $confirmation = Read-HostLog "To proceed with factory reset, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
         }

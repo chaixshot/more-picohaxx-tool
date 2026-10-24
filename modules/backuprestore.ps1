@@ -72,7 +72,7 @@ function Show-MenuTree([System.Collections.IDictionary]$MenuData, [scriptblock]$
             Write-Log " [${cCyan}$( $i + 1 )${cReset}] $($options[$i])"
         }
 
-        $selection = Read-HostLog "Select [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter]${cReset} to skip"
+        $selection = Read-HostLog "Select [${cYellow}0-$($options.Count)${cReset}], press [${cYellow}Enter${cReset}] to skip"
         if ([string]::IsNullOrWhiteSpace($selection)) { 
             return $null 
         }
@@ -844,7 +844,7 @@ function Verify-DiskSpace([string]$backupMode, [string]$targetPath, [double]$man
         return $false
     } else {
         Write-Log "Please preserve disk space ${cCyan}${diskSize} GB${cReset} on drive ${cCyan}${driveLetter}${cReset} for this process." "Interactive"
-        $confirmation = Read-HostLog "Enter to continue, type [${cYellow}C${cReset}] to cancel"
+        $confirmation = Read-HostLog "[${cYellow}Enter${cReset}] to continue, type [${cYellow}C${cReset}] to cancel"
         if ($confirmation -eq 'c') {
             return $false
         }
@@ -870,7 +870,7 @@ function Wait-UserConfirm([string]$backupMode) {
     Write-Log "In the ${cCyan}backup process${cReset}, getting interrupted might cause the backup data to collapse, but the device is fine." "Warning"
     Write-Log "In the ${cCyan}restore process${cReset}, getting interrupted might brick the device." "Warning"
     
-    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+    $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
     if ($confirmation -ne 'yes') {
         return $false
     }
@@ -996,7 +996,7 @@ function Folder-Compression([string]$folderPath) {
 
         Write-Log ""
         Write-Log "You are about to compress folder '${cCyan}${folderPath}${cReset}'"
-        $confirmation = Read-HostLog "To proceed, type [${cYellow}YES${cReset}] and press Enter"
+        $confirmation = Read-HostLog "To proceed, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
 
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."

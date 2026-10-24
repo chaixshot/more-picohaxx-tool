@@ -445,7 +445,7 @@ function Perform-PullImage([string]$partition) {
         Write-Log "This step will reboot your device into ${cCyan}EDL${cReset} mode to pull the '${cCyan}$partition${cReset}' image." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
         }
@@ -601,7 +601,7 @@ function FlashBoot-ViaEDL([string]$partition, [string]$imagePath) {
         Write-Log "${cRed}Bootloop${cReset} might occur if the bootloader is still in a ${cRed}locked${cReset} state." "Warning"
         Write-Log "Device charging is disabled in ${cCyan}EDL${cReset} mode. Make sure the battery is '${cCyan}Fully Charged${cReset}'." "Warning"
 
-        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press Enter"
+        $confirmation = Read-HostLog "To proceed with rebooting to EDL, type [${cYellow}YES${cReset}] and press [${cYellow}Enter${cReset}]"
         if ($confirmation -ne 'yes') {
             throw "Aborted by user. No changes have been made."
         }
