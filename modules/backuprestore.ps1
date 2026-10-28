@@ -1384,8 +1384,8 @@ function Show-BackupRestoreMenu {
         Write-Header "Backup / Restore / Downgrade"
         Write-Log "[${cCyan}1${cReset}] Backup Device"
         Write-Log "[${cCyan}2${cReset}] Restore Device"
-        Write-Log "[${cCyan}4${cReset}] Downgrade Device ${cDarkGray}(Legacy)${cReset}"
-        Write-Log "[${cCyan}5${cReset}] Rollback OS"
+        Write-Log "[${cCyan}3${cReset}] Downgrade Device ${cDarkGray}(Legacy)${cReset}"
+        Write-Log "[${cCyan}4${cReset}] Rollback OS"
         Write-Log ""
         Write-Log "[${cCyan}t${cReset}] Test Device Manufacturing"
         Write-Log "[${cCyan}c${cReset}] Compress Backup"
@@ -1408,10 +1408,10 @@ function Show-BackupRestoreMenu {
                     Restore-Backup $backupInfo
                 }
             }
-            "4" {
+            "3" {
                 Prepare-Downgrade
             }
-            "5" {
+            "4" {
                 Select-Firehose
                 Prepare-Firmware
                 Perform-RollbackOS
