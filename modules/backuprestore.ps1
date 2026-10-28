@@ -233,8 +233,8 @@ function Prepare-Downgrade {
     }
 
     $header = {
-        Write-Header "Downgrade Device"
-        Write-Log "Downgrade device OS to 5.4.0. Using ${cCyan}Restore Device${cReset} menu to perform downgrade." "Info"
+        Write-Header "Downgrade Firmware"
+        Write-Log "Downgrade Firmware OS to 5.4.0. Using ${cCyan}Restore Device${cReset} menu to perform downgrade." "Info"
         Write-Log "Option 1: Use provided ${cCyan}Pico4.7z${cReset} file downloaded from this menu in ${cCyan}Restore Device${cReset} menu." "Info"
         Write-Log "Option 2: Using ${cCyan}PICO4_GLOBAL_OS_540_Downgrader${cReset} partitions file set." "Info"
         Write-Log "     - Check in '${cCyan}.\helper\Flasher\Flash${cReset}' is it empty or not." "Info"
@@ -246,7 +246,7 @@ function Prepare-Downgrade {
     Show-MenuTree -MenuData $FirmwareData -HeaderCallback $header
 }
 
-function Perform-RollbackOS {
+function Perform-ChangeFirmware {
     $success = $true
     $lastError = $null
     $isTempExtraction = $false
@@ -254,7 +254,7 @@ function Perform-RollbackOS {
     $pushedLocation = $false
 
     try {
-        Write-Header "Rollback OS"
+        Write-Header "Change Firmware"
         Write-Log "Select firmware downloaded file." "Warning"
         $firmwarePath = Get-FileOrFolderDialog "Select firmware downloaded file" 0 ".rar, .zip, .7z"
 
@@ -464,7 +464,7 @@ function Perform-RollbackOS {
     }
 
     if ($success) {
-        Write-Log "Device has rollbacked successfully." "Success"
+        Write-Log "Device's firmware has changed successfully." "Success"
 
         $choice = Read-HostLog "Would you like to reboot to system? [${cYellow}Y${cReset}/n]"
         if ($choice -eq 'y') {
@@ -1384,8 +1384,8 @@ function Show-BackupRestoreMenu {
         Write-Header "Backup / Restore / Downgrade"
         Write-Log "[${cCyan}1${cReset}] Backup Device"
         Write-Log "[${cCyan}2${cReset}] Restore Device"
-        Write-Log "[${cCyan}4${cReset}] Downgrade Device ${cDarkGray}(Legacy)${cReset}"
-        Write-Log "[${cCyan}5${cReset}] Rollback OS"
+        Write-Log "[${cCyan}3${cReset}] Change Firmware"
+        Write-Log "[${cCyan}4${cReset}] Downgrade Firmware ${cDarkGray}(Legacy)${cReset}"
         Write-Log ""
         Write-Log "[${cCyan}t${cReset}] Test Device Manufacturing"
         Write-Log "[${cCyan}c${cReset}] Compress Backup"
@@ -1408,13 +1408,13 @@ function Show-BackupRestoreMenu {
                     Restore-Backup $backupInfo
                 }
             }
-            "4" {
-                Prepare-Downgrade
-            }
-            "5" {
+            "3" {
                 Select-Firehose
                 Prepare-Firmware
-                Perform-RollbackOS
+                Perform-ChangeFirmware
+            }
+            "4" {
+                Prepare-Downgrade
             }
             "t" {
                 Test-DeviceManufacturing
