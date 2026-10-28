@@ -343,9 +343,12 @@ function Wait-AdbMode([int]$timeout = 360, [switch]$waitForDisconnect) {
 function Select-Firehose {
     while ($SelectedFirehose -eq 0) {
         Write-Header "Select Device"
-        Write-Log "[${cCyan}1${cReset}] Pico 4 ${cYellow}/${cReset} Pico 4 Enterprise"
-        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro"
-        Write-Log "[${cCyan}3${cReset}] Pico Neo 3"
+        Write-Log ""
+        Write-Log "[${cCyan}1${cReset}] Pico 4 ${cYellow}/${cReset} Pico 4 Enterprise (DDR4)"
+        Write-Log "[${cCyan}2${cReset}] Pico 4 Pro / Pico 4 Enterprise (DDR5)"
+        Write-Log "[${cCyan}3${cReset}] Pico Neo 3 (DDR4)"
+        Write-Log ""
+        Write-Log "[${cCyan}t${cReset}] Test Device Manufacturing"
         
         $selection = Read-HostLog "Select your device model to use the correct firehose"
         switch ($selection) {
@@ -361,6 +364,10 @@ function Select-Firehose {
                 $script:SelectedFirehose = 1
                 $script:IsPicoNeo3 = $true
                 Write-Log "Using DDR 4 Firehose." "Info"
+            }
+            "t" { 
+                Test-DeviceManufacturing
+                Wait-Continue
             }
 
             Default {

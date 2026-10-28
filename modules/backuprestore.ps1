@@ -1321,22 +1321,13 @@ function Test-DeviceManufacturing {
         $picoTag = $props['ro.pico.tag']
         $buildType = $props['ro.build.type']
         $secureBoot = $props['ro.secure.boot.tag']
+        $ddrType = $props['ro.vendor.ddr_type']
         $oemState = $props['ro.oem.state']
-        $rawProduct = $props['ro.product.model']
-
-        # Map raw model identifiers to display names
-        $product = switch ($rawProduct) {
-            "A8110" { "Pico 4" }
-            "A8E50" { "Pico 4 Enterprise" }
-            "A8Pro" { "Pico 4 Pro" }
-            "A9210" { "Pico 4 Ultra" }
-            "A7H10" { "Pico Neo 3" }
-            "A7E10" { "Pico Neo 3 Pro" }
-            default { $rawProduct }
-        }
+        $modelName = $props['sys.pxr.product.name']
 
         Write-Header "Test Device Manufacturing"
-        Write-Log "Model              : ${cCyan}$product${cReset}"
+        Write-Log "Model              : ${cCyan}$modelName${cReset}"
+        Write-Log "DDR Type           : ${cCyan}$ddrType${cReset}"
         Write-Log "ro.pico.tag        : ${cCyan}$picoTag${cReset}"
         Write-Log "ro.build.type      : ${cCyan}$buildType${cReset}"
         Write-Log "ro.secure.boot.tag : ${cCyan}$secureBoot${cReset}"
