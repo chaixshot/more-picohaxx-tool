@@ -490,11 +490,10 @@ function Execute-EdlCommand([string]$sCMDLine, [switch]$silent, [switch]$get) {
             Default { $FirehoseDDR4Path }
         }
 
-        # Execute edl-ng and capture its output stream.
-        # 2>&1 redirects stderr to stdout so we can process all output.
-        $expression = "& `"$EDLNG`" --loader $firehose --memory UFS $sCMDLine 2>&1"
-
-        Invoke-Expression $expression | ForEach-Object {
+        # Execute edl-ng via cmd.exe /c so stderr is redirected to stdout inside CMD.
+        # This prevents PowerShell 5.1 from wrapping native stderr lines as ErrorRecord objects,
+        # which can cause benign stderr messages (like NAK warnings) to fail the pipeline or corrupt $LASTEXITCODE.
+        & cmd.exe /c "`"$EDLNG`" --loader `"$firehose`" --memory UFS $sCMDLine 2>&1" | ForEach-Object {
             $line = $_.ToString().TrimEnd()
             $outputLines.Add($line)
 
