@@ -12,8 +12,10 @@
 
 $Magisk = Join-Path $WorkingDir "tools\magisk\Magisk4Pico.apk"
 $MagiskBoot = Join-Path $WorkingDir "tools\magisk\magiskboot.exe"
-$MagiskTMP = Join-Path $WorkingDir "tools\tmp"
+$temp = Join-Path $WorkingDir "tools\tmp"
 $ImageBackupPath = Join-Path $BackupPath "img"
+$NyaZygiskZip = Join-Path $WorkingDir "tools\vector\NyaZygisk-v2.5-351-release.zip"
+$VectorZip = Join-Path $WorkingDir "tools\vector\Vector-v2.2-3080-Release.zip"
 
 function Perform-MagiskBoot([string]$bootImgPath) {
     $success = $true
@@ -32,15 +34,15 @@ function Perform-MagiskBoot([string]$bootImgPath) {
         $outputImgPath = Join-Path $bootImgDir "magisk_patched.img"
 
         # Ensure temporary directory exists
-        if (-not (Test-Path $MagiskTMP)) {
-            New-Item -Path $MagiskTMP -ItemType Directory -Force | Out-Null
+        if (-not (Test-Path $temp)) {
+            New-Item -Path $temp -ItemType Directory -Force | Out-Null
         }
 
         if (Test-Path $outputImgPath) {
             Remove-Item -Path $outputImgPath -Recurse -Force -ErrorAction SilentlyContinue
         }
 
-        Push-Location $MagiskTMP
+        Push-Location $temp
 
         # Extract Required Assets from APK directly into $MagiskTMP
         Write-Log ""
@@ -59,7 +61,7 @@ function Perform-MagiskBoot([string]$bootImgPath) {
                 $entry = $zip.Entries | Where-Object { $_.FullName -eq $entryKey }
                 if ($entry) {
                     $targetName = $apkEntries[$entryKey]
-                    $destination = Join-Path $MagiskTMP $targetName
+                    $destination = Join-Path $temp $targetName
                     Write-Log "Extracting ${cCyan}${targetName}${cReset}..." "Action"
                     [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $destination, $true)
                 }
@@ -109,7 +111,7 @@ function Perform-MagiskBoot([string]$bootImgPath) {
         $preinit = $null
         $adbDevices = Execute-ADBCommand "devices" -get
         if ($adbDevices -match "\t(device|recovery)") {
-            Execute-ADBCommand "push $(Join-Path $MagiskTMP 'magisk') /data/local/tmp/magisk" -silent
+            Execute-ADBCommand "push $(Join-Path $temp 'magisk') /data/local/tmp/magisk" -silent
             $detectedPreinit = (Execute-ADBCommand "shell chmod 755 /data/local/tmp/magisk; /data/local/tmp/magisk --preinit-device" -get).Trim()
             if ($detectedPreinit) {
                 $preinit = $detectedPreinit
@@ -134,7 +136,7 @@ VENDORBOOT=false
 PREINITDEVICE=$preinit
 SHA1=$sha1
 "@
-        [System.IO.File]::WriteAllText((Join-Path $MagiskTMP "config"), $cfg.Replace("`r`n", "`n"))
+        [System.IO.File]::WriteAllText((Join-Path $temp "config"), $cfg.Replace("`r`n", "`n"))
 
         # Configure environment flags for magiskboot patch
         $env:KEEPVERITY = "false"
@@ -190,15 +192,15 @@ SHA1=$sha1
                 if ($headerContent -match "cmdline=") {
                     if ($headerContent -notmatch "androidboot.selinux=permissive") {
                         $headerContent = $headerContent -replace "cmdline=", "cmdline=androidboot.selinux=permissive "
-                        [System.IO.File]::WriteAllText((Join-Path $MagiskTMP "header"), $headerContent.Replace("`r`n", "`n"))
+                        [System.IO.File]::WriteAllText((Join-Path $temp "header"), $headerContent.Replace("`r`n", "`n"))
                         Write-Log "Appended 'androidboot.selinux=permissive' to header cmdline." "Info"
                     }
                 }
             }
 
             # Setup Magisk Init Overlay directory structure
-            $overlayDir = Join-Path $MagiskTMP "overlay.d"
-            $overlaySbinDir = Join-Path $MagiskTMP "overlay.d\sbin"
+            $overlayDir = Join-Path $temp "overlay.d"
+            $overlaySbinDir = Join-Path $temp "overlay.d\sbin"
 
             if (-not (Test-Path $overlaySbinDir)) {
                 New-Item -Path $overlaySbinDir -ItemType Directory -Force | Out-Null
@@ -248,14 +250,14 @@ SHA1=$sha1
         }
     } finally {
         # Safely restore original working directory if dynamic location push occurred
-        if ((Get-Location).Path -eq $MagiskTMP) {
+        if ((Get-Location).Path -eq $temp) {
             Pop-Location
         }
 
         # Cleanup Temporary Artifacts inside $MagiskTMP
         Write-Log ""
         Write-Log "Deleting temp folder..." "Action"
-        Remove-Item -Path $MagiskTMP -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path $temp -Recurse -Force -ErrorAction SilentlyContinue
         Remove-Item -Path "$env:TEMP\TemporaryFile-*" -Recurse -Force -ErrorAction SilentlyContinue
     }
 
@@ -712,6 +714,125 @@ function Perform-FlashImage([string]$fileName = "", [string]$partition = "") {
     return $success
 }
 
+function Install-LSPosed {
+    $success = $true
+
+    try {
+        Write-Header "Install LSPosed (Vector)"
+
+        # Check device state
+        if (IsFastbootMode) {
+            Fastboot-To-System
+        } elseif (IsEdlMode) {
+            Edl-To-System
+        } elseif (-not (IsAdbMode)) {
+            Warning-ADB
+        }
+
+        if (-not (Wait-AdbMode)) {
+            throw "Device is not connected in ADB mode."
+        }
+
+        if (-not (IsDeviceRooted)) {
+            throw "Device must be rooted with Magisk before installing LSPosed/Vector."
+        }
+
+        # Install NyaZygisk
+        if (-not (Test-Path $NyaZygiskZip)) {
+            throw "NyaZygisk module zip not found at ${cYellow}${NyaZygiskZip}${cReset}"
+        }
+        Write-Log "Pushing ${cYellow}$(Split-Path -Leaf $NyaZygiskZip)${cReset} to ${cCyan}/sdcard/Download/${cReset}..." "Action"
+        Execute-ADBCommand "push $NyaZygiskZip /sdcard/Download/NyaZygisk-v2.5-351-release.zip"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to push NyaZygisk module zip to device."
+        }
+
+        Write-Log "Installing ${cYellow}NyaZygisk${cReset} module via Magisk..." "Action"
+        Execute-ADBCommand "shell su -c 'magisk --install-module /sdcard/Download/NyaZygisk-v2.5-351-release.zip'"
+
+        # Install manager.apk
+        if (-not (Test-Path $VectorZip)) {
+            throw "Vector module zip not found at ${cYellow}${VectorZip}${cReset}"
+        }
+        Write-Log "Extracting ${cYellow}manager.apk${cReset} from Vector zip..." "Action"
+        if (-not (Test-Path $temp)) {
+            New-Item -Path $temp -ItemType Directory -Force | Out-Null
+        }
+        $extractedManagerApk = Join-Path $temp "manager.apk"
+        if (Test-Path $extractedManagerApk) {
+            Remove-Item -Path $extractedManagerApk -Force -ErrorAction SilentlyContinue
+        }
+
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zip = [System.IO.Compression.ZipFile]::OpenRead($VectorZip)
+        try {
+            $entry = $zip.Entries | Where-Object { $_.Name -eq "manager.apk" }
+            if (-not $entry) {
+                throw "manager.apk not found inside ${VectorZip}"
+            }
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $extractedManagerApk, $true)
+        } finally {
+            $zip.Dispose()
+        }
+
+        Write-Log "Installing ${cYellow}manager.apk${cReset} via ADB..." "Action"
+        Execute-ADBCommand "install $extractedManagerApk"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to install manager.apk."
+        }
+        Write-Log "${cCyan}manager.apk${cReset} installed successfully." "Success"
+
+        # Install Vector
+        Write-Log "Pushing ${cYellow}$(Split-Path -Leaf $VectorZip)${cReset} to ${cCyan}/sdcard/Download/${cReset}..." "Action"
+        Execute-ADBCommand "push $VectorZip /sdcard/Download/Vector-v2.2-3080-Release.zip"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to push Vector module zip to device."
+        }
+
+        Write-Log "Installing ${cYellow}Vector${cReset} module via Magisk..." "Action"
+        Execute-ADBCommand "shell su -c 'magisk --install-module /sdcard/Download/Vector-v2.2-3080-Release.zip'"
+
+        # Reboot
+        Write-Log "Rebooting device into system..." "Action"
+        ADB-To-System
+        Start-Sleep -Seconds 3
+        if (-not (Wait-AdbMode -timeout 360 -waitForDisconnect)) {
+            # Device disconnection may happen quickly
+        }
+        if (-not (Wait-AdbMode -timeout 360)) {
+            throw "Device failed to reconnect in ADB mode after reboot."
+        }
+
+        # Verify Vector active.
+        Write-Log ""
+        Write-Log "Verifying Vector status..." "Action"
+        $vectorCliRaw = Execute-ADBCommand "shell su -c /data/adb/modules/zygisk_vector/cli status" -get
+        $vectorCliOutput = ($vectorCliRaw -join "`n").Trim()
+
+        $modulesRaw = Execute-ADBCommand "shell su -c magisk --list-modules" -get
+        $modulesOutput = ($modulesRaw -join "`n").Trim()
+
+        if ($vectorCliOutput) {
+            Write-Log "Vector CLI output: ${cCyan}${vectorCliOutput}${cReset}" "Info"
+        }
+
+        if ($vectorCliOutput -match "(active|enabled|running|activated)" -or $modulesOutput -match "zygisk_vector") {
+            Write-Log "${cGreen}Vector (LSPosed) is active and running!${cReset}" "Success"
+        } else {
+            Write-Log "Vector status check output: $vectorCliOutput" "Warning"
+            Write-Log "${cYellow}Vector module installed. Please open LSPosed/Vector manager app on your device to verify status.${cReset}" "Info"
+        }
+
+    } catch {
+        $success = $false
+        if ($_.Exception.Message) {
+            Write-Log "$($_.Exception.Message)" "Error"
+        }
+    }
+
+    return $success
+}
+
 #########################################
 #########################################
 #########################################
@@ -723,6 +844,7 @@ function Show-RootMenu {
         Write-Log "[${cCyan}1${cReset}] Prepare Boot Image"
         Write-Log "[${cCyan}2${cReset}] Prepare Magisk"
         Write-Log "[${cCyan}3${cReset}] Root With Magisk"
+        Write-Log "[${cCyan}4${cReset}] Install LSPosed (Vector)"
         Write-Log ""
         Write-Log "[${cCyan}p${cReset}] Pull Image"
         Write-Log "[${cCyan}f${cReset}] Flash Image"
@@ -747,6 +869,9 @@ function Show-RootMenu {
                     Wait-Continue
                     Verify-RootState "root"
                 }
+            }
+            "4" {
+                Install-LSPosed
             }
             "p" {
                 Select-Firehose

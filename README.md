@@ -98,6 +98,17 @@ The tool includes an automated workflow to **Root** and **SELinux Permissive** t
 1. **Flash Patched Image**: Flashes `magisk_patched.img` via EDL mode.
 1. **Verify Root**: Checks and confirms superuser access via `adb` command.
 
+### Install LSPosed
+
+Automates installing **NyaZygisk** and **Vector (LSPosed framework)** onto the rooted headset:
+
+1. **Push NyaZygisk Module**: Pushes `NyaZygisk-v2.5-351-release.zip` to `/sdcard/Download`.
+2. **Install NyaZygisk**: Installs `NyaZygisk` module via `magisk --install-module`.
+3. **Install Vector Manager**: Extracts and installs `manager.apk` from `Vector-v2.2-3080-Release.zip` via ADB.
+4. **Push Vector Module**: Pushes `Vector-v2.2-3080-Release.zip` to `/sdcard/Download`.
+5. **Install Vector Module**: Installs `Vector` module via `magisk --install-module`.
+6. **Reboot & Verify**: Reboots the device into system and verifies Vector status.
+
 ### Root Tweak
 
 Recommend [Magisk](https://github.com/topjohnwu/magisk) modules and [Xposed Framework](https://github.com/JingMatrix/Vector) apps
@@ -243,6 +254,7 @@ This tool includes **Unroot** and **Lock Bootloader** options.
 * `tools/engineering`: Engineering ABL & Devinfo.
 * `tools/firehoses`: EDL firehose flashing protocol .
 * `tools/magisk`: Rooting the headset after unlocking.
+* `tools/vector`: NyaZygisk and Vector (LSPosed) framework zip archives.
 * `tools/rollback`: Tools to make flashable partitions from **firmware.zip**.
 * `logs`: Everything that is written on the console.
 * `backup`: Default headset backup which is `abl`, `partitions`, and `boot.img`.
@@ -254,6 +266,8 @@ This tool includes **Unroot** and **Lock Bootloader** options.
 * **[QFILHelper](https://github.com/Beliathal/QFILHelper)**: Guideline flashing manager.
 * **[edl-ng](https://github.com/strongtz/edl-ng)**: Modern Qualcomm Emergency Download (EDL) CLI tool.
 * **[magiskboot](https://github.com/Pranav-Talmale/magiskboot)**: Windows port of Magisk's boot image patching utility.
+* **[Vector](https://github.com/JingMatrix/Vector)**: Modern Xposed-compatible ART hooking framework (LSPosed implementation).
+* **[NeoZygisk](https://github.com/JingMatrix/NeoZygisk)**: Zygote injection framework for Android.
 * **[7zip](https://github.com/ip7z/7zip)**: Archive extraction utility.
 * **[brotli](https://github.com/google/brotli)**: Brotli compression and decompression binaries.
 * **[aosp15_partition_tools](https://github.com/Rprop/aosp15_partition_tools)**: Tools for building and manipulating `super.img` dynamic partitions.
