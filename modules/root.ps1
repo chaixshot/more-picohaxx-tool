@@ -267,8 +267,8 @@ SHA1=$sha1
     return $success
 }
 
-function IsDeviceRooted {
-    # Primary Check: check Magisk directly using su -c magisk -v / magisk -v
+function IsMagiskInstalled {
+    # Magisk directly using su -c magisk -v / magisk -v
     Write-Log "Checking Superuser access using '${cCyan}adb shell magisk -v${cReset}'..." "Action"
     $magiskVerRaw = Execute-ADBCommand "shell magisk -v" -get
     $magiskVer = ($magiskVerRaw -join "`n").Trim()
@@ -278,7 +278,12 @@ function IsDeviceRooted {
         return $true
     }
 
-    # Secondary Primary Check: check root uid via su -c id
+    Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Error"
+    return $false
+}
+
+function IsShellRootAccess {
+    # Primary Check: check root uid via su -c id
     Write-Log ""
     Write-Log "Checking Superuser access using '${cCyan}adb shell su -c id${cReset}'..." "Action"
     $suOutputRaw = Execute-ADBCommand "shell su -c id" -get
@@ -307,14 +312,13 @@ function IsDeviceRooted {
         return $true
     }
 
+    Write-Log "If ${cCyan}Magisk${cReset} prompts for ${cCyan}Superuser${cReset} access on the headset display, be sure to grant it. Or grant ${cCyan}[SharedUID] Shell${cReset} access from the ${cCyan}Magisk${cReset} app in the ${cCyan}Superuser${cReset} tab." "Error"
     return $false
 }
 
 function Verify-RootState([string]$state) {
-    $success = $true
     $isCheckRoot = (-not $state) -or ($state -match "^root")
     $actionName = if ($isCheckRoot) { "Verify Root Access" } else { "Verify Unroot State" }
-    $statusText = "UNKNOW"
 
     try {
         Write-Header $actionName
@@ -332,36 +336,20 @@ function Verify-RootState([string]$state) {
             throw ""
         }
 
-        $isRooted = IsDeviceRooted
-
-        if ($null -eq $isRooted) {
-            Write-Log "Please check your device screen for any Superuser authorization prompt." "Warning"
-            throw "Unable to automatically detect superuser state."
+        if (!IsMagiskInstalled) {
+            throw ""
         }
 
-        # Determine if actual device state matches desired state
-        $desiredState = if ($isCheckRoot) { $true } else { $false }
-        $success = ($isRooted -eq $desiredState)
-        $statusText = if ($isRooted) { "ROOTED" } else { "NOT ROOTED" }
+        if (!IsShellRootAccess) {
+            throw ""
+        }
+
+        Write-Log "Root status: ${cGreen}ROOTED${cReset}" "Success"
     } catch {
-        $success = $false
+        Write-Log "Root status: ${cRed}NOT ROOTED${cReset}." "Error"
+
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
-        }
-    }
-
-    if ($success) {
-        Write-Log ""
-        Write-Log "Root status confirmed: ${cGreen}$statusText${cReset}" "Success"
-    } else {
-        Write-Log ""
-        Write-Log "Device root state: ${cRed}$statusText${cReset}." "Error"
-        if ($isCheckRoot) {
-            Write-Log "Ensure Magisk is installed, ${cCyan}Prepare Magisk${cReset} and ${cCyan}Root With Magisk${cReset} was successfully flashed." "Info"
-            Write-Log "If Magisk prompts for Superuser access on the headset display, be sure to grant it. Or grant access from the Magisk app in the Superuser tab." "Interactive"
-        } else {
-            Write-Log "Root access or su binaries are still detected on the device." "Info"
-            Write-Log "Ensure the stock boot image has been properly flashed to restore unrooted state." "Interactive"
         }
     }
 
@@ -388,10 +376,9 @@ function Test-SuperuserAccess {
     }
 
     Write-Header "Test Superuser Access"
-    if (IsDeviceRooted) {
-        Write-Log "Superuser access is granted." "Success"
-    } else {
-        Write-Log "Superuser access is denied or device is not rooted." "Error"
+    if ((IsMagiskInstalled) -and (IsShellRootAccess)) {
+        Write-Log ""
+        Write-Log "${cCyan}Magisk${cReset} and ${cCyan}Superuser${cReset} access are granted." "Success"
     }
 }
 
@@ -714,8 +701,6 @@ function Perform-FlashImage([string]$fileName = "", [string]$partition = "") {
 }
 
 function Install-LSPosed {
-    $success = $true
-
     try {
         Write-Header "Install LSPosed (Vector)"
 
@@ -732,8 +717,12 @@ function Install-LSPosed {
             throw "Device is not connected in ADB mode."
         }
 
-        if (-not (IsDeviceRooted)) {
-            throw "Device must be rooted with Magisk before installing LSPosed/Vector."
+        if (-not (IsMagiskInstalled)) {
+            throw ""
+        }
+        
+        if (-not (IsShellRootAccess)) {
+            throw ""
         }
 
         # Install NyaZygisk
@@ -821,15 +810,11 @@ function Install-LSPosed {
             Write-Log "Vector status check output: $vectorCliOutput" "Warning"
             Write-Log "${cYellow}Vector module installed. Please open LSPosed/Vector manager app on your device to verify status.${cReset}" "Info"
         }
-
     } catch {
-        $success = $false
         if ($_.Exception.Message) {
             Write-Log "$($_.Exception.Message)" "Error"
         }
     }
-
-    return $success
 }
 
 #########################################
