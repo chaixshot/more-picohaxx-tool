@@ -12,7 +12,6 @@
 
 $Magisk = Join-Path $WorkingDir "tools\magisk\Magisk4Pico.apk"
 $MagiskBoot = Join-Path $WorkingDir "tools\magisk\magiskboot.exe"
-$temp = Join-Path $WorkingDir "tools\tmp"
 $ImageBackupPath = Join-Path $BackupPath "img"
 $NyaZygiskZip = Join-Path $WorkingDir "tools\vector\NyaZygisk-v2.5-351-release.zip"
 $VectorZip = Join-Path $WorkingDir "tools\vector\Vector-v2.2-3080-Release.zip"

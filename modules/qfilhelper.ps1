@@ -8,7 +8,7 @@
 #>
 
 # --- Local Variables ---
-$edlTMP = Join-Path $WorkingDir "tools\tmp"
+$temp = Join-Path $WorkingDir "tools\tmp"
 
 $galoLookUp = @(@(), @(), @(), @(), @(), @(), @())
 $gaLunsOnline = @()
@@ -213,8 +213,8 @@ function Get-AllocatedRanges($obPInfo) {
     $result = $null
 
     try {
-        if (-not (Test-Path $edlTMP)) {
-            New-Item -Path $edlTMP -ItemType Directory -Force | Out-Null
+        if (-not (Test-Path $temp)) {
+            New-Item -Path $temp -ItemType Directory -Force | Out-Null
         }
 
         $obSB = [PSCustomObject]@{
@@ -948,10 +948,10 @@ function LookUpNames($obPInfo) {
 
 function ValidateCQF {
     # Create/Clean tmp folder
-    if (-not (Test-Path $edlTMP)) {
-        New-Item -Path $edlTMP -ItemType Directory -Force | Out-Null
+    if (-not (Test-Path $temp)) {
+        New-Item -Path $temp -ItemType Directory -Force | Out-Null
     } else {
-        Remove-Item -Path "$edlTMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path "$temp\*" -Recurse -Force -ErrorAction SilentlyContinue
     }
     return $true
 }
@@ -1154,9 +1154,9 @@ function ProcessCompleted([bool]$isExec = $true) {
     Write-Log ""
 
     # Delete tmp folder
-    if (Test-Path -Path $edlTMP) {
-        Write-Log "Deleting '${cCyan}$( $edlTMP )${cReset}' folder..." "Action"
-        Remove-Item -Path $edlTMP -Recurse -Force -ErrorAction SilentlyContinue
+    if (Test-Path -Path $temp) {
+        Write-Log "Deleting '${cCyan}$( $temp )${cReset}' folder..." "Action"
+        Remove-Item -Path $temp -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     if ($geFailed -eq 1) {
@@ -1177,7 +1177,7 @@ function BuildFileName($obPInfo, [bool]$isTemp, [bool]$isFlash = $false, [string
     $sDir = if ($isFlash) {
         $flashPath
     } elseif ($isTemp) {
-        "$edlTMP\"
+        "$temp\"
     } else {
         $gsBackupDir
     }

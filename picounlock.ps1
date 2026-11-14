@@ -26,6 +26,8 @@
 # ----------------------------
 # --- Script Configuration ---
 # ----------------------------
+$temp = Join-Path $env:TEMP "more-picohaxx"
+
 $WorkingDir = $PSScriptRoot
 $LogsPath = Join-Path $WorkingDir "logs"
 $DriverInstall = Join-Path $WorkingDir "tools\driver\install.ps1"
