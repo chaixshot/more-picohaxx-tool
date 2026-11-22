@@ -336,11 +336,11 @@ function Verify-RootState([string]$state) {
             throw ""
         }
 
-        if (!IsMagiskInstalled) {
+        if (-not (IsMagiskInstalled)) {
             throw ""
         }
 
-        if (!IsShellRootAccess) {
+        if (-not (IsShellRootAccess)) {
             throw ""
         }
 
